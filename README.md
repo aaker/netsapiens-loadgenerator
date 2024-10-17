@@ -131,3 +131,7 @@ RANDOM
 * looks and simulates read user data. 
 ![alt text](images/image-2.png)
 ![alt text](images/image-3.png)
+* you can even get call center stats
+![alt text](images/image-4.png)
+![alt text](images/image-5.png)
+![alt text](images/image-6.png)
