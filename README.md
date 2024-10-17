@@ -18,16 +18,20 @@ Follow steps below to install and configure tool.
 ### Steps
 
 * Clone Git Project to /usr/local/NetSapiens/ folder
-    * mkdir -p /usr/local/NetSapiens/
-    * cd /usr/local/NetSapiens/
-    * git clone https://github.com/aaker/netsapiens-loadgenerator.git
-    * cd /usr/local/NetSapiens/netsapiens-loadgenerator
+    * >mkdir -p /usr/local/NetSapiens/
+    * > cd /usr/local/NetSapiens/
+    * >git clone https://github.com/aaker/netsapiens-loadgenerator.git
+    * >cd /usr/local/NetSapiens/netsapiens-loadgenerator
 * Install node packages. 
-    * cd /usr/local/NetSapiens/netsapiens-loadgenerator
-    * npm install 
+    * >cd /usr/local/NetSapiens/netsapiens-loadgenerator
+    * >npm install 
+* Link cron config file
+    * >ln -sf /usr/local/NetSapiens/netsapiens-loadgenerator/cron/start_sipp  /etc/cron.d/start_sipp
 * Setup Environment file with config. 
-    * cp .env.example .env
-    * use favorite editor to edit .env file.
+    * > cp .env.example .env
+    * generate new API key with super user scope. Can limit to ip. https://docs.ns-api.com/docs/api-keys
+    * use favorite editor to edit .env file. Set TARGET_SERVER and API_KEY 
+
 
 
 

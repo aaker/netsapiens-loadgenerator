@@ -44,7 +44,6 @@ sipp \
 	-watchdog_major_threshold 9200000 \
 	-t u1 \
     -inf /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/csv/random_caller_ids.csv \
-	-inf /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/csv/public_info.csv \
 	-recv_timeout 60000 \
 	-key media_ip $PUBLICIP \
 	-bg \
