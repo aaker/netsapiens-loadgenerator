@@ -10,6 +10,13 @@ This application is unsupported by netsapiens/crexendo and is designed for a sam
 ## Usage 
 You should run 1 server per target SiPbx servers. Can be run anywhere that can access SiPbx SIP enpoint and Api. Note there is network usage so beware of hidden costs there. 
 
+## Main User Generation logic
+* Application will create up MAX_DOMAIN number of domains using a random name generation tool. The randomness is controlled by the SEED variable in the .env so repeated running will return similar names. 
+* The tool is designed to create domains in random sizes, 1% of the domains will be > 1k users. 5% will be >100 and the remaining will be random between 30 and 80 users per domain. 
+* Each domain will be randomly assinged at leasst 1 phonenumber, but up to 10 depending on the size of the domain. The Area code will be random and the last 4 numbers will be random as well. The NXX will be 555 to avoid overlap with real numbers.
+* For each domain the tool will create N number of users with Random First & last name as well as putting the client in a Random site based on a random city name generated. Its 1 site per 30 users in the domain. 
+* Each User will get 1 
+
 ## Calling feautures Features
 * Regististration including full auth (udp, tcp and tls)
 * SIP SUBSCRIBE (MWI and Prsence)

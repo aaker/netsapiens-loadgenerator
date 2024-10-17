@@ -25,9 +25,14 @@ fi
 
 MAX_USERS=`cat $INPUTFILE | grep -v SEQUENTIAL | wc -l`
 
-PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com`
+PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com -4`
 
-sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+if [ "$IP_USE_PUBLIC" == "1" ]; then
+	sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+else 
+	sed -i -e "s/\[media_ip\]/\[local_ip\]/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+fi
+
 
 CALLRATE=`printf "%.2f\n" $(echo "scale=2;$PEAK_CPS/7" |bc)` # 7 scripts running at once assuming all TZ's in play. 
 DURATION=275 # 5 minutes minus some time for calls to complete

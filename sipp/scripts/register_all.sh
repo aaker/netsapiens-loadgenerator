@@ -31,8 +31,13 @@ else
 fi
 
 # get the public ip and push it into the sipp scripts for the media ip.
-PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com`
-sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uas_pcap_g711a.xml
+PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com -4`
+
+if [ "$IP_USE_PUBLIC" == "1" ]; then
+	sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uas_pcap_g711a.xml
+else 
+	sed -i -e "s/\[media_ip\]/\[local_ip\]/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uas_pcap_g711a.xml
+fi
 
 ulimit -n 65536
 echo "starting run... " > /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/error_register.log
