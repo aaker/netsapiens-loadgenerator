@@ -1,0 +1,12 @@
+
+deploy.sh
+
+node_modules/
+
+sipp/csv/devices/
+
+sipp/csv/phonenumbers/
+
+package-lock.json
+
+sipp/.DS_Store

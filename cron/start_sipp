@@ -1,0 +1,11 @@
+#this script is used to start the sipp load generator for registration. Running every min and starts a new sipp instance that should run for 1 hour. Will only start some of the registrations per min. 
+* * * * * root cd /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/ && /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register_all.sh
+#below schedules 5 min run times of the inbound script for each timezone for roughly a 8 hour day based on that timezone.
+0,5,10,15,20,25,30,35,40,45,50,55 18-23,0-3 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Hawaii"
+1,6,11,16,21,26,31,36,41,46,51,56 17-23,0-2 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Alaska"
+2,7,12,17,22,27,32,37,42,47,52,57 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Pacific"
+3,8,13,18,23,28,33,38,43,48,53,58 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Arizona"
+4,9,14,19,24,29,34,39,44,49,54,59 14-22 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Mountain"
+0,5,10,15,20,25,30,35,40,45,50,55 13-21 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Central"
+1,6,11,16,21,26,31,36,41,46,51,56 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern"
+

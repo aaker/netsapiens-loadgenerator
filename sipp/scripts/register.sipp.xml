@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!--				TEST SCENARIO				-->
+<!-- REGISTER a user to the SUT and then keep the binding active active -->
+<!-- by sending subsequent re-REGISTERs, before the existing binding 	-->
+<!-- expires. The loop runs forever until the test is stopped.		-->
+
+<scenario name="REGISTER">
+
+  <nop>
+  <action>
+    <assign assign_to="5" value="0" />
+  </action>
+  </nop>
+
+  <send retrans="1000" start_rtd="register">
+    <![CDATA[
+
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: [call_id]
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Expires: [expires]
+	User-Agent: "[field0 file="random_user_agents.csv"]"
+	Accept-Language: en
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- <recv response="100" optional="true" rtd="register" repeat_rtd="true">  </recv> -->
+
+  <recv response="407" auth="true" rtd="register">  </recv>
+
+  <label id="10">  </label>
+  <send retrans="1000" start_rtd="reregister">
+    <![CDATA[
+	
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: [call_id]
+  Contact: <sip:[field1]@[local_ip]:[local_port]>
+  Expires: [expires]
+	User-Agent: SIPp/Linux
+	Accept-Language: en
+	[field3]
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- <recv response="100" optional="true"> </recv> -->
+
+  <recv response="407" auth="true" optional="true" next="10">  </recv>
+
+  <recv response="200" rtd="reregister">
+  <action>
+        <ereg regexp="[0-9]+" search_in="hdr" header="Expires:" assign_to="1" />
+        <add assign_to="5" value="1"/>
+        <subtract assign_to="1" value="15"/>
+        <todouble assign_to="2" variable="1"/>
+        <multiply assign_to="2" value="1000"/>
+    </action>
+  </recv>
+
+  <nop>
+    <action>
+      <!-- we want about 1 hour of run time here, 45s rertegister minus some overhead time is about 78 regisrations an hour-->
+      <test assign_to="6" variable="5" compare="less_than" value="78.5" /> 
+    </action>
+  </nop>
+
+  <!-- pause for 45 seconds before sending the next re-REGISTER test against var 6 to see if done -->
+  <pause milliseconds="45000" test="6" next="10">  </pause> 
+
+  <ResponseTimeRepartition value="10, 20"/>
+  <CallLengthRepartition value="10"/>
+</scenario>

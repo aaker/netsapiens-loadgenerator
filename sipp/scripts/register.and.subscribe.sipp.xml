@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!--				TEST SCENARIO				-->
+<!-- REGISTER a user to the SUT and then keep the binding active active -->
+<!-- by sending subsequent re-REGISTERs, before the existing binding 	-->
+<!-- expires. The loop runs forever until the test is stopped.		-->
+
+<scenario name="REGISTER">
+
+  <nop>
+  <action>
+    <assign assign_to="5" value="0" />
+  </action>
+  </nop>
+
+  <send retrans="1500" start_rtd="register">
+    <![CDATA[
+
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: [call_id]
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Expires: [expires]
+	User-Agent: [field0 file="random_user_agents.csv"]
+	Accept-Language: en
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- <recv response="100" optional="true" rtd="register" repeat_rtd="true">  </recv> -->
+
+  <recv response="407" auth="true" rtd="register">  </recv>
+
+  <label id="10">  </label>
+  <send retrans="1500" start_rtd="reregister">
+    <![CDATA[
+	
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: [call_id]
+  Contact: <sip:[field1]@[local_ip]:[local_port]>
+  Expires: [expires]
+	User-Agent: [field0 file="random_user_agents.csv"]
+	Accept-Language: en
+	[field3]
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- <recv response="100" optional="true"> </recv> -->
+
+  <recv response="407" auth="true" optional="true" next="10">  </recv>
+
+  <recv response="200" rtd="reregister">
+  <action>
+        <ereg regexp="[0-9]+" search_in="hdr" header="Expires:" assign_to="1" />
+        <add assign_to="5" value="1"/>
+        <subtract assign_to="1" value="15"/>
+        <todouble assign_to="2" variable="1"/>
+        <multiply assign_to="2" value="1000"/>
+    </action>
+  </recv>
+  <nop>
+    <action>
+      <!-- assign 7 to true if first pass -->
+      <test assign_to="7" variable="5" compare="greater_than" value="1" />
+    </action>
+  </nop>
+  <pause milliseconds="100" test="7" next="after_subscribe" >  </pause> 
+
+  <label id="send_subscribe0"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SUBSCRIBE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag00[call_number]
+      To: <sip:1001@[field2]>
+      Call-ID: [call_id]
+      CSeq: 1 SUBSCRIBE
+      Contact: sip:[field1]@[local_ip]:[local_port]
+      Max-Forwards: 70
+      Accept: application/simple-message-summary
+      Event: message-summary
+      Expires: 3600
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true">
+  </recv>
+
+  <recv response="407" auth="true" optional="true" next="send_subscribe0">  </recv>
+                             
+  <recv  response="200" rtd="true">
+  </recv>
+
+  <recv  request="NOTIFY"></recv>
+
+  <send  >
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="send_subscribe1"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SUBSCRIBE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag00[call_number]
+      To: <sip:1001@[field2]>
+      Call-ID: [call_id]
+      CSeq: 1 SUBSCRIBE
+      Contact: sip:[field1]@[local_ip]:[local_port]
+      Max-Forwards: 70  
+      Event: presence
+      Expires: 3600
+      Accept: application/pidf+xml
+      Allow-Events: presence
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true">
+  </recv>
+
+  <recv response="407" auth="true" optional="true" next="send_subscribe1">  </recv>
+                             
+  <recv  response="200" rtd="true">
+  </recv>
+
+  <recv  request="NOTIFY"></recv>
+
+  <send  >
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="send_subscribe2"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SUBSCRIBE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag00[call_number]
+      To: <sip:1002@[field2]>
+      Call-ID: [call_id]
+      CSeq: 1 SUBSCRIBE
+      Contact: sip:[field1]@[local_ip]:[local_port]
+      Max-Forwards: 70  
+      Event: presence
+      Expires: 3600
+      Accept: application/pidf+xml
+      Allow-Events: presence
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" optional="true" next="send_subscribe2">  </recv>
+
+  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
+  <!-- are saved and used for following messages sent. Useful to test   -->
+  <!-- against stateful SIP proxies/B2BUAs.                             -->
+  <recv  response="200" rtd="true">
+  </recv>
+
+  <recv  request="NOTIFY"></recv>
+
+  <send  >
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="send_subscribe3"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SUBSCRIBE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag00[call_number]
+      To: <sip:1003@[field2]>
+      Call-ID: [call_id]
+      CSeq: 1 SUBSCRIBE
+      Contact: sip:[field1]@[local_ip]:[local_port]
+      Max-Forwards: 70  
+      Event: presence
+      Expires: 3600
+      Accept: application/pidf+xml
+      Allow-Events: presence
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" optional="true" next="send_subscribe3">  </recv>
+
+  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
+  <!-- are saved and used for following messages sent. Useful to test   -->
+  <!-- against stateful SIP proxies/B2BUAs.                             -->
+  <recv  response="200" rtd="true">
+  </recv>
+
+  <recv  request="NOTIFY"></recv>
+
+  <send  >
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="send_subscribe4"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SUBSCRIBE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag00[call_number]
+      To: <sip:1004@[field2]>
+      Call-ID: [call_id]
+      CSeq: 1 SUBSCRIBE
+      Contact: sip:[field1]@[local_ip]:[local_port]
+      Max-Forwards: 70  
+      Event: presence
+      Expires: 3600
+      Accept: application/pidf+xml
+      Allow-Events: presence
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" optional="true" next="send_subscribe4">  </recv>
+
+  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
+  <!-- are saved and used for following messages sent. Useful to test   -->
+  <!-- against stateful SIP proxies/B2BUAs.                             -->
+  <recv  response="200" rtd="true">
+  </recv>
+
+  <recv  request="NOTIFY"></recv>
+
+  <send  >
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="send_subscribe5"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SUBSCRIBE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag00[call_number]
+      To: <sip:1005@[field2]>
+      Call-ID: [call_id]
+      CSeq: 1 SUBSCRIBE
+      Contact: sip:[field1]@[local_ip]:[local_port]
+      Max-Forwards: 70  
+      Event: presence
+      Expires: 3600
+      Accept: application/pidf+xml
+      Allow-Events: presence
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" optional="true" next="send_subscribe5">  </recv>
+
+  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
+  <!-- are saved and used for following messages sent. Useful to test   -->
+  <!-- against stateful SIP proxies/B2BUAs.                             -->
+  <recv  response="200" rtd="true">
+  </recv>
+
+  <recv  request="NOTIFY"></recv>
+
+  <send  >
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  
+  <label id="after_subscribe"/>
+  <nop>
+    <action>
+      <test assign_to="6" variable="5" compare="less_than" value="60.5" />
+    </action>
+  </nop>
+
+  <pause milliseconds="58000" test="6" next="10">  </pause> 
+  <!-- <pause next="10">  </pause> -->
+
+  <ResponseTimeRepartition value="10, 20"/>
+  <CallLengthRepartition value="10"/>
+</scenario>

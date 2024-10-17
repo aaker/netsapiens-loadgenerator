@@ -1,0 +1,16 @@
+{
+    "name": "netsapiens-loadgenerator",
+    "version": "0.0.1",
+    "description": "A JavaScript library for working with the NetSapiens API",
+    "main": "server.js",
+    "author": "NetSapiens Inc.",
+    "license": "MIT",
+    "dependencies": {
+        "axios": "^1.7.7",
+        "dotenv": "^16.4.5",
+        "fakerator": "^0.3.6",
+        "fs": "^0.0.1-security",
+        "md5": "^2.3.0",
+        "seedrandom": "^3.0.5"
+    }
+}
