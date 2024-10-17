@@ -71,6 +71,21 @@ Follow steps below to install and configure tool.
      git stash; 
      git pull;
     ```
+### Example .env file
+
+```
+TARGET_SERVER="ns-api.com" # Target server for API and SIP requests
+RESELLER="NetSapiens" # Reseller name for API requests
+SEED=123456 # Seed for random number generator, prefer 6 digit numberic
+APIKEY="nss_xxxxx" # API Key for super user API KEY
+MAX_DOMAIN=10 # the number of random domains that will be generated
+PEAK_CPS=10 # Peak CPS for SIP traffic going to the target Server at peak time. can be small like .5 too.
+REGISTRATION_PCT=0.5 # Percentage of USER DEVICES that will be registered
+RECORDING_DIVISER=4 # 1/x the chance the user will have recording enabled. example 4 will be 25% recording enabled
+API_DEBUG=1 # 0=off, 1=on
+IP_USE_PUBLIC=1 # 0=off, 1=on Use public IP for SDP Ip address
+```
+
 
 
 ### Recommended SIPbx System Settings. 
