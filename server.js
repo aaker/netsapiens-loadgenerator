@@ -112,7 +112,8 @@ async function buildDomains() {
                 callqueue: 4000 + queue_index,
                 description: queueName,
                 "callqueue-agent-dispatch-timeout-seconds": 30,
-                "callqueue-dispatch-type": "round-robin"
+                "callqueue-dispatch-type": "round-robin",
+
             }
             let queueUser = {
                 domain: domain,
@@ -124,7 +125,7 @@ async function buildDomains() {
                 "user-scope": "No Portal",
                 "ring-no-answer-timeout-seconds": 120,
                 "callqueue-max-wait-timeout-minutes": 30, // the sipp should exit well before this, but prevents issues if sipp dies. 
-
+                "callqueue-calculate-statistics": "yes",
             }
 
             let phonenumberArgs = {
@@ -138,7 +139,7 @@ async function buildDomains() {
                 "time_zone": time_zone //just for scheudling calls. 
             }
 
-            await createQueue(queue_index, queueArgs);
+            await createQueue(queue_index, queueArgs, () => { }, updateQueue);
             await createUser(queueUser); // user for the queue
             createPhonenumber(phonenumberArgs);
 
@@ -242,6 +243,13 @@ async function createQueue(i, data) {
     const path = `domains/` + data.domain + '/callqueues';
     nsapi.apiCreateSync(path, data);
 }
+
+async function updateQueue(i, data) {
+    const path = `domains/` + data.domain + '/callqueues/'+ data.callqueue;
+    nsapi.apiUpdate(path, data);
+}
+
+
 
 async function createAgent(data) {
     await new Promise(resolve => setTimeout(resolve, 3000)); //wait 3 seconds before sending in this API calls to allow the Queue to properly get into memory.
