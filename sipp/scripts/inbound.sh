@@ -29,7 +29,7 @@ PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com`
 
 sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
 
-CALLRATE=`printf "%.1f\n" $(echo "scale=2;$PEAK_CPS/7" |bc)`
+CALLRATE=`printf "%.2f\n" $(echo "scale=2;$PEAK_CPS/7" |bc)` # 7 scripts running at once assuming all TZ's in play. 
 DURATION=275 # 5 minutes minus some time for calls to complete
 NUMCALLS=`printf "%.0f\n" $(echo "scale=2;$CALLRATE*$DURATION" |bc)`
 echo "Submitting $NUMCALLS calls to $SUT for $DURATION seconds at $CALLRATE cps using $INPUTFILE"
