@@ -18,8 +18,8 @@ const APIKEY = process.env.APIKEY //'';
 fakerator.seed(SEED);
 //random.seed = SEED;
 const TARGET_SERVER = process.env.TARGET_SERVER;
-const MAX_DOMAIN = process.env.MAX_DOMAIN || 1 ;
-const NDP_SERVERNAME = process.env.NDP_SERVERNAME ||  "core1" ;
+const MAX_DOMAIN = process.env.MAX_DOMAIN || 1;
+const NDP_SERVERNAME = process.env.NDP_SERVERNAME || "core1";
 const RESELLER = process.env.RESELLER || "NetSapiens";
 const RECORDING_DIVISER = process.env.RECORDING_DIVISER || 4;
 
@@ -41,7 +41,7 @@ async function buildDomains() {
     let domains_list = [];
     for (var i = 0; i < MAX_DOMAIN; i++) { //Preload the domains list to get conistent results.
         domains_list.push(fakerator.company.name());
-    }    
+    }
 
     for (var i = 0; i < domains_list.length; i++) {
         var description = domains_list[i];
@@ -49,19 +49,19 @@ async function buildDomains() {
         domain = domain.replace(/-/g, '_').replace(/__/g, '_');
 
         const domainSize = utils.getDomainSize(domain);
-        
-        var area_random = seedrandom(domain+"area_code")();
-        var last_four_random = seedrandom(domain+"last_four")();
+
+        var area_random = seedrandom(domain + "area_code")();
+        var last_four_random = seedrandom(domain + "last_four")();
         const area_code = Math.floor(area_random * (900 - 200) + 200);
         const last_four = Math.floor(last_four_random * (9990 - 1000) + 1000);
         const number = area_code + "555" + (last_four + i);
         const time_zone = randomdata.timeZones[i % randomdata.timeZones.length];
-        
+
         let sites = [];
         for (var s = 0; s <= Math.floor(domainSize / 30); s++) sites.push(fakerator.address.city());
-        
-        console.log( "["+i+"]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
-        await createDomain( { description, domain, domainSize, area_code, number, time_zone });
+
+        console.log("[" + i + "]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
+        await createDomain({ description, domain, domainSize, area_code, number, time_zone });
         //Domain should be created by now. 
 
         for (let u = 0; u < domainSize; u++) {
@@ -75,30 +75,30 @@ async function buildDomains() {
                 "user-scope": u == 0 ? "Office Manager" : "Basic User",
                 site: sites[u % sites.length],
             }
-            
+
             let deviceArgs = {
                 domain: domain,
                 user: 1000 + u,
                 device: 1000 + u,
                 displayName: userArgs["name-first-name"] + " " + userArgs["name-last-name"],
-                'device-sip-registration-password': md5(1000 + u+"@"+domain).substring(0, 12), //pysdo random password here. 
+                'device-sip-registration-password': md5(1000 + u + "@" + domain).substring(0, 12), //pysdo random password here. 
             }
             if (u % RECORDING_DIVISER == 0) { // 25% of users will use call recording. 
                 userArgs['recording-configuration'] = "yes";
             }
             let macArgs = {
                 domain: domain,
-                device1: "sip:"+(1000 + u)+"@"+domain,
-                'device-provisioning-mac-address': md5("mac"+1000 + u+"@"+domain).replace(/[^0-9a-fA-F]/g, '').substring(0, 12),
+                device1: "sip:" + (1000 + u) + "@" + domain,
+                'device-provisioning-mac-address': md5("mac" + 1000 + u + "@" + domain).replace(/[^0-9a-fA-F]/g, '').substring(0, 12),
                 'model': randomdata.phoneModels[u % randomdata.phoneModels.length],
-                'server': NDP_SERVERNAME,  
+                'server': NDP_SERVERNAME,
             }
 
             await createUser(userArgs);
             createDevice(deviceArgs); // Not waiting for this to complete
 
             if (u % 10 < 5) { // 50% of users will have a phone 
-                createMac(macArgs); 
+                createMac(macArgs);
             }
 
         }
@@ -142,7 +142,7 @@ async function buildDomains() {
             await createUser(queueUser); // user for the queue
             createPhonenumber(phonenumberArgs);
 
-            for (var a = 0; a < Math.floor(domainSize * .1)+3; a++) {   // 10% of domain users will be in each queue
+            for (var a = 0; a < Math.floor(domainSize * .1) + 3; a++) {   // 10% of domain users will be in each queue
                 //get random user between 0 and domainSize
                 const random_agent_index = utils.randomIntFromInterval(0, domainSize);
 
@@ -155,7 +155,7 @@ async function buildDomains() {
 
                 createAgent(JSON.parse(JSON.stringify(agentArgs))); // Not waiting for this to complete
             }
-            
+
 
 
 
@@ -178,7 +178,7 @@ buildDomains();
 
 
 
-async function createDomain( args) {
+async function createDomain(args) {
     //Add some default values to the data object to make sure we have all the required fields.
     const data = {
         synchronous: 'yes',
@@ -196,7 +196,7 @@ async function createDomain( args) {
         'domain-type': 'Standard',
         'dial-policy': 'US and Canada',
     }
-    path = `domains`;
+    const path = `domains`;
     nsapi.apiCreateSync(path, data);
 
 }
@@ -204,12 +204,12 @@ async function createDomain( args) {
 async function createUser(data) {
     data.synchronous = 'yes';
     const path = `domains/` + data.domain + '/users';
-    nsapi.apiCreateSync(path, data, ()=>{}, updateUser);
+    nsapi.apiCreateSync(path, data, () => { }, updateUser);
 }
 
 async function createDevice(data) {
     const path = `domains/` + data.domain + '/users/' + data.user + '/devices';
-    nsapi.apiCreate(path, data,utils.addToCsv, updateDevice);
+    nsapi.apiCreate(path, data, utils.addToCsv, updateDevice);
 }
 
 async function createMac(data) {
@@ -229,7 +229,7 @@ async function updateDevice(data) {
 
 async function createPhonenumber(data) {
     const path = `domains/` + data.domain + '/phonenumbers';
-    nsapi.apiCreate(path, data, utils.addToCsvNumber , updatePhonenumber );
+    nsapi.apiCreate(path, data, utils.addToCsvNumber, updatePhonenumber);
 }
 
 async function updatePhonenumber(data) {
@@ -240,14 +240,14 @@ async function updatePhonenumber(data) {
 
 async function createQueue(i, data) {
     data.synchronous = 'yes';
-    const path  = `domains/` + data.domain + '/callqueues';
-    nsapi.apiCreateSync(path, data );
+    const path = `domains/` + data.domain + '/callqueues';
+    nsapi.apiCreateSync(path, data);
 }
 
 async function createAgent(data) {
     await new Promise(resolve => setTimeout(resolve, 3000)); //wait 3 seconds before sending in this API calls to allow the Queue to properly get into memory.
     const path = `domains/` + data.domain + '/callqueues/' + data.callqueue + '/agents';
-    nsapi.apiCreate(path, data );
+    nsapi.apiCreate(path, data);
 }
 
 

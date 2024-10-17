@@ -19,8 +19,15 @@ Follow steps below to install and configure tool.
 
 * Clone Git Project to /usr/local/NetSapiens/ folder
     * mkdir -p /usr/local/NetSapiens/
-    * git cl
-
+    * cd /usr/local/NetSapiens/
+    * git clone https://github.com/aaker/netsapiens-loadgenerator.git
+    * cd /usr/local/NetSapiens/netsapiens-loadgenerator
+* Install node packages. 
+    * cd /usr/local/NetSapiens/netsapiens-loadgenerator
+    * npm install 
+* Setup Environment file with config. 
+    * cp .env.example .env
+    * use favorite editor to edit .env file.
 
 
 
