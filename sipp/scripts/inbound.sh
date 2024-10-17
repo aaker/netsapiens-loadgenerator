@@ -26,11 +26,12 @@ fi
 MAX_USERS=`cat $INPUTFILE | grep -v SEQUENTIAL | wc -l`
 
 PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com -4`
+PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 
 if [ "$IP_USE_PUBLIC" == "1" ]; then
 	sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
 else 
-	sed -i -e "s/\[media_ip\]/\[local_ip\]/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+	sed -i -e "s/\[media_ip\]/$PRIVATEIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
 fi
 
 
