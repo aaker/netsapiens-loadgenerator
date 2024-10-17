@@ -6,19 +6,26 @@ This set of tools is designed to help generatate a batch of domains with users, 
 ## Usage 
 You should run 1 server per target SiPbx servers. Can be run anywhere that can access SiPbx SIP enpoint and Api. Note there is network usage so beware of hidden costs there. 
 
+## Calling feautures Features
+* Regististration including full auth (udp, tcp and tls)
+* SIP SUBSCRIBE (MWI and Prsence)
+* Agents in Callqueues capable of taking calls. 
+* Inbound calls dispatched to call queues and agent.
+
 ### Installation
 
 Follow steps below to install and configure tool. 
 
 ### Prerequistes
 * Ubuntu 22 or 24
+* x86_64 or Arm
 * Packages
-    * apt install git dnsutils cron rsync nodejs npm memcached vim sip-tester iputils-ping 2to3 python-is-python3
+    * > apt install git dnsutils cron rsync nodejs npm memcached vim sip-tester iputils-ping 2to3 python-is-python3
 
 ### Steps
 
 * Clone Git Project to /usr/local/NetSapiens/ folder
-    * >mkdir -p /usr/local/NetSapiens/
+    * > mkdir -p /usr/local/NetSapiens/
     * > cd /usr/local/NetSapiens/
     * >git clone https://github.com/aaker/netsapiens-loadgenerator.git
     * >cd /usr/local/NetSapiens/netsapiens-loadgenerator
@@ -31,8 +38,8 @@ Follow steps below to install and configure tool.
     * > cp .env.example .env
     * generate new API key with super user scope. Can limit to ip. https://docs.ns-api.com/docs/api-keys
     * use favorite editor to edit .env file. Set TARGET_SERVER and API_KEY 
-
-
+* Start app building user and sipp scripts. 
+    * > node server.js
 
 
 ### Recommended SIPbx System Settings. 
@@ -41,6 +48,27 @@ SipTransportRecovery = no    #prevents old data from hitting new sipp script une
 
 ### Connection setting
 natwan = sdp #set on connection accpeting traffic from sipp. allows us to use "echo" function to test audio.
+
+### Example run
+```
+root@core1-phx:/usr/local/NetSapiens/netsapiens-loadgenerator# node server.js 
+[0]Creating domain o_conner_kuhic_inc with 29 users in US/Pacific timezone and area code 682 and main number 6825556045
+[1]Creating domain oberbrunner_llc with 27 users in US/Mountain timezone and area code 213 and main number 2135555576
+[2]Creating domain bogisich_group with 30 users in US/Central timezone and area code 576 and main number 5765557408
+[3]Creating domain o_keefe_casper_llc with 42 users in US/Eastern timezone and area code 639 and main number 6395559513
+[4]Creating domain bailey_jerde_and_jacobs_inc with 49 users in US/Alaska timezone and area code 492 and main number 4925555632
+
+root@core1-phx:/usr/local/NetSapiens/netsapiens-loadgenerator# head -n4 sipp/csv/devices/oberbrunner_llc.csv 
+SEQUENTIAL
+Dan Ankunding;1001;oberbrunner_llc;[authentication username=1001 password=74d9be7f523f]
+Edmund Kreiger;1000;oberbrunner_llc;[authentication username=1000 password=894abc3c87b9]
+Hugo Koelpin;1007;oberbrunner_llc;[authentication username=1007 password=8912ccd20f76]
+root@core1-phx:/usr/local/NetSapiens/netsapiens-loadgenerator# head -n4 sipp/csv/phonenumbers/US_Mountain.csv 
+RANDOM
+12135555576;oberbrunner_llc;DID for Design
+12135555577;oberbrunner_llc;DID for Development
+12135555575;oberbrunner_llc;DID for Engineering
+```
 
 ### Example in use. 
 
