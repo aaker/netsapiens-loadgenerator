@@ -5,7 +5,7 @@ This set of tools is designed to help generatate a batch of domains with users, 
 
 ## Disclaimer
 
-This application is unsupported by netsapiens/crexendo and is designed for a sample application, test tool and learning use case. Any support or advancement would be a community effort only with no warranties or SLAs. These are also real calls that will be tracked against any license or session limits. 
+This application is unsupported by netsapiens/crexendo and is designed for a sample application, test tool and learning use case. Any support or advancement would be a community effort only with no warranties or SLAs provided by the original contributor or netsapiens. These are also real calls that will be tracked against any license or session limits. 
 
 ## Usage 
 You should run 1 server per target SiPbx servers. Can be run anywhere that can access SiPbx SIP enpoint and Api. Note there is network usage so beware of hidden costs there if using a provider charging for network.
@@ -15,16 +15,18 @@ You should run 1 server per target SiPbx servers. Can be run anywhere that can a
 * The tool is designed to create domains in random sizes, 1% of the domains will be > 1k users. 5% will be >100 and the remaining will be random between 30 and 80 users per domain. 
 * Each domain will be randomly assinged at leasst 1 phonenumber, but up to 10 depending on the size of the domain. The Area code will be random and the last 4 numbers will be random as well. The NXX will be 555 to avoid overlap with real numbers.
 * For each domain the tool will create N number of users with Random First & last name as well as putting the client in a Random site based on a random city name generated. Its 1 site per 30 users in the domain. 
+* Extensions will start with 1000 and go up from there incrementing by 1. 1000 will get office manager, 1001 Call Center Supervisor Scope and the rest basic user scope. 
 * Each User will get 1 device with a random secure password and 50% of those users will also get a MAC address addedd to the ndp. 
 * The application will create a recording record for every X number of users. Configurable via RECORDING_DIVISER in .env. Example 4 woudl be 25% of the calls would get recorded. 
-* Each domain will get at least 1 callqueue, but app will generate up to 8, 1 per every 10 users. 
+* Each domain will get at least 1 callqueue, but app will generate up to 8, 1 per every 10 users. Queue extensions will start with 4000 and go up from there. 
 * Every queue will get agents added, at the rate of 10% of the users in the domain or a min of 4 per queue. The agents are selected at random. 
 
 ## Calling feautures Features
-* Regististration including full auth (udp, tcp and tls). TLS still in progress. 
+* Regististration including full auth (udp, tcp and tls). NOTE: TLS still in progress and will require addition sipp steps. 
 * SIP SUBSCRIBE (MWI and Prsence) total of 5 per registration on average. 
 * Agents in Callqueues capable of taking calls. 
 * Inbound calls dispatched to call queues and agent through normal inbound connection, DID table, etc.. flow
+* calling patterns mimic a 8 hour day acorss multiple time zones in the US.
 
 ### Installation
 
