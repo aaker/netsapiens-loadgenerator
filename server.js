@@ -233,7 +233,6 @@ async function createPhonenumber(data) {
 }
 
 async function updatePhonenumber(data) {
-    console.log(data);
     const path = `domains/` + data.domain + '/phonenumbers/' + data.phonenumber;
     nsapi.apiUpdate(path, data);
 }
