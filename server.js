@@ -72,7 +72,7 @@ async function buildDomains() {
                 "name-first-name": fakerator.names.firstName(),
                 "name-last-name": fakerator.names.lastName(),
                 "email-address": 1000 + u + "@" + domain + ".com",
-                "user-scope": u == 0 ? "Office Manager" : "Basic User",
+                "user-scope": u == 0 ? "Office Manager" : u == 1 ? "Call Center Supervisor": "Basic User",
                 site: sites[u % sites.length],
             }
 
