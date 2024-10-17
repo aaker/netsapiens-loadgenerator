@@ -89,12 +89,12 @@ IP_USE_PUBLIC=1 # 0=off, 1=on Use public IP for SDP Ip address
 
 
 ### Recommended SIPbx System Settings. 
-RTPRelayPrimeWithAudio = yes  #allows us to use "echo" function to test audio.
-SipTransportRecovery = no    #prevents old data from hitting new sipp script unexpectidly. 
+* RTPRelayPrimeWithAudio = yes  #allows us to use "echo" function to test audio.
+* SipTransportRecovery = no    #prevents old data from hitting new sipp script unexpectidly. 
 
 ### Connection setting
 Create a connection to match on "inbound-carrier" and lock to IP if needed. Send calls to "Inbound DID" or your normal inbound dial plan. 
-natwan = sdp #set on connection accpeting traffic from sipp. allows us to use "echo" function to test audio.
+* natwan = sdp #set on connection accpeting traffic from sipp. allows us to use "echo" function to test audio.
 
 ### Example run
 ```
@@ -110,6 +110,7 @@ SEQUENTIAL
 Dan Ankunding;1001;oberbrunner_llc;[authentication username=1001 password=74d9be7f523f]
 Edmund Kreiger;1000;oberbrunner_llc;[authentication username=1000 password=894abc3c87b9]
 Hugo Koelpin;1007;oberbrunner_llc;[authentication username=1007 password=8912ccd20f76]
+
 root@core1-phx:/usr/local/NetSapiens/netsapiens-loadgenerator# head -n4 sipp/csv/phonenumbers/US_Mountain.csv 
 RANDOM
 12135555576;oberbrunner_llc;DID for Design
