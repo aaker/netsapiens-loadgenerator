@@ -213,7 +213,7 @@ async function createDevice(data) {
 }
 
 async function createMac(data) {
-    path = `domains/` + data.domain + '/phones';
+    const path = `domains/` + data.domain + '/phones';
     nsapi.apiCreate(path, data);
 }
 
