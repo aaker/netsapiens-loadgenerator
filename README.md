@@ -135,3 +135,15 @@ RANDOM
 ![alt text](images/image-4.png)
 ![alt text](images/image-5.png)
 ![alt text](images/image-6.png)
+
+### Feature wish list
+* additional call flows
+  * extension to extension
+  * call to voicemail
+  * conference bridges
+* api usage
+  * read users
+  * read reports
+  * log in and log out agents
+* connect nsnode socket
+    
