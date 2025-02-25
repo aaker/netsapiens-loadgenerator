@@ -1,0 +1,30 @@
+services:
+  netsapiens-loadgenerator:
+    container_name: netsapiens-loadgenerator
+    image: netsapiens-loadgenerator
+    env_file: .env
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    # ports:
+    #   - "5060:5060/udp"
+    #   - "5060:5060/tcp"
+    #   - "6060:6060/udp"
+    #   - "6060:6060/tcp"
+    #   - "20000:20000/udp"
+    #   - "20000:20000/tcp"
+    #   - "10000:10000/udp"
+    #   - "10000:10000/tcp"
+    #   - "8060:8060/udp"
+    #   - "8060:8060/tcp"
+    #   - "30004:30004/udp"
+    #   - "30004:30004/tcp"
+    #   - "12004:12004/udp"
+    #   - "12004:12004/tcp"
+    network_mode: "host"
+    build: .
+    volumes:
+      - ./sipp/csv:/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/csv/
+volumes:
+  db:
+    driver: local

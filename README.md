@@ -64,6 +64,11 @@ Follow steps below to install and configure tool.
     ```
     * generate new API key with super user scope. Can limit to ip. https://docs.ns-api.com/docs/api-keys
     * use favorite editor to edit .env file. Set TARGET_SERVER and API_KEY 
+    * setup cert and key for tls.
+    ```
+    mkdir -p /usr/local/NetSapiens/netsapiens-loadgenerator/certs
+    openssl req -x509 -newkey rsa:4096 -keyout /usr/local/NetSapiens/netsapiens-loadgenerator/certs/key.pem -out /usr/local/NetSapiens/netsapiens-loadgenerator/certs/cert.pem -days 4096 -nodes -subj "/CN=localhost"
+    ```
 * Start app building user and sipp scripts. 
      node server.js
 
@@ -118,6 +123,12 @@ RANDOM
 12135555576;oberbrunner_llc;DID for Design
 12135555577;oberbrunner_llc;DID for Development
 12135555575;oberbrunner_llc;DID for Engineering
+```
+
+### Example run in Docker
+```
+docker-compose build
+docker-compose run -d
 ```
 
 ### Example in use. 
