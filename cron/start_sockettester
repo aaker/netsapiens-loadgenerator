@@ -1,4 +1,4 @@
-0 10 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js 
-0 11 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js
-0 12 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js
-0 13 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js
+0 10 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
+0 11 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
+0 12 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
+0 13 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &

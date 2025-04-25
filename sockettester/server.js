@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 import 'dotenv/config'
-
+process.title = "sockettester";
 
 const hostname = process.env.HOSTNAME ;
 const URL = process.env.URL || `https://${hostname}:8001`;
@@ -24,8 +24,8 @@ console.log(`URL: ${URL}`);
 
 let runtime = process.env.RUNTIME || 8 * 60 * 60 * 1000; // 8 hours
 setTimeout(() => {
-    console.log("Exiting after elasped runetime");
-    
+    console.log("Exiting after elasped runtime");
+
     process.exit(0);
 },runtime ); // 8 hours then exit
 
