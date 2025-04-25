@@ -158,5 +158,5 @@ Simple php script to trigger sipp scripts via web requests. Used in automation t
   * read users
   * read reports
   * log in and log out agents
-* connect nsnode socket
+* ~~connect nsnode socket~~ (available now ith /sockettester app 
     
