@@ -1,0 +1,4 @@
+0 10 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js 
+0 11 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js
+0 12 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js
+0 13 * * * root node /usr/local/NetSapiens/netsapiens-loadgenerator/sokcettester/server.js
