@@ -2,7 +2,12 @@
 
 source /usr/local/NetSapiens/netsapiens-loadgenerator/.env
 
-SUT=$TARGET_SERVER
+if [ -n "$SAS_SERVER=" ]; then
+	SUT=$SAS_SERVER
+else
+	SUT=$TARGET_SERVER
+fi
+
 
 
 INPUTFILE="/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/csv/phonenumbers/${1}.csv" 

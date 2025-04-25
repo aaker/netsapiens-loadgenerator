@@ -44,5 +44,6 @@ sipp \
 	-watchdog_minor_threshold 920000 \
 	-watchdog_major_threshold 9200000 \
 	-aa -default_behaviors -abortunexp \
+	-mp $MEDIA_PORT \
 	-bg -trace_err -error_file error_$LOG_FILE.log
-	#-mp $MEDIA_PORT \
+	

@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<scenario name="REGISTER">
+  <nop>
+  <action>
+    <assign assign_to="5" value="0" />
+  </action>
+  </nop>
+
+  <send retrans="1000" >
+    <![CDATA[
+
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: [call_id]
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Expires: [expires]
+	User-Agent: "[field0 file="random_user_agents.csv"]"
+	Accept-Language: en
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- <recv response="100" optional="true" rtd="register" repeat_rtd="true">  </recv> -->
+
+  <recv response="407" auth="true">  </recv>
+
+  <label id="10">  </label>
+  <send retrans="1000" >
+    <![CDATA[
+	
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: [call_id]
+  Contact: <sip:[field1]@[local_ip]:[local_port]>
+  Expires: [expires]
+	User-Agent: SIPp/Linux
+	Accept-Language: en
+	[field3]
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- <recv response="100" optional="true"> </recv> -->
+
+  <recv response="407" auth="true" optional="true" next="10">  </recv>
+
+  <recv response="200" >
+  <action>
+        <ereg regexp="[0-9]+" search_in="hdr" header="Expires:" assign_to="1" />
+        <add assign_to="5" value="1"/>
+        <subtract assign_to="1" value="15"/>
+        <todouble assign_to="2" variable="1"/>
+        <multiply assign_to="2" value="1000"/>
+    </action>
+  </recv>
+
+  <pause milliseconds="200"  >  </pause> 
+
+  <send retrans="500">
+    <![CDATA[
+
+  INVITE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+  Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+  From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
+  To: <sip:[service]@[remote_ip]:[remote_port]>
+  Call-ID: [call_id]
+  CSeq: 1 INVITE
+  Contact: sip:[field1]@[local_ip]:[local_port]
+  Max-Forwards: 70
+  Content-Type: application/sdp
+  Content-Length: [len]
+
+  v=0
+  o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+  s=-
+  c=IN IP[local_ip_type] [media_ip]
+  t=0 0
+  m=audio [media_port] RTP/AVP 8 0
+  a=rtpmap:8 PCMA/8000
+  a=rtpmap:101 telephone-event/8000
+  a=fmtp:101 0-11,16
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" >  </recv>
+  <send>
+  <![CDATA[
+
+  ACK sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+  [last_Via:]
+  [last_From:]
+  [last_To:]
+  Call-ID: [call_id]
+  CSeq: 1 ACK
+  Contact: sip:[field1]@[local_ip]:[local_port]
+  Max-Forwards: 70
+  Content-Length: 0
+
+  ]]>
+  </send>
+  <send >
+    <![CDATA[
+
+  INVITE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+  Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+  From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
+  To: <sip:[service]@[remote_ip]:[remote_port]>
+  Call-ID: [call_id]
+  CSeq: 1 INVITE
+  Contact: sip:[field1]@[local_ip]:[local_port]
+  [field3]
+  Max-Forwards: 70
+  Content-Type: application/sdp
+  Content-Length: [len]
+
+  v=0
+  o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+  s=-
+  c=IN IP[local_ip_type] [media_ip]
+  t=0 0
+  m=audio [media_port] RTP/AVP 8 0
+  a=rtpmap:8 PCMA/8000
+  a=rtpmap:101 telephone-event/8000
+  a=fmtp:101 0-11,16
+
+    ]]>
+  </send>
+
+
+  <recv response="100" optional="true">
+  </recv>
+
+  <recv response="180" optional="true">
+  </recv>
+
+  <recv response="183" optional="true">
+  </recv>
+
+  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
+  <!-- are saved and used for following messages sent. Useful to test   -->
+  <!-- against stateful SIP proxies/B2BUAs.                             -->
+  <recv response="200" rtd="true" crlf="true">
+  </recv>
+
+  <!-- Packet lost can be simulated in any send/recv message by         -->
+  <!-- by adding the 'lost = "10"'. Value can be [1-100] percent.       -->
+  <send>
+    <![CDATA[
+
+      ACK sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+      To: <sip:[service]@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 1 ACK
+      Contact: sip:[field1]@[local_ip]:[local_port]
+      Max-Forwards: 70
+      Subject: Manual Test Call
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Play a pre-recorded PCAP file (RTP stream)                       -->
+  <nop>
+    <action>
+      <exec rtp_stream="/usr/local/NetSapiens/netsapiens-loadgenerator/sipp-api/../sipp/scripts/2024-conversation-02-side-b.wav,1,0" />
+    </action>
+  </nop>
+
+   <recv request="INVITE" timeout="20000" ontimeout="send_bye"  rtd="true" crlf="true" next="accept_reinvite">
+  </recv>
+  	
+
+  <label id="accept_reinvite"/>
+  <send retrans="500" next="handle_ack">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 87308505 2 IN IP[local_ip_type] [local_ip]
+      s=-
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      c=IN IP[media_ip_type] [media_ip]
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+      a=ptime:20
+    ]]>
+  </send>
+  <label id="handle_ack"/>	
+  <recv  request="ACK" rtd="true" crlf="true" next="playpcap"/>
+
+<label id="playpcap"/>
+<!-- <nop next="pause_talking">
+    <action>
+      <exec play_pcap_audio="g711a.pcap"/>
+    </action>
+  </nop> -->
+
+<label id="pause_talking"/>
+<pause  next="send_bye"/> 
+
+
+<label id="send_bye"/>
+  <send retrans="500" next="reply_bye_200" >
+    <![CDATA[
+
+      BYE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+      To: <sip:[service]@[remote_ip]:[remote_port]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 2 BYE
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="reply_bye_200"/>
+  <recv response="200" crlf="true">
+  </recv>
+
+
+
+  <ResponseTimeRepartition value="10, 20"/>
+  <CallLengthRepartition value="10"/>
+</scenario>
