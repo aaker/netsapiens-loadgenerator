@@ -63,7 +63,9 @@ async function buildDomains() {
         console.log("[" + i + "]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
         await createDomain({ description, domain, domainSize, area_code, number, time_zone });
         //Domain should be created by now. 
+        createNdpUiConfig({domain})
 
+        
         for (let u = 0; u < domainSize; u++) {
 
             let userArgs = {
@@ -143,17 +145,21 @@ async function buildDomains() {
             await createUser(queueUser); // user for the queue
             createPhonenumber(phonenumberArgs);
 
+            if (domainSize > 100) await new Promise(resolve => setTimeout(resolve, 1000)); //wait 1s between queues for the agents to get into memory without errors.
+
             for (var a = 0; a < Math.floor(domainSize * .1) + 3; a++) {   // 10% of domain users will be in each queue
                 //get random user between 0 and domainSize
                 const random_agent_index = utils.randomIntFromInterval(0, domainSize);
 
+                if (a % 10 == 9 ) //sleep every 10 agents to allow the queue to get into memory.
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 let agentArgs = {
                     domain: domain,
                     "callqueue-agent-id": (1000 + random_agent_index) + "@" + domain,
                     callqueue: 4000 + queue_index,
                     "callqueue-agent-priority": random_agent_index > domain / 2 ? "1" : "2"  // ~50% of agents will have priority 1
                 }
-
+                 
                 createAgent(JSON.parse(JSON.stringify(agentArgs))); // Not waiting for this to complete
             }
 
@@ -197,15 +203,38 @@ async function createDomain(args) {
         'domain-type': 'Standard',
         'dial-policy': 'US and Canada',
     }
+
     const path = `domains`;
-    nsapi.apiCreateSync(path, data);
+    await nsapi.apiCreateSync(path, data);
+    await new Promise(resolve => setTimeout(resolve, 200)); 
 
 }
+
+async function createNdpUiConfig(args) {
+    const path = `configurations` ;
+    const data = {
+        "reseller": "*",
+        "user": "*",
+        "user-scope": "*",
+        "core-server": "*",
+        "config-name": "PORTAL_DEVICE_NDP_SERVER",
+        "config-value": NDP_SERVERNAME,
+        "domain": args.domain
+    }
+    nsapi.apiCreate(path, data, () => { }, updateNdpUiConfig);
+}
+
+async function updateNdpUiConfig(data) {
+    const path = `configurations` ;
+    nsapi.apiUpdate(path, data);
+}
+
+
 
 async function createUser(data) {
     data.synchronous = 'yes';
     const path = `domains/` + data.domain + '/users';
-    nsapi.apiCreateSync(path, data, () => { }, updateUser);
+    await nsapi.apiCreateSync(path, data, () => { }, updateUser);
 }
 
 async function createDevice(data) {
@@ -241,10 +270,10 @@ async function updatePhonenumber(data) {
 async function createQueue(i, data) {
     data.synchronous = 'yes';
     const path = `domains/` + data.domain + '/callqueues';
-    nsapi.apiCreateSync(path, data);
+    await nsapi.apiCreateSync(path, data);
 }
 
-async function updateQueue(i, data) {
+function updateQueue(i, data) {
     const path = `domains/` + data.domain + '/callqueues/'+ data.callqueue;
     nsapi.apiUpdate(path, data);
 }
@@ -254,7 +283,7 @@ async function updateQueue(i, data) {
 async function createAgent(data) {
     await new Promise(resolve => setTimeout(resolve, 3000)); //wait 3 seconds before sending in this API calls to allow the Queue to properly get into memory.
     const path = `domains/` + data.domain + '/callqueues/' + data.callqueue + '/agents';
-    nsapi.apiCreate(path, data);
+    await nsapi.apiCreateSync(path, data);
 }
 
 
