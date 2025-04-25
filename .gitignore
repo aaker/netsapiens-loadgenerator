@@ -10,3 +10,5 @@ sipp/csv/phonenumbers/
 package-lock.json
 
 sipp/.DS_Store
+
+sockettester/.env
