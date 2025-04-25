@@ -1,0 +1,13 @@
+{
+    "name": "netsapiens-sockettester",
+    "version": "0.0.1",
+    "description": "",
+    "main": "server.js",
+    "author": "NetSapiens Inc.",
+    "license": "MIT",
+    "type": "module",
+    "dependencies": {
+        "dotenv": "^16.5.0",
+        "socket.io-client": "^4.8.1"
+    }
+}
