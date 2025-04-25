@@ -28,7 +28,7 @@ You should run 1 server per target SiPbx servers. Can be run anywhere that can a
 * Inbound calls dispatched to call queues and agent through normal inbound connection, DID table, etc.. flow
 * calling patterns mimic a 8 hour day acorss multiple time zones in the US.
 
-### Installation
+## Installation
 
 Follow steps below to install and configure tool. 
 
@@ -88,6 +88,7 @@ API_DEBUG=1 # 0=off, 1=on
 IP_USE_PUBLIC=1 # 0=off, 1=on Use public IP for SDP Ip address
 ```
 
+Note: Changes to the .env file for rate CPS and REGISTRAION will take effect over the next hour of run time. those changes are not immidiate. 
 
 
 ### Recommended SIPbx System Settings. 
@@ -135,6 +136,18 @@ RANDOM
 ![alt text](images/image-4.png)
 ![alt text](images/image-5.png)
 ![alt text](images/image-6.png)
+
+
+### Additional Tools 
+
+## Socket Tester. 
+
+Nodejs app to load generate socket.io clients to nsnode application.
+Code in /sockettester 
+
+## sipp "API" 
+
+Simple php script to trigger sipp scripts via web requests. Used in automation tooling 
 
 ### Feature wish list
 * additional call flows
