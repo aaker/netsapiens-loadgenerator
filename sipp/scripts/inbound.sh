@@ -2,11 +2,7 @@
 
 source /usr/local/NetSapiens/netsapiens-loadgenerator/.env
 
-if [ -n "$SAS_SERVER=" ]; then
-	SUT=$SAS_SERVER
-else
-	SUT=$TARGET_SERVER
-fi
+SUT=${SAS_SERVER:-$TARGET_SERVER}
 
 
 
