@@ -2,3 +2,7 @@
 0 11 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
 0 12 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
 0 13 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
+0 14 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
+0 15 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
+0 16 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
+0 17 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sockettester/sockettester.sh 2>&1 | logger &
