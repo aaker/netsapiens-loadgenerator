@@ -45,7 +45,7 @@ sipp \
 	-watchdog_minor_threshold 920000 \
 	-watchdog_major_threshold 9200000 \
 	-aa -default_behaviors -abortunexp \
-	-mi $PRIVATEIP -min_rtp_port $MEDIA_PORT --max_rtp_port $((MEDIA_PORT + 3)); \
+	-mi $PRIVATEIP -min_rtp_port $MEDIA_PORT --max_rtp_port $((MEDIA_PORT + 3)) \
 	-bg -trace_err -error_file error_$LOG_FILE.log
 
 	
