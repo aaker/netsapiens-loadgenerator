@@ -13,6 +13,7 @@ PORT=$4
 MEDIA_PORT=$5
 CONTROL_PORT=$6
 MEDIA_IP=$7
+PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 
 MAX_USERS=`cat $INPUTFILE | grep -v SEQUENTIAL | wc -l`
 PCT_USERS=$REGISTRATION_PCT # 50% of the users will be registered
@@ -44,6 +45,7 @@ sipp \
 	-watchdog_minor_threshold 920000 \
 	-watchdog_major_threshold 9200000 \
 	-aa -default_behaviors -abortunexp \
-	-mp $MEDIA_PORT \
+	-mi $PRIVATEIP -min_rtp_port $MEDIA_PORT --max_rtp_port $((MEDIA_PORT + 3)); \
 	-bg -trace_err -error_file error_$LOG_FILE.log
+
 	
