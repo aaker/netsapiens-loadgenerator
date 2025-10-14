@@ -131,6 +131,7 @@ async function buildDomains() {
                 "ring-no-answer-timeout-seconds": 120,
                 "callqueue-max-wait-timeout-minutes": 30, // the sipp should exit well before this, but prevents issues if sipp dies. 
                 "callqueue-calculate-statistics": "yes",
+                department: departments[queue_index % departments.length],
             }
 
             let phonenumberArgs = {
