@@ -68,6 +68,7 @@ async function buildDomains() {
         
         for (let u = 0; u < domainSize; u++) {
 
+
             let userArgs = {
                 domain: domain,
                 user: 1000 + u,
@@ -76,7 +77,8 @@ async function buildDomains() {
                 "email-address": 1000 + u + "@" + domain + ".com",
                 "user-scope": u == 0 ? "Office Manager" : u == 1 ? "Call Center Supervisor": "Basic User",
                 site: sites[u % sites.length],
-                department: randomdata.departmentNames[(u+i) % randomdata.departmentNames.length],
+                //use 6 departements if domain size is <>> 100, otherwise use 12 departments. Randomize start in the list by domain and user index.
+                department: randomdata.departmentNames[((u%(domainSize>100?12:6))+i) % randomdata.departmentNames.length],
             }
 
             let deviceArgs = {
