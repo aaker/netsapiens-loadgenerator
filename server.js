@@ -58,9 +58,7 @@ async function buildDomains() {
         const time_zone = randomdata.timeZones[i % randomdata.timeZones.length];
 
         let sites = [];
-        let departments = [];
         for (var s = 0; s <= Math.floor(domainSize / 30); s++) sites.push(fakerator.address.city());
-        for (var d = 0; d <= Math.floor(domainSize / 30); d++) departments.push(fakerator.company.department());
 
         console.log("[" + i + "]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
         await createDomain({ description, domain, domainSize, area_code, number, time_zone });
@@ -78,7 +76,7 @@ async function buildDomains() {
                 "email-address": 1000 + u + "@" + domain + ".com",
                 "user-scope": u == 0 ? "Office Manager" : u == 1 ? "Call Center Supervisor": "Basic User",
                 site: sites[u % sites.length],
-                department: departments[u % departments.length],
+                department: randomdata.departmentNames[(u+i) % randomdata.departmentNames.length],
             }
 
             let deviceArgs = {
@@ -118,6 +116,7 @@ async function buildDomains() {
                 description: queueName,
                 "callqueue-agent-dispatch-timeout-seconds": 30,
                 "callqueue-dispatch-type": "round-robin",
+                "callqueue-calculate-statistics": "yes",
 
             }
             let queueUser = {
@@ -131,7 +130,6 @@ async function buildDomains() {
                 "ring-no-answer-timeout-seconds": 120,
                 "callqueue-max-wait-timeout-minutes": 30, // the sipp should exit well before this, but prevents issues if sipp dies. 
                 "callqueue-calculate-statistics": "yes",
-                department: departments[queue_index % departments.length],
             }
 
             let phonenumberArgs = {
