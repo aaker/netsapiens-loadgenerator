@@ -180,8 +180,22 @@ async function buildDomains() {
             
             const userResults = await Promise.allSettled(userPromises);
             
-            // Process devices (can be async without waiting)
-            deviceBatch.forEach(deviceArgs => createDevice(deviceArgs));
+            // Only create devices for successfully created users, with a small delay
+            await new Promise(resolve => setTimeout(resolve, 500)); // Wait for users to settle in the system
+            
+            const successfulUsers = userResults
+                .map((result, index) => ({ result: result.value, device: deviceBatch[index] }))
+                .filter(item => item.result && item.result.success)
+                .map(item => item.device);
+                
+            // Process devices with staggered timing to avoid overwhelming the API
+            for (let i = 0; i < successfulUsers.length; i++) {
+                createDevice(successfulUsers[i]);
+                // Small delay between device creations to prevent socket hang ups
+                if (i < successfulUsers.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
             
             // Small delay between batches to be kind to the API
             if (batchStart + BATCH_SIZE < userDataBatch.length) {
