@@ -274,10 +274,10 @@ async function updatePhonenumber(data) {
 async function createQueue(i, data) {
     data.synchronous = 'yes';
     const path = `domains/` + data.domain + '/callqueues';
-    await nsapi.apiCreateSync(path, data);
+    await nsapi.apiCreateSync(path, data, () => {  }, updateQueue);
 }
 
-function updateQueue(i, data) {
+function updateQueue(data) {
     const path = `domains/` + data.domain + '/callqueues/'+ data.callqueue;
     nsapi.apiUpdate(path, data);
 }
