@@ -28,7 +28,15 @@ const CONFIG = {
     AREA_CODE_MIN: 200,
     AREA_CODE_MAX: 900,
     PHONE_LAST_FOUR_MIN: 1000,
-    PHONE_LAST_FOUR_MAX: 9990
+    PHONE_LAST_FOUR_MAX: 9990,
+    // Performance tuning
+    MAX_CONCURRENT_DOMAINS: 5, // Process multiple domains in parallel
+    USER_BATCH_SIZE: 25, // Increased from 15
+    DEVICE_BATCH_SIZE: 25, // Larger batches for devices
+    REDUCE_DELAYS: false, // Feature flag to reduce/eliminate delays
+    AGENT_DELAY_MS: 500, // Reduced from 3000ms
+    BATCH_DELAY_MS: 100, // Reduced from 200ms
+    DEVICE_DELAY_MS: 25 // Reduced from 100ms
 };
 
 const SEED = parseInt(process.env.SEED) || 123456;
@@ -81,14 +89,49 @@ validateEnvironment();
 randomdata.buildRandomCallerData();
 
 async function buildDomains() {
+    console.log(`Starting to build ${MAX_DOMAIN} domains with ${CONFIG.MAX_CONCURRENT_DOMAINS} concurrent processes...`);
+    const startTime = Date.now();
 
     let domains_list = [];
-    for (var i = 0; i < MAX_DOMAIN; i++) { //Preload the domains list to get conistent results.
+    for (var i = 0; i < MAX_DOMAIN; i++) { //Preload the domains list to get consistent results.
         domains_list.push(fakerator.company.name());
     }
 
-    for (var i = 0; i < domains_list.length; i++) {
-        var description = domains_list[i];
+    // Process domains in parallel batches
+    const domainBatches = [];
+    for (let i = 0; i < domains_list.length; i += CONFIG.MAX_CONCURRENT_DOMAINS) {
+        domainBatches.push(domains_list.slice(i, i + CONFIG.MAX_CONCURRENT_DOMAINS));
+    }
+
+    for (let batchIndex = 0; batchIndex < domainBatches.length; batchIndex++) {
+        const batch = domainBatches[batchIndex];
+        const batchStartTime = Date.now();
+        
+        console.log(`Processing batch ${batchIndex + 1}/${domainBatches.length} with ${batch.length} domains...`);
+        
+        // Process all domains in this batch concurrently
+        const domainPromises = batch.map((description, batchItemIndex) => {
+            const globalIndex = batchIndex * CONFIG.MAX_CONCURRENT_DOMAINS + batchItemIndex;
+            return processSingleDomain(description, globalIndex);
+        });
+        
+        await Promise.allSettled(domainPromises);
+        
+        const batchTime = ((Date.now() - batchStartTime) / 1000).toFixed(2);
+        console.log(`Batch ${batchIndex + 1} completed in ${batchTime}s`);
+        
+        // Small delay between batches to prevent API overload
+        if (batchIndex < domainBatches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, CONFIG.BATCH_DELAY_MS));
+        }
+    }
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`All ${MAX_DOMAIN} domains completed in ${totalTime}s`);
+}
+
+async function processSingleDomain(description, i) {
+    try {
         var domain = description.replace(/\s/g, '_').replace(/,/g, '_').replace(/\./g, '').replace(/\'/g, '_').toLowerCase();
         domain = domain.replace(/-/g, '_').replace(/__/g, '_');
 
@@ -105,14 +148,10 @@ async function buildDomains() {
         for (var s = 0; s <= Math.floor(domainSize / CONFIG.USERS_PER_SITE); s++) sites.push(fakerator.address.city());
 
         console.log("[" + i + "]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
-        try {
-            await createDomain({ description, domain, domainSize, area_code, number, time_zone });
-            //Domain should be created by now. 
-            createNdpUiConfig({domain});
-        } catch (error) {
-            console.error(`Failed to create domain ${domain}:`, error.message);
-            continue; // Skip this domain and move to the next one
-        }
+        
+        await createDomain({ description, domain, domainSize, area_code, number, time_zone });
+        //Domain should be created by now. 
+        createNdpUiConfig({domain});
 
         
         // Prepare all user data upfront for better async batching
@@ -161,8 +200,8 @@ async function buildDomains() {
             }
         }
         
-        // Process users in smaller batches to avoid overwhelming the API
-        const BATCH_SIZE = 10;
+        // Process users in optimized batches
+        const BATCH_SIZE = CONFIG.USER_BATCH_SIZE;
         for (let batchStart = 0; batchStart < userDataBatch.length; batchStart += BATCH_SIZE) {
             const userBatch = userDataBatch.slice(batchStart, batchStart + BATCH_SIZE);
             const deviceBatch = deviceDataBatch.slice(batchStart, batchStart + BATCH_SIZE);
@@ -180,26 +219,33 @@ async function buildDomains() {
             
             const userResults = await Promise.allSettled(userPromises);
             
-            // Only create devices for successfully created users, with a small delay
-            await new Promise(resolve => setTimeout(resolve, 500)); // Wait for users to settle in the system
+            // Only create devices for successfully created users
+            if (!CONFIG.REDUCE_DELAYS) {
+                await new Promise(resolve => setTimeout(resolve, 250)); // Reduced wait time
+            }
             
             const successfulUsers = userResults
                 .map((result, index) => ({ result: result.value, device: deviceBatch[index] }))
                 .filter(item => item.result && item.result.success)
                 .map(item => item.device);
                 
-            // Process devices with staggered timing to avoid overwhelming the API
-            for (let i = 0; i < successfulUsers.length; i++) {
-                createDevice(successfulUsers[i]);
-                // Small delay between device creations to prevent socket hang ups
-                if (i < successfulUsers.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
+            // Process devices in larger batches for better performance
+            const deviceBatchSize = Math.min(CONFIG.DEVICE_BATCH_SIZE, successfulUsers.length);
+            for (let i = 0; i < successfulUsers.length; i += deviceBatchSize) {
+                const deviceSubBatch = successfulUsers.slice(i, i + deviceBatchSize);
+                
+                // Create all devices in this sub-batch concurrently
+                deviceSubBatch.forEach(deviceArgs => createDevice(deviceArgs));
+                
+                // Smaller delay between device batches
+                if (i + deviceBatchSize < successfulUsers.length && !CONFIG.REDUCE_DELAYS) {
+                    await new Promise(resolve => setTimeout(resolve, CONFIG.DEVICE_DELAY_MS));
                 }
             }
             
-            // Small delay between batches to be kind to the API
-            if (batchStart + BATCH_SIZE < userDataBatch.length) {
-                await new Promise(resolve => setTimeout(resolve, 200));
+            // Reduced delay between batches
+            if (batchStart + BATCH_SIZE < userDataBatch.length && !CONFIG.REDUCE_DELAYS) {
+                await new Promise(resolve => setTimeout(resolve, CONFIG.BATCH_DELAY_MS));
             }
         }
         
@@ -252,14 +298,19 @@ async function buildDomains() {
                 continue; // Skip this queue and move to the next one
             }
 
-            if (domainSize > CONFIG.LARGE_DOMAIN_THRESHOLD) await new Promise(resolve => setTimeout(resolve, 1000)); //wait 1s between queues for the agents to get into memory without errors.
+            // Reduced wait time for large domains
+            if (domainSize > CONFIG.LARGE_DOMAIN_THRESHOLD && !CONFIG.REDUCE_DELAYS) {
+                await new Promise(resolve => setTimeout(resolve, 250)); // Reduced from 1000ms
+            }
 
             for (var a = 0; a < Math.floor(domainSize * CONFIG.AGENTS_PER_QUEUE_PERCENTAGE) + CONFIG.MIN_AGENTS_PER_QUEUE; a++) {   // 10% of domain users will be in each queue
                 //get random user between 0 and domainSize
                 const random_agent_index = utils.randomIntFromInterval(0, domainSize);
 
-                if (a % 10 == 9 ) //sleep every 10 agents to allow the queue to get into memory.
-                    await new Promise(resolve => setTimeout(resolve, 200));
+                // Reduced agent processing delay
+                if (a % 20 == 19 && !CONFIG.REDUCE_DELAYS) { // Less frequent delays
+                    await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 200ms
+                }
                 let agentArgs = {
                     domain: domain,
                     "callqueue-agent-id": (CONFIG.USER_EXTENSION_START + random_agent_index) + "@" + domain,
@@ -276,10 +327,12 @@ async function buildDomains() {
 
 
         }
-
-
-
-
+        
+        console.log(`[${i}] Domain ${domain} completed successfully`);
+        
+    } catch (error) {
+        console.error(`[${i}] Failed to process domain ${description}:`, error.message);
+        // Continue processing - don't let one domain failure stop others
     }
 }
 
@@ -388,7 +441,10 @@ function updateQueue(data) {
 
 
 async function createAgent(data) {
-    await new Promise(resolve => setTimeout(resolve, 3000)); //wait 3 seconds before sending in this API calls to allow the Queue to properly get into memory.
+    // Significantly reduced delay - rely on retry logic for timing issues
+    if (!CONFIG.REDUCE_DELAYS) {
+        await new Promise(resolve => setTimeout(resolve, CONFIG.AGENT_DELAY_MS)); // Reduced from 3000ms
+    }
     const path = `domains/` + data.domain + '/callqueues/' + data.callqueue + '/agents';
     try {
         await nsapi.apiCreateSync(path, data);
