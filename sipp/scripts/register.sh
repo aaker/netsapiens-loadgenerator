@@ -27,6 +27,15 @@ echo "Registering $INPUTFILE"
 ulimit -n 65536
 echo "`date` - [start] $INPUTFILE $PORT $MEDIA_PORT $CONTROL_PORT (max users $MAX_USERS, pxt users is $PCT_USERS) " >> error_$LOG_FILE.log
 set -x
+
+
+#test if sipp has support for min_rtp_port
+if sipp -h | grep -q min_rtp_port; then
+	MEDIAPORT_LOGIC=" -min_rtp_port $MEDIA_PORT -max_rtp_port $((MEDIA_PORT + 3))"
+else
+	MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
+fi
+
 sipp \
 	${SUT} \
     -key expires 60 \
@@ -45,7 +54,8 @@ sipp \
 	-watchdog_minor_threshold 920000 \
 	-watchdog_major_threshold 9200000 \
 	-aa -default_behaviors -abortunexp \
-	-mi $PRIVATEIP -min_rtp_port $MEDIA_PORT -max_rtp_port $((MEDIA_PORT + 3)) \
+	$MEDIAPORT_LOGIC \
+	-mi $PRIVATEIP \
 	-bg -trace_err -error_file error_$LOG_FILE.log
 
 	
