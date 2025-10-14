@@ -58,7 +58,9 @@ async function buildDomains() {
         const time_zone = randomdata.timeZones[i % randomdata.timeZones.length];
 
         let sites = [];
+        let departments = [];
         for (var s = 0; s <= Math.floor(domainSize / 30); s++) sites.push(fakerator.address.city());
+        for (var d = 0; d <= Math.floor(domainSize / 30); d++) departments.push(fakerator.company.department());
 
         console.log("[" + i + "]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
         await createDomain({ description, domain, domainSize, area_code, number, time_zone });
@@ -76,6 +78,7 @@ async function buildDomains() {
                 "email-address": 1000 + u + "@" + domain + ".com",
                 "user-scope": u == 0 ? "Office Manager" : u == 1 ? "Call Center Supervisor": "Basic User",
                 site: sites[u % sites.length],
+                department: departments[u % departments.length],
             }
 
             let deviceArgs = {
