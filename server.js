@@ -31,7 +31,7 @@ const CONFIG = {
     PHONE_LAST_FOUR_MAX: 9990
 };
 
-const SEED = process.env.SEED || 123456;
+const SEED = parseInt(process.env.SEED) || 123456;
 const APIKEY = process.env.APIKEY //'';
 fakerator.seed(SEED);
 //random.seed = SEED;
