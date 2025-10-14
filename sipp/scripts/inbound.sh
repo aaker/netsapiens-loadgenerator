@@ -24,7 +24,17 @@ if [ -z "$PEAK_CPS" ]; then
 
 fi
 
-MAX_USERS=`cat $INPUTFILE | grep -v SEQUENTIAL | wc -l`
+#add some randomness to the PEAK_CPS to avoid exact same call rate every run, make it + or 0 10%
+RANDOM_ADJUSTMENT=$(( ( RANDOM % (PEAK_CPS / 10) ) + 1 ))
+if (( RANDOM % 2 )); then
+	PEAK_CPS=$((PEAK_CPS + RANDOM_ADJUSTMENT))
+else
+	PEAK_CPS=$((PEAK_CPS - RANDOM_ADJUSTMENT))
+fi
+
+#round PEAK_CPS to 1 decimal place
+PEAK_CPS=`printf "%.0f\n" "$(echo "scale=2;$PEAK_CPS" |bc)"`
+
 
 PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com -4`
 PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
