@@ -186,6 +186,16 @@ async function processSingleDomain(description, i) {
         const userDataBatch = [];
         const deviceDataBatch = [];
         const macDataBatch = [];
+        const avatarBatch = [];
+
+        const avatarFilenames = []; 
+        const avatarDir = path.join(__dirname, 'avatar');
+        fs.readdirSync(avatarDir).forEach(file => {
+            if (file.endsWith('.png') || file.endsWith('.png')  ) {
+                avatarFilenames.push(path.join(avatarDir, file));
+            }
+        });
+        const avatarCount = avatarFilenames.length;
         
         for (let u = 0; u < domainSize; u++) {
             let userArgs = {
@@ -220,6 +230,13 @@ async function processSingleDomain(description, i) {
                 'server': NDP_SERVERNAME,
             }
 
+            let avatarArgs = {
+                domain: domain,
+                user: CONFIG.USER_EXTENSION_START + u,
+                filePath: avatarFilenames[(i + u) % avatarCount] //random start using domain index and then each
+            }
+
+            avatarBatch.push(avatarArgs);
             userDataBatch.push(userArgs);
             deviceDataBatch.push(deviceArgs);
             
@@ -279,6 +296,7 @@ async function processSingleDomain(description, i) {
         
         // Process MAC addresses asynchronously 
         macDataBatch.forEach(macArgs => createMac(macArgs));
+        avatarBatch.forEach(avatarArgs => updateAvatar(avatarArgs));
 
         for (let h = 0; h * CONFIG.QUEUES_PER_USERS_RATIO < domainSize; h++) {
             if (h > CONFIG.MAX_QUEUES) continue;
@@ -484,6 +502,14 @@ async function createAgent(data) {
         console.error(`Failed to create agent ${data['callqueue-agent-id']} for queue ${data.callqueue}:`, error.message);
     }
 }
+
+async function updateAvatar(data) {
+    const path = `domains/` + data.domain + '/users/' + data.user + '/avatar';
+    await apiClient.apiFormPut(path, data.filePath,(resp) => {
+        console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
+     })  ;
+}
+
 
 
 
