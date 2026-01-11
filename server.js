@@ -505,9 +505,15 @@ async function createAgent(data) {
 
 async function updateAvatar(data) {
     const path = `domains/` + data.domain + '/users/' + data.user + '/avatar';
-    await apiClient.apiFormPut(path, data.filePath,(resp) => {
-        console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
-     })  ;
+    const countPath = path + '/count';
+    // First get the current avatar count to handle versioning
+    let hasAvatar = await apiClient.apiCountSync(countPath);  
+    //console.log(`User ${data.user} in domain ${data.domain} has avatar count:`, hasAvatar);
+    if (!hasAvatar || hasAvatar.count === 0) {
+        await apiClient.apiFormPut(path, data.filePath,(resp) => {
+        //console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
+        }) ;    
+    }
 }
 
 
