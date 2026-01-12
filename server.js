@@ -568,6 +568,7 @@ async function updateAvatar(data) {
     //console.log(`User ${data.user} in domain ${data.domain} has avatar count:`, hasAvatar);
     if (!hasAvatar || hasAvatar.count === 0) {
         await acquireAvatarSlot();
+        const uploadStartTime = Date.now();
         try {
             await withTimeout(
                 apiClient.apiFormPut(path, data.filePath,(resp) => {
@@ -576,12 +577,12 @@ async function updateAvatar(data) {
                 20000,
                 `Avatar upload timed out for ${data.user}`
             );
-            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            const elapsed = ((Date.now() - uploadStartTime) / 1000).toFixed(1);
             console.log(`[Avatar] Uploaded ${data.user}@${data.domain} in ${elapsed}s`);
             //use await to sleep for 200ms to avoid overloading the API
             await new Promise(resolve => setTimeout(resolve, 250)); //limits to 4 avatar updates per second per thread.
         } catch (error) {
-            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            const elapsed = ((Date.now() - uploadStartTime) / 1000).toFixed(1);
             console.error(`[Avatar] Error uploading ${data.user}@${data.domain} after ${elapsed}s:`, error.message);
         } finally {
             releaseAvatarSlot();
