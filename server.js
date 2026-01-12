@@ -588,7 +588,7 @@ async function updateAvatar(data) {
         }
     } else {
         const elapsed = Date.now() - startTime;
-        console.log(`[Avatar] Skipped ${data.user}@${data.domain} (exists) in ${elapsed}ms`);
+        //console.log(`[Avatar] Skipped ${data.user}@${data.domain} (exists) in ${elapsed}ms`);
     }
 }
 
