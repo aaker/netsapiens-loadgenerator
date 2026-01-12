@@ -63,7 +63,8 @@ const CONFIG = {
     REDUCE_DELAYS: false, // Feature flag to reduce/eliminate delays
     AGENT_DELAY_MS: 500, // Reduced from 3000ms
     BATCH_DELAY_MS: 100, // Reduced from 200ms
-    DEVICE_DELAY_MS: 25 // Reduced from 100ms
+    DEVICE_DELAY_MS: 25, // Reduced from 100ms
+    AVATAR_MAX_CONCURRENT: parseInt(process.env.AVATAR_MAX_CONCURRENT) || 5 // Max concurrent avatar uploads
 };
 
 // Use server-specific configuration values
@@ -296,7 +297,9 @@ async function processSingleDomain(description, i) {
         
         // Process MAC addresses asynchronously 
         macDataBatch.forEach(macArgs => createMac(macArgs));
-        avatarBatch.forEach(avatarArgs => updateAvatar(avatarArgs));
+        for (const avatarArgs of avatarBatch) {
+            await updateAvatar(avatarArgs);
+        }
 
         for (let h = 0; h * CONFIG.QUEUES_PER_USERS_RATIO < domainSize; h++) {
             if (h > CONFIG.MAX_QUEUES) continue;
@@ -503,18 +506,48 @@ async function createAgent(data) {
     }
 }
 
+// Concurrency limiter for avatar uploads
+const avatarConcurrency = {
+    max: CONFIG.AVATAR_MAX_CONCURRENT,
+    current: 0,
+    queue: []
+};
+
+async function acquireAvatarSlot() {
+    if (avatarConcurrency.current < avatarConcurrency.max) {
+        avatarConcurrency.current++;
+        return;
+    }
+    // Wait for a slot to free up
+    await new Promise(resolve => avatarConcurrency.queue.push(resolve));
+    avatarConcurrency.current++;
+}
+
+function releaseAvatarSlot() {
+    avatarConcurrency.current--;
+    if (avatarConcurrency.queue.length > 0) {
+        const next = avatarConcurrency.queue.shift();
+        next();
+    }
+}
+
 async function updateAvatar(data) {
-    const path = `domains/` + data.domain + '/users/' + data.user + '/avatar';
-    const countPath = path + '/count';
-    // First get the current avatar count to handle versioning
-    let hasAvatar = await apiClient.apiCountSync(countPath);  
-    //console.log(`User ${data.user} in domain ${data.domain} has avatar count:`, hasAvatar);
-    if (!hasAvatar || hasAvatar.count === 0) {
-        await apiClient.apiFormPut(path, data.filePath,(resp) => {
-        //console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
-        }) ;    
-        //use await to sleep for 200ms to avoid overloading the API
-        await new Promise(resolve => setTimeout(resolve, 250)); //limits to 4 avatar updates per second per thread. 
+    await acquireAvatarSlot();
+    try {
+        const path = `domains/` + data.domain + '/users/' + data.user + '/avatar';
+        const countPath = path + '/count';
+        // First get the current avatar count to handle versioning
+        let hasAvatar = await apiClient.apiCountSync(countPath);
+        //console.log(`User ${data.user} in domain ${data.domain} has avatar count:`, hasAvatar);
+        if (!hasAvatar || hasAvatar.count === 0) {
+            await apiClient.apiFormPut(path, data.filePath,(resp) => {
+            //console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
+            }) ;
+            //use await to sleep for 200ms to avoid overloading the API
+            await new Promise(resolve => setTimeout(resolve, 250)); //limits to 4 avatar updates per second per thread.
+        }
+    } finally {
+        releaseAvatarSlot();
     }
 }
 
