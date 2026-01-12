@@ -556,12 +556,12 @@ async function updateAvatar(data) {
     try {
         hasAvatar = await withTimeout(
             apiClient.apiCountSync(countPath),
-            10000,
+            20000,
             `Avatar count check timed out for ${data.user}`
         );
     } catch (error) {
-        const elapsed = Date.now() - startTime;
-        console.error(`[Avatar] Error checking ${data.user}@${data.domain} after ${elapsed}ms:`, error.message);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.error(`[Avatar] Error checking ${data.user}@${data.domain} after ${elapsed}s:`, error.message);
         return;
     }
 
@@ -573,22 +573,22 @@ async function updateAvatar(data) {
                 apiClient.apiFormPut(path, data.filePath,(resp) => {
                 //console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
                 }),
-                10000,
+                20000,
                 `Avatar upload timed out for ${data.user}`
             );
-            const elapsed = Date.now() - startTime;
-            console.log(`[Avatar] Uploaded ${data.user}@${data.domain} in ${elapsed}ms`);
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`[Avatar] Uploaded ${data.user}@${data.domain} in ${elapsed}s`);
             //use await to sleep for 200ms to avoid overloading the API
             await new Promise(resolve => setTimeout(resolve, 250)); //limits to 4 avatar updates per second per thread.
         } catch (error) {
-            const elapsed = Date.now() - startTime;
-            console.error(`[Avatar] Error uploading ${data.user}@${data.domain} after ${elapsed}ms:`, error.message);
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.error(`[Avatar] Error uploading ${data.user}@${data.domain} after ${elapsed}s:`, error.message);
         } finally {
             releaseAvatarSlot();
         }
     } else {
-        const elapsed = Date.now() - startTime;
-        //console.log(`[Avatar] Skipped ${data.user}@${data.domain} (exists) in ${elapsed}ms`);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        //console.log(`[Avatar] Skipped ${data.user}@${data.domain} (exists) in ${elapsed}s`);
     }
 }
 
