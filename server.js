@@ -547,18 +547,28 @@ function withTimeout(promise, ms, message) {
 }
 
 async function updateAvatar(data) {
-    await acquireAvatarSlot();
+    const startTime = Date.now();
+    const path = `domains/` + data.domain + '/users/' + data.user + '/avatar';
+    const countPath = path + '/count';
+
+    // First get the current avatar count to handle versioning (no slot needed for read)
+    let hasAvatar;
     try {
-        const path = `domains/` + data.domain + '/users/' + data.user + '/avatar';
-        const countPath = path + '/count';
-        // First get the current avatar count to handle versioning
-        let hasAvatar = await withTimeout(
+        hasAvatar = await withTimeout(
             apiClient.apiCountSync(countPath),
             10000,
             `Avatar count check timed out for ${data.user}`
         );
-        //console.log(`User ${data.user} in domain ${data.domain} has avatar count:`, hasAvatar);
-        if (!hasAvatar || hasAvatar.count === 0) {
+    } catch (error) {
+        const elapsed = Date.now() - startTime;
+        console.error(`[Avatar] Error checking ${data.user}@${data.domain} after ${elapsed}ms:`, error.message);
+        return;
+    }
+
+    //console.log(`User ${data.user} in domain ${data.domain} has avatar count:`, hasAvatar);
+    if (!hasAvatar || hasAvatar.count === 0) {
+        await acquireAvatarSlot();
+        try {
             await withTimeout(
                 apiClient.apiFormPut(path, data.filePath,(resp) => {
                 //console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
@@ -566,13 +576,19 @@ async function updateAvatar(data) {
                 10000,
                 `Avatar upload timed out for ${data.user}`
             );
+            const elapsed = Date.now() - startTime;
+            console.log(`[Avatar] Uploaded ${data.user}@${data.domain} in ${elapsed}ms`);
             //use await to sleep for 200ms to avoid overloading the API
             await new Promise(resolve => setTimeout(resolve, 250)); //limits to 4 avatar updates per second per thread.
+        } catch (error) {
+            const elapsed = Date.now() - startTime;
+            console.error(`[Avatar] Error uploading ${data.user}@${data.domain} after ${elapsed}ms:`, error.message);
+        } finally {
+            releaseAvatarSlot();
         }
-    } catch (error) {
-        console.error(`[Avatar] Error for ${data.user}:`, error.message);
-    } finally {
-        releaseAvatarSlot();
+    } else {
+        const elapsed = Date.now() - startTime;
+        console.log(`[Avatar] Skipped ${data.user}@${data.domain} (exists) in ${elapsed}ms`);
     }
 }
 
