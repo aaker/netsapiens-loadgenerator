@@ -577,12 +577,12 @@ async function updateAvatar(data) {
                 20000,
                 `Avatar upload timed out for ${data.user}`
             );
-            const elapsed = ((Date.now() - uploadStartTime) / 1000).toFixed(1);
+            const elapsed = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
             console.log(`[Avatar] Uploaded ${data.user}@${data.domain} in ${elapsed}s`);
             //use await to sleep for 200ms to avoid overloading the API
-            await new Promise(resolve => setTimeout(resolve, 250)); //limits to 4 avatar updates per second per thread.
+            await new Promise(resolve => setTimeout(resolve, 50)); //limits to 20 avatar updates per second per thread.
         } catch (error) {
-            const elapsed = ((Date.now() - uploadStartTime) / 1000).toFixed(1);
+            const elapsed = ((Date.now() - uploadStartTime) / 1000).toFixed(2);
             console.error(`[Avatar] Error uploading ${data.user}@${data.domain} after ${elapsed}s:`, error.message);
         } finally {
             releaseAvatarSlot();
