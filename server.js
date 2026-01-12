@@ -297,10 +297,8 @@ async function processSingleDomain(description, i) {
         
         // Process MAC addresses asynchronously 
         macDataBatch.forEach(macArgs => createMac(macArgs));
-        for (const avatarArgs of avatarBatch) {
-            await updateAvatar(avatarArgs);
-        }
-
+        avatarBatch.forEach(avatarArgs => updateAvatar(avatarArgs));
+      
         for (let h = 0; h * CONFIG.QUEUES_PER_USERS_RATIO < domainSize; h++) {
             if (h > CONFIG.MAX_QUEUES) continue;
             const queueName = randomdata.queueNames[(domainSize + h) % randomdata.queueNames.length];
