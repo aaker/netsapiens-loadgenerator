@@ -157,6 +157,9 @@ async function buildDomains() {
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`All ${MAX_DOMAIN} domains completed in ${totalTime}s`);
+    if (avatarConcurrency.current > 0) {
+        console.log(`Waiting for ${avatarConcurrency.current} avatar uploads to complete, queued at max of ${avatarConcurrency.max} simultaneous uploads...`);
+    }    
 }
 
 async function processSingleDomain(description, i) {
@@ -192,7 +195,7 @@ async function processSingleDomain(description, i) {
         const avatarFilenames = []; 
         const avatarDir = path.join(__dirname, 'avatar');
         fs.readdirSync(avatarDir).forEach(file => {
-            if (file.endsWith('.png') || file.endsWith('.png')  ) {
+            if (file.toLocaleLowerCase().endsWith('.png') || file.toLocaleLowerCase().endsWith('.jpg')  ) {
                 avatarFilenames.push(path.join(avatarDir, file));
             }
         });
