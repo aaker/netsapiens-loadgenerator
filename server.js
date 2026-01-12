@@ -513,6 +513,13 @@ const avatarConcurrency = {
     queue: []
 };
 
+// Debug: log avatar concurrency state every 30s
+setInterval(() => {
+    if (avatarConcurrency.current > 0 || avatarConcurrency.queue.length > 0) {
+        console.log(`[Avatar Concurrency] active: ${avatarConcurrency.current}/${avatarConcurrency.max}, queued: ${avatarConcurrency.queue.length}`);
+    }
+}, 30000);
+
 async function acquireAvatarSlot() {
     if (avatarConcurrency.current < avatarConcurrency.max) {
         avatarConcurrency.current++;
@@ -531,21 +538,38 @@ function releaseAvatarSlot() {
     }
 }
 
+function withTimeout(promise, ms, message) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+    ]);
+}
+
 async function updateAvatar(data) {
     await acquireAvatarSlot();
     try {
         const path = `domains/` + data.domain + '/users/' + data.user + '/avatar';
         const countPath = path + '/count';
         // First get the current avatar count to handle versioning
-        let hasAvatar = await apiClient.apiCountSync(countPath);
+        let hasAvatar = await withTimeout(
+            apiClient.apiCountSync(countPath),
+            10000,
+            `Avatar count check timed out for ${data.user}`
+        );
         //console.log(`User ${data.user} in domain ${data.domain} has avatar count:`, hasAvatar);
         if (!hasAvatar || hasAvatar.count === 0) {
-            await apiClient.apiFormPut(path, data.filePath,(resp) => {
-            //console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
-            }) ;
+            await withTimeout(
+                apiClient.apiFormPut(path, data.filePath,(resp) => {
+                //console.log(`Updated avatar for user ${data.user} in domain ${data.domain} getting response.`,resp);
+                }),
+                10000,
+                `Avatar upload timed out for ${data.user}`
+            );
             //use await to sleep for 200ms to avoid overloading the API
             await new Promise(resolve => setTimeout(resolve, 250)); //limits to 4 avatar updates per second per thread.
         }
+    } catch (error) {
+        console.error(`[Avatar] Error for ${data.user}:`, error.message);
     } finally {
         releaseAvatarSlot();
     }
