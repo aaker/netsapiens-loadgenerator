@@ -247,6 +247,12 @@ if [ "$TRANSPORT" == "l1" ]; then
 	fi
 fi
 
+if sipp -h | grep -q min_rtp_port; then
+	MEDIAPORT_LOGIC=" -min_rtp_port $MEDIA_PORT -max_rtp_port $((MEDIA_PORT + 3))"
+else
+	MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
+fi
+
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $NUMCALLS \
 -sf $BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml \
 -inf $INPUTFILE \
@@ -255,7 +261,7 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $NUMCALLS \
 -i $PRIVATEIP \
 -p $SIP_PORT \
 -cp $CONTROL_PORT \
--min_rtp_port $MEDIA_PORT -max_rtp_port $((MEDIA_PORT + 3)) \
+$MEDIAPORT_LOGIC \
 $TLS_OPTIONS \
 -inf $BASE_DIR/sipp/csv/random_caller_ids.csv \
 -recv_timeout 60000 \
