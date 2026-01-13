@@ -161,7 +161,7 @@ find_available_port() {
 ##
 allocate_ports() {
     local num_sip=${1:-1}
-    local num_media=${2:-4}
+    local num_media=${2:-1}
     local num_control=${3:-1}
 
     # Initialize

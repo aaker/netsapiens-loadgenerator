@@ -174,7 +174,7 @@ for file in $CSV_PATH/*; do
 
 	# Allocate ports dynamically for this SIPp instance
 	echo "Allocating ports for $(basename $file)..."
-	if ! allocate_ports 1 4 1; then
+	if ! allocate_ports 1 1 1; then
 		echo "ERROR: Failed to allocate ports for $file, skipping..."
 		continue
 	fi
@@ -183,7 +183,7 @@ for file in $CSV_PATH/*; do
 	MEDIAPORT=$ALLOCATED_MEDIA_PORT
 	CONTROLPORT=$ALLOCATED_CONTROL_PORT
 
-	echo "  Allocated - SIP: $SIPPORT, Media: $MEDIAPORT-$((MEDIAPORT+3)), Control: $CONTROLPORT"
+	echo "  Allocated - SIP: $SIPPORT, Media: $MEDIAPORT, Control: $CONTROLPORT"
 
 	TRANSPORT_TYPE=$((COUNTER % 3));
 	if [ $TRANSPORT_TYPE -eq 2 ]; then

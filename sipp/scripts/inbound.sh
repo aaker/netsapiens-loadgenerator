@@ -179,7 +179,7 @@ PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1
 
 # Allocate ports for this inbound call session (runs ~5 minutes)
 echo "Allocating ports for inbound calls..."
-if ! allocate_ports 1 4 1; then
+if ! allocate_ports 1 1 1; then
 	echo "ERROR: Failed to allocate ports for inbound calls"
 	exit 1
 fi
@@ -188,7 +188,7 @@ SIP_PORT=$ALLOCATED_SIP_PORT
 MEDIA_PORT=$ALLOCATED_MEDIA_PORT
 CONTROL_PORT=$ALLOCATED_CONTROL_PORT
 
-echo "Allocated ports - SIP: $SIP_PORT, Media: $MEDIA_PORT-$((MEDIA_PORT+3)), Control: $CONTROL_PORT"
+echo "Allocated ports - SIP: $SIP_PORT, Media: $MEDIA_PORT, Control: $CONTROL_PORT"
 
 if [ "$IP_USE_PUBLIC" == "1" ]; then
 	sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
@@ -247,11 +247,7 @@ if [ "$TRANSPORT" == "l1" ]; then
 	fi
 fi
 
-if sipp -h | grep -q min_rtp_port; then
-	MEDIAPORT_LOGIC=" -min_rtp_port $MEDIA_PORT -max_rtp_port $((MEDIA_PORT + 3))"
-else
-	MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
-fi
+MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
 
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $NUMCALLS \
 -sf $BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml \

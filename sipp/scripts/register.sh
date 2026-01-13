@@ -47,12 +47,8 @@ fi
 
 echo "`date` - [start] $INPUTFILE $PORT $MEDIA_PORT $CONTROL_PORT (max users $MAX_USERS, pct users is $PCT_USERS) stats: $STATS_FILE" >> "$LOG_PATH/error_$LOG_FILE.log"
 
-#test if sipp has support for min_rtp_port
-if sipp -h | grep -q min_rtp_port; then
-	MEDIAPORT_LOGIC=" -min_rtp_port $MEDIA_PORT -max_rtp_port $((MEDIA_PORT + 3))"
-else
-	MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
-fi
+MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
+
 
 # TLS certificate configuration (only used when TRANSPORT=l1)
 TLS_CERT="$BASE_DIR/sipp/tls/sipp.crt"
