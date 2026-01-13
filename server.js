@@ -11,6 +11,13 @@ var randomdata = require('./lib/randomdata');
 var nsapi = require('./lib/nsapi');
 const { loadConfig } = require('./lib/config');
 const path = require("path");
+const { timeStamp } = require("console");
+
+// Load random domains from file
+const randomDomainsFile = fs.readFileSync(path.join(__dirname, 'lib/fake_company_names.txt'), 'utf8');
+const randomDomains = randomDomainsFile.split('\n').filter(line => line.trim() !== '');
+const randomResellersFile = fs.readFileSync(path.join(__dirname, 'lib/fake_resellers.txt'), 'utf8');
+const randomResellers = randomResellersFile.split('\n').filter(line => line.trim() !== '');
 
 dotenv.config();
 
@@ -31,10 +38,13 @@ try {
     console.log(`Target Server: ${selectedServer.hostname}`);
     console.log(`Server ID: ${selectedServer.id}`);
     console.log(`Max Domains: ${selectedServer.maxDomains}`);
+    console.log(`Max Resellers: ${selectedServer.maxResellers}`);
     console.log(`Peak CPS: ${selectedServer.peakCps}`);
     console.log(`Registration %: ${selectedServer.registrationPct}`);
     console.log(`SEED: ${selectedServer.seed}`);
     console.log(`======================================\n`);
+    if (!selectedServer.maxResellers)
+        throw new Error('maxResellers must be defined and greater than 0 in server configuration');
 } catch (error) {
     console.error(`Failed to load configuration: ${error.message}`);
     process.exit(1);
@@ -51,7 +61,7 @@ const CONFIG = {
     LARGE_DOMAIN_THRESHOLD: 100,
     USERS_PER_SITE: 30,
     QUEUES_PER_USERS_RATIO: 10, // 1 queue per 10 users
-    MAX_QUEUES: 8,
+    MAX_QUEUES: 12,
     AREA_CODE_MIN: 200,
     AREA_CODE_MAX: 900,
     PHONE_LAST_FOUR_MIN: 1000,
@@ -73,6 +83,7 @@ const APIKEY = selectedServer.apikey;
 fakerator.seed(SEED);
 const TARGET_SERVER = selectedServer.hostname;
 const MAX_DOMAIN = selectedServer.maxDomains;
+const MAX_RESELLERS = selectedServer.maxResellers;
 const NDP_SERVERNAME = process.env.NDP_SERVERNAME || "core1";
 const RESELLER = process.env.RESELLER || "NetSapiens";
 const RECORDING_DIVISER = process.env.RECORDING_DIVISER || 4;
@@ -95,8 +106,8 @@ function validateEnvironment() {
         console.warn("Warning: TARGET_SERVER should be a valid hostname");
     }
 
-    if (MAX_DOMAIN < 1 || MAX_DOMAIN > 1000) {
-        errors.push("MAX_DOMAIN must be between 1 and 1000");
+    if (MAX_DOMAIN < 1 || MAX_DOMAIN > 10000) {
+        errors.push("MAX_DOMAIN must be between 1 and 10000");
     }
 
     if (RECORDING_DIVISER < 1) {
@@ -116,21 +127,55 @@ validateEnvironment();
 
 //function to generate random data for the caller ids.
 randomdata.buildRandomCallerData();
-
+let resellers_list = [];
+let resellers_list_descriptions = [];
 async function buildDomains() {
     console.log(`Starting to build ${MAX_DOMAIN} domains with ${CONFIG.MAX_CONCURRENT_DOMAINS} concurrent processes...`);
     const startTime = Date.now();
 
     let domains_list = [];
-    for (var i = 0; i < MAX_DOMAIN; i++) { //Preload the domains list to get consistent results.
-        domains_list.push(fakerator.company.name());
-    }
 
+
+    for (var i = 0; i < MAX_DOMAIN; i++) { //Preload the domains list to get consistent results.
+        if (i<500)
+            domains_list.push(fakerator.company.name());
+        else if (i<700)
+            domains_list.push(fakerator.address.city() + " " +fakerator.address.streetSuffix());
+        else if (i<900)
+            domains_list.push(fakerator.address.city() + " " +fakerator.address.state() + " " +fakerator.address.streetSuffix());
+        else
+        {
+            // Use seeded random to select from randomDomains file (repeatable based on SEED and index)
+            var domainRng = seedrandom(SEED + "domain" + i);
+            var domainIndex = Math.floor(domainRng() * randomDomains.length);
+            domains_list.push(randomDomains[domainIndex]);
+        }         
+    } 
+
+    for (var i = 0; i < MAX_RESELLERS; i++) {
+        // Use seeded random to select from randomResellers file (repeatable based on SEED and index)
+        var resellerRng = seedrandom(SEED + "reseller" + i);
+        var resellerIndex = Math.floor(resellerRng() * randomResellers.length);
+        const cleanedresller = randomResellers[resellerIndex].replace(/\s/g, '_').replace(/,/g, '_').replace(/\'/g, '_').toLowerCase();
+        resellers_list.push(cleanedresller);
+        resellers_list_descriptions.push(randomResellers[resellerIndex]);
+    }
+    
+    
     // Process domains in parallel batches
     const domainBatches = [];
     for (let i = 0; i < domains_list.length; i += CONFIG.MAX_CONCURRENT_DOMAINS) {
         domainBatches.push(domains_list.slice(i, i + CONFIG.MAX_CONCURRENT_DOMAINS));
     }
+
+    for (let i = 0; i < resellers_list.length; i++) {
+        console.log("Creating reseller " + resellers_list[i] + " with description " + resellers_list_descriptions[i]);
+        await createReseller({
+            reseller: resellers_list[i],
+            description: resellers_list_descriptions[i],
+        });
+    }
+
 
     for (let batchIndex = 0; batchIndex < domainBatches.length; batchIndex++) {
         const batch = domainBatches[batchIndex];
@@ -167,7 +212,13 @@ async function processSingleDomain(description, i) {
         var domain = description.replace(/\s/g, '_').replace(/,/g, '_').replace(/\./g, '').replace(/\'/g, '_').toLowerCase();
         domain = domain.replace(/-/g, '_').replace(/__/g, '_');
 
-        const domainSize = utils.getDomainSize(domain);
+        //replace an non asci characters like É with their ascii equivalent
+        domain = domain.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        const domainSize = utils.getDomainSize(domain, i);
+
+        const resi = domainSize > 9000;
+        if (resi) description = "Residential - " + description;
 
         var area_random = seedrandom(domain + "area_code")();
         var last_four_random = seedrandom(domain + "last_four")();
@@ -181,7 +232,21 @@ async function processSingleDomain(description, i) {
 
         console.log("[" + i + "]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
         
-        await createDomain({ description, domain, domainSize, area_code, number, time_zone });
+        //we need some random logic for picking reseller for a domain. I would like to have 1 reseller that gets about 30% of the domains, then one getting about 15%, then the reset are random. 
+        let reseller;
+        if (i % 10 < 3)
+            reseller = resellers_list[0];
+        else if (i % 10 == 3 || i % 10 == 4)
+            reseller = resellers_list[1];
+        else 
+        {
+            var reseller_random = seedrandom(SEED + i +"reseller")();
+            reseller = resellers_list[Math.floor(reseller_random * resellers_list.length-2)+2]; //skip first two resellers for random selection.
+        }
+            
+
+        const domainParams = {reseller,description, domain, domainSize, area_code, number, time_zone,"domain-type": resi ? "Residential" : "Standard" };
+        await createDomain(domainParams);
         //Domain should be created by now. 
         createNdpUiConfig({domain});
 
@@ -302,81 +367,85 @@ async function processSingleDomain(description, i) {
         macDataBatch.forEach(macArgs => createMac(macArgs));
         avatarBatch.forEach(avatarArgs => updateAvatar(avatarArgs));
       
-        for (let h = 0; h * CONFIG.QUEUES_PER_USERS_RATIO < domainSize; h++) {
-            if (h > CONFIG.MAX_QUEUES) continue;
-            const queueName = randomdata.queueNames[(domainSize + h) % randomdata.queueNames.length];
-            const queue_index = h;
-            let queueArgs = {
-                domain: domain,
-                callqueue: CONFIG.QUEUE_EXTENSION_START + queue_index,
-                description: queueName,
-                "callqueue-agent-dispatch-timeout-seconds": 30,
-                "callqueue-dispatch-type": "round-robin",
-                "callqueue-calculate-statistics": "yes",
-
-            }
-            let queueUser = {
-                domain: domain,
-                user: CONFIG.QUEUE_EXTENSION_START + queue_index,
-                "name-first-name": queueName,
-                "name-last-name": "Queue",
-                "email-address": (CONFIG.QUEUE_EXTENSION_START + queue_index) + "@" + domain + ".com",
-                "service-code": "system-queue",
-                "user-scope": "No Portal",
-                "ring-no-answer-timeout-seconds": 120,
-                "callqueue-max-wait-timeout-minutes": 30, // the sipp should exit well before this, but prevents issues if sipp dies. 
-                "callqueue-calculate-statistics": "yes",
-            }
-
-            let phonenumberArgs = {
-                domain: domain,
-                "phonenumber": "1" + area_code + "555" + (last_four + queue_index),
-                "dial-rule-description": "DID for " + queueName,
-                "dial-rule-application": "to-callqueue",
-                "dial-rule-translation-destination-user": CONFIG.QUEUE_EXTENSION_START + queue_index,
-                "dial-rule-translation-destination-host": domain,
-                "phone-number-description": queueName,
-                "time_zone": time_zone //just for scheudling calls. 
-            }
-
-            try {
-                await createQueue(queue_index, queueArgs, () => { }, updateQueue);
-                await createUser(queueUser); // user for the queue
-                createPhonenumber(phonenumberArgs);
-            } catch (error) {
-                console.error(`Failed to create queue ${queueArgs.callqueue} in domain ${domain}:`, error.message);
-                continue; // Skip this queue and move to the next one
-            }
-
-            // Reduced wait time for large domains
-            if (domainSize > CONFIG.LARGE_DOMAIN_THRESHOLD && !CONFIG.REDUCE_DELAYS) {
-                await new Promise(resolve => setTimeout(resolve, 250)); // Reduced from 1000ms
-            }
-
-            for (var a = 0; a < Math.floor(domainSize * CONFIG.AGENTS_PER_QUEUE_PERCENTAGE) + CONFIG.MIN_AGENTS_PER_QUEUE; a++) {   // 10% of domain users will be in each queue
-                //get random user between 0 and domainSize
-                const random_agent_index = utils.randomIntFromInterval(0, domainSize);
-
-                // Reduced agent processing delay
-                if (a % 20 == 19 && !CONFIG.REDUCE_DELAYS) { // Less frequent delays
-                    await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 200ms
-                }
-                let agentArgs = {
+        if (!resi)
+        {
+            for (let h = 0; h * CONFIG.QUEUES_PER_USERS_RATIO < domainSize; h++) {
+                if (h > CONFIG.MAX_QUEUES) continue;
+                const queueName = randomdata.queueNames[(domainSize + h) % randomdata.queueNames.length];
+                const queue_index = h;
+                let queueArgs = {
                     domain: domain,
-                    "callqueue-agent-id": (CONFIG.USER_EXTENSION_START + random_agent_index) + "@" + domain,
                     callqueue: CONFIG.QUEUE_EXTENSION_START + queue_index,
-                    "callqueue-agent-priority": random_agent_index > domainSize / 2 ? "1" : "2"  // ~50% of agents will have priority 1
+                    description: queueName,
+                    "callqueue-agent-dispatch-timeout-seconds": 30,
+                    "callqueue-dispatch-type": "round-robin",
+                    "callqueue-calculate-statistics": "yes",
+
                 }
-                 
-                createAgent(JSON.parse(JSON.stringify(agentArgs))); // Not waiting for this to complete
+                let queueUser = {
+                    domain: domain,
+                    user: CONFIG.QUEUE_EXTENSION_START + queue_index,
+                    "name-first-name": queueName,
+                    "name-last-name": "Queue",
+                    "email-address": (CONFIG.QUEUE_EXTENSION_START + queue_index) + "@" + domain + ".com",
+                    "service-code": "system-queue",
+                    "user-scope": "No Portal",
+                    "ring-no-answer-timeout-seconds": 120,
+                    "callqueue-max-wait-timeout-minutes": 30, // the sipp should exit well before this, but prevents issues if sipp dies. 
+                    "callqueue-calculate-statistics": "yes",
+                }
+
+                let phonenumberArgs = {
+                    domain: domain,
+                    "phonenumber": "1" + area_code + "555" + (last_four + queue_index),
+                    "dial-rule-description": "DID for " + queueName,
+                    "dial-rule-application": "to-callqueue",
+                    "dial-rule-translation-destination-user": CONFIG.QUEUE_EXTENSION_START + queue_index,
+                    "dial-rule-translation-destination-host": domain,
+                    "phone-number-description": queueName,
+                    "time_zone": time_zone //just for scheudling calls. 
+                }
+
+                try {
+                    await createQueue(queue_index, queueArgs, () => { }, updateQueue);
+                    await createUser(queueUser); // user for the queue
+                    createPhonenumber(phonenumberArgs);
+                } catch (error) {
+                    console.error(`Failed to create queue ${queueArgs.callqueue} in domain ${domain}:`, error.message);
+                    continue; // Skip this queue and move to the next one
+                }
+
+                // Reduced wait time for large domains
+                if (domainSize > CONFIG.LARGE_DOMAIN_THRESHOLD && !CONFIG.REDUCE_DELAYS) {
+                    await new Promise(resolve => setTimeout(resolve, 250)); // Reduced from 1000ms
+                }
+
+                for (var a = 0; a < Math.floor(domainSize * CONFIG.AGENTS_PER_QUEUE_PERCENTAGE) + CONFIG.MIN_AGENTS_PER_QUEUE; a++) {   // 10% of domain users will be in each queue
+                    //get random user between 0 and domainSize
+                    if (i> 500 && a >35) continue; //limit agents for large domains to prevent overload.
+
+                    const random_agent_index = utils.randomIntFromInterval(0, domainSize);
+
+                    // Reduced agent processing delay
+                    if (a % 20 == 19 && !CONFIG.REDUCE_DELAYS) { // Less frequent delays
+                        await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 200ms
+                    }
+                    let agentArgs = {
+                        domain: domain,
+                        "callqueue-agent-id": (CONFIG.USER_EXTENSION_START + random_agent_index) + "@" + domain,
+                        callqueue: CONFIG.QUEUE_EXTENSION_START + queue_index,
+                        "callqueue-agent-priority": random_agent_index > domainSize / 2 ? "1" : "2"  // ~50% of agents will have priority 1
+                    }
+                    
+                    createAgent(JSON.parse(JSON.stringify(agentArgs))); // Not waiting for this to complete
+                }
             }
-
-
-
-
-
-
         }
+        else
+        {
+            console.log("Skipping queue creation for residential domain " + domain);
+        }
+        
         
         console.log(`[${i}] Domain ${domain} completed successfully`);
         
@@ -391,7 +460,15 @@ buildDomains();
 
 
 
+async function createReseller(data) {
+    const path = `resellers`;
+    await apiClient.apiCreateSync(path, data,() => { },updateReseller);
+}
 
+function updateReseller(data) {
+    const path = `resellers/` + data.reseller;
+    apiClient.apiUpdate(path, data);
+}
 
 
 
@@ -403,21 +480,26 @@ async function createDomain(args) {
         description: args.description,
         'recording-configuration': 'no',
         'language-token': 'en_US',
-        reseller: RESELLER,
+        reseller: args.reseller,
         'caller-id-name': args.description.substring(0, 15),
         'area-code': args.area_code,
         'caller-id-number': args.number,
         'caller-id-number-emergency': args.number,
         'time-zone': args['time-zone'],
         'voicemail-enabled': 'yes',
-        'domain-type': 'Standard',
+        'domain-type': args['domain-type'],
         'dial-policy': 'US and Canada',
     }
 
     const path = `domains`;
-    await apiClient.apiCreateSync(path, data);
+    await apiClient.apiCreateSync(path, data, () => { }, updateDomain);
     await new Promise(resolve => setTimeout(resolve, 200));
 
+}
+
+function updateDomain(data) {
+    const path = `domains/` + data.domain;
+    apiClient.apiUpdate(path, data);    
 }
 
 async function createNdpUiConfig(args) {
