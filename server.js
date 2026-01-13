@@ -168,8 +168,8 @@ async function buildDomains() {
         domainBatches.push(domains_list.slice(i, i + CONFIG.MAX_CONCURRENT_DOMAINS));
     }
 
+    console.log(`Validating and/or creating ${resellers_list.length} resellers...`);
     for (let i = 0; i < resellers_list.length; i++) {
-        console.log("Creating reseller " + resellers_list[i] + " with description " + resellers_list_descriptions[i]);
         await createReseller({
             reseller: resellers_list[i],
             description: resellers_list_descriptions[i],
@@ -210,7 +210,7 @@ async function buildDomains() {
 async function processSingleDomain(description, i) {
     try {
         var domain = description.replace(/\s/g, '_').replace(/,/g, '_').replace(/\./g, '').replace(/\'/g, '_').toLowerCase();
-        domain = domain.replace(/-/g, '_').replace(/__/g, '_');
+        domain = domain.replace(/-/g, '_').replace(/&/g, '_').replace(/___/g, '_').replace(/__/g, '_');
 
         //replace an non asci characters like É with their ascii equivalent
         domain = domain.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -230,7 +230,6 @@ async function processSingleDomain(description, i) {
         let sites = [];
         for (var s = 0; s <= Math.floor(domainSize / CONFIG.USERS_PER_SITE); s++) sites.push(fakerator.address.city());
 
-        console.log("[" + i + "]Creating domain " + domain + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
         
         //we need some random logic for picking reseller for a domain. I would like to have 1 reseller that gets about 30% of the domains, then one getting about 15%, then the reset are random. 
         let reseller;
@@ -243,6 +242,9 @@ async function processSingleDomain(description, i) {
             var reseller_random = seedrandom(SEED + i +"reseller")();
             reseller = resellers_list[Math.floor(reseller_random * resellers_list.length-2)+2]; //skip first two resellers for random selection.
         }
+
+        console.log("[" + i + "]Creating domain " + domain + " reseller is " + reseller + " with " + domainSize + " users in " + time_zone + " timezone and area code " + area_code + " and main number " + number);
+        
             
 
         const domainParams = {reseller,description, domain, domainSize, area_code, number, time_zone,"domain-type": resi ? "Residential" : "Standard" };
@@ -462,7 +464,10 @@ buildDomains();
 
 async function createReseller(data) {
     const path = `resellers`;
-    await apiClient.apiCreateSync(path, data,() => { },updateReseller);
+    await apiClient.apiCreateSync(path, data
+        ,() =>{ console.log("Created reseller " + data.reseller + " with description " + data.description); }
+        ,updateReseller
+    );
 }
 
 function updateReseller(data) {
