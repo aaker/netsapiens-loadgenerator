@@ -74,7 +74,7 @@ const CONFIG = {
     AGENT_DELAY_MS: 500, // Reduced from 3000ms
     BATCH_DELAY_MS: 100, // Reduced from 200ms
     DEVICE_DELAY_MS: 25, // Reduced from 100ms
-    AVATAR_MAX_CONCURRENT: parseInt(process.env.AVATAR_MAX_CONCURRENT) || 5 // Max concurrent avatar uploads
+    AVATAR_MAX_CONCURRENT: parseInt(process.env.AVATAR_MAX_CONCURRENT) || 3 // Max concurrent avatar uploads
 };
 
 // Use server-specific configuration values
@@ -301,13 +301,17 @@ async function processSingleDomain(description, i) {
                 'server': NDP_SERVERNAME,
             }
 
-            let avatarArgs = {
+            if (domain.startsWith("a") || domain.startsWith("b"))
+            {
+                let avatarArgs = {
                 domain: domain,
                 user: CONFIG.USER_EXTENSION_START + u,
                 filePath: avatarFilenames[(i + u) % avatarCount] //random start using domain index and then each
-            }
+                }
 
-            avatarBatch.push(avatarArgs);
+                avatarBatch.push(avatarArgs);
+            }
+            
             userDataBatch.push(userArgs);
             deviceDataBatch.push(deviceArgs);
             
