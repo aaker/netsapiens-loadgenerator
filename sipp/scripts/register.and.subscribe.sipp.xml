@@ -12,7 +12,7 @@
   <action>
     <assign assign_to="5" value="0" />
     <!-- Capture start time in seconds for 59-minute timeout -->
-    <gettimeofday assign_to="start_sec" assign_to_2="start_usec" />
+    <gettimeofday assign_to="start_sec,start_usec" />
     <!-- Target end time = start + 3540 seconds (59 minutes) -->
     <assign assign_to="end_time" value="0" />
     <add assign_to="end_time" variable="start_sec" />
@@ -371,7 +371,7 @@
   <nop>
     <action>
       <!-- Get current time and check if we're still within the 59-minute window -->
-      <gettimeofday assign_to="current_sec" assign_to_2="current_usec" />
+      <gettimeofday assign_to="current_sec,current_usec" />
       <test assign_to="6" variable="current_sec" compare="less_than" variable2="end_time" />
     </action>
   </nop>
