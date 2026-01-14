@@ -37,7 +37,8 @@ PCT_USERS=$REGISTRATION_PCT # % of the users will be registered
 MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$MAX_USERS" |bc)`
 
 LOG_FILE=$(basename "$INPUTFILE")
-CALLRATE=8 #8 registrations per second roll out rate
+CALLRATE=`printf "%.0f\n" $(echo "scale=2;$MAX_USERS/50" |bc)`
+
 
 echo "Registering $INPUTFILE"
 ulimit -n 65536

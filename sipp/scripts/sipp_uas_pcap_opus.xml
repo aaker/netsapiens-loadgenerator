@@ -75,7 +75,7 @@
     ]]>
   </send>
 
-  <pause distribution="uniform" min="2000" max="10000"/>
+  <pause distribution="uniform" min="10000" max="300000"/>
 
 
   <send retrans="500">
