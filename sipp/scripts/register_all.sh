@@ -158,25 +158,67 @@ fi
 echo "starting run... " > "$ERROR_LOG"
 echo "scheduling batch" >> "$REGISTER_LOG"
 
+# Create unique temp file for combined CSV data
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+TEMP_CSV="/tmp/register_combined_${SERVER_ID:-default}_${TIMESTAMP}.csv"
+TEMP_LOG="/tmp/register_combined_${SERVER_ID:-default}_${TIMESTAMP}.log"
+
+# Cleanup function for temp files
+cleanup_temp_files() {
+	echo "Cleaning up temp files..."
+	[ -f "$TEMP_CSV" ] && rm -f "$TEMP_CSV" && echo "  Removed: $TEMP_CSV"
+	[ -f "$TEMP_LOG" ] && rm -f "$TEMP_LOG" && echo "  Removed: $TEMP_LOG"
+}
+
+# Trap to ensure cleanup on exit
+trap cleanup_temp_files EXIT
+
+echo "Combining CSV files matching modulo $MINOFHOUR..."
+echo "Temp CSV file: $TEMP_CSV"
+echo "Temp log file: $TEMP_LOG"
+echo "---"
+
+# First pass: Collect all matching files and combine into single temp CSV
+FILE_COUNT=0
+HEADER_WRITTEN=false
+
 for file in $CSV_PATH/*; do
 	#modulo COUNTER AND MINOFHOUR
 	MODU=$((COUNTER % 60));
 	if [ $MODU -eq $MINOFHOUR ]; then
-		echo "Registering $file"
-	else
-		COUNTER=$((COUNTER + 1)); ##incremenet here to keep looping.
-		continue;
+		echo "Including file: $file" | tee -a "$TEMP_LOG"
+
+		# Handle CSV header - only write it once from the first file
+		if [ "$HEADER_WRITTEN" = false ]; then
+			# Copy first file including header
+			cat "$file" >> "$TEMP_CSV"
+			HEADER_WRITTEN=true
+		else
+			# Skip header line (first line) for subsequent files
+			tail -n +2 "$file" >> "$TEMP_CSV"
+		fi
+
+		FILE_COUNT=$((FILE_COUNT + 1))
 	fi
+	COUNTER=$((COUNTER + 1));
+done
 
-	COUNTER=$((COUNTER + 1)); #moved below to keep 0 based index.
+echo "---"
+echo "Combined $FILE_COUNT files into $TEMP_CSV"
+echo "Files included in this batch:" >> "$TEMP_LOG"
 
-	sleep 2; #disperse the load a bit.
+# Check if we have any files to process
+if [ $FILE_COUNT -eq 0 ]; then
+	echo "No files matched modulo $MINOFHOUR, nothing to register."
+else
+	TOTAL_LINES=$(wc -l < "$TEMP_CSV")
+	echo "Total lines in combined CSV: $TOTAL_LINES"
 
 	# Allocate ports dynamically for this SIPp instance
-	echo "Allocating ports for $(basename $file)..."
+	echo "Allocating ports for combined batch..."
 	if ! allocate_ports 1 1 1; then
-		echo "ERROR: Failed to allocate ports for $file, skipping..."
-		continue
+		echo "ERROR: Failed to allocate ports for combined batch, exiting..."
+		exit 1
 	fi
 
 	SIPPORT=$ALLOCATED_SIP_PORT
@@ -185,19 +227,22 @@ for file in $CSV_PATH/*; do
 
 	echo "  Allocated - SIP: $SIPPORT, Media: $MEDIAPORT, Control: $CONTROLPORT"
 
-	TRANSPORT_TYPE=$((COUNTER % 3));
+	# Use modulo of file count to determine transport type for variety
+	TRANSPORT_TYPE=$((FILE_COUNT % 3));
 	if [ $TRANSPORT_TYPE -eq 2 ]; then
-		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$file" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+		echo "Using UDP transport (u1)"
+		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
 	elif [ $TRANSPORT_TYPE -eq 1 ]; then
-		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$file" "t1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+		echo "Using TCP transport (t1)"
+		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "t1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
 	else
 		# TLS support (l1 = TLS with one socket)
-		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$file" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+		echo "Using TLS transport (l1)"
+		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
 	fi
+fi
 
-	# Note: Ports will be released when register.sh completes via trap
-
-done
+# Temp files will be cleaned up by the trap on EXIT
 
 # Only cleanup stale locks once at the start (not per-file)
 cleanup_stale_locks
