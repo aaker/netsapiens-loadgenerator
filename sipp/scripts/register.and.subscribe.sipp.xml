@@ -12,9 +12,8 @@
   <action>
     <assign assign_to="5" value="0" />
     <!-- Capture start time in seconds for 59-minute timeout -->
-    <gettimeofday assign_to="start_sec,start_usec" />
-    <!-- Dummy test to suppress "referenced 1 times" warning for start_usec -->
-    <test assign_to="98" variable="start_usec" compare="greater_than" value="-1" />
+    <!-- Use end_time to capture usec (we'll overwrite it), avoids "referenced 1 times" warning -->
+    <gettimeofday assign_to="start_sec,end_time" />
     <!-- Target end time = start + 3540 seconds (59 minutes) -->
     <assign assign_to="end_time" value="0" />
     <add assign_to="end_time" variable="start_sec" />
@@ -373,9 +372,8 @@
   <nop>
     <action>
       <!-- Get current time and check if we're still within the 59-minute window -->
-      <gettimeofday assign_to="current_sec,current_usec" />
-      <!-- Dummy test to suppress "referenced 1 times" warning for current_usec -->
-      <test assign_to="99" variable="current_usec" compare="greater_than" value="-1" />
+      <!-- Reuse variable 6 for usec to avoid "referenced 1 times" warning -->
+      <gettimeofday assign_to="current_sec,6" />
       <test assign_to="6" variable="current_sec" compare="less_than" variable2="end_time" />
     </action>
   </nop>
