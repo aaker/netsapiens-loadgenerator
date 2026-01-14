@@ -117,7 +117,7 @@ if [ -n "$SERVER_ID" ]; then
 else
     # Legacy single-server mode
     SUT=${SAS_SERVER:-$TARGET_SERVER}
-    INPUTFILE="$BASE_DIR/sipp/csv/phonenumbers/${TIMEZONE}.csv"
+    INPUTFILE="$BASE_DIR/sipp/csv/servers/default/phonenumbers/${TIMEZONE}.csv"
     echo "Legacy single-server mode"
 fi
 

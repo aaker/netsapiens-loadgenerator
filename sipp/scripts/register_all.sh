@@ -90,7 +90,7 @@ if [ -n "$SERVER_ID" ]; then
 else
     # Legacy single-server mode: Use environment variable
     SUT=$TARGET_SERVER
-    CSV_PATH="$BASE_DIR/sipp/csv/devices"
+    CSV_PATH="$BASE_DIR/sipp/csv/servers/default/devices"
 
     if [ ! -d "$CSV_PATH" ]; then
         echo "Error: Legacy device CSV directory not found: $CSV_PATH"
