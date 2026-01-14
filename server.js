@@ -67,7 +67,7 @@ const CONFIG = {
     PHONE_LAST_FOUR_MIN: 1000,
     PHONE_LAST_FOUR_MAX: 9990,
     // Performance tuning
-    MAX_CONCURRENT_DOMAINS: 5, // Process multiple domains in parallel
+    MAX_CONCURRENT_DOMAINS: parseInt(process.env.MAX_CONCURRENT_DOMAINS) || 3, // Process multiple domains in parallel
     USER_BATCH_SIZE: 25, // Increased from 15
     DEVICE_BATCH_SIZE: 25, // Larger batches for devices
     REDUCE_DELAYS: false, // Feature flag to reduce/eliminate delays
