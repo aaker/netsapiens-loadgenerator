@@ -227,8 +227,8 @@ else
 
 	echo "  Allocated - SIP: $SIPPORT, Media: $MEDIAPORT, Control: $CONTROLPORT"
 
-	# Use modulo of file count to determine transport type for variety
-	TRANSPORT_TYPE=$((FILE_COUNT % 3));
+	# Use modulo of minute of hour to determine transport type for variety
+	TRANSPORT_TYPE=$((MINOFHOUR % 3));
 	if [ $TRANSPORT_TYPE -eq 2 ]; then
 		echo "Using UDP transport (u1)"
 		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"

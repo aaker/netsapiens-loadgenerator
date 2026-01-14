@@ -23,7 +23,15 @@ MEDIA_IP=$7
 SERVER_ID=$8  # Optional: for multi-server stats tracking
 PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 
-MAX_USERS=`cat $INPUTFILE | grep -v SEQUENTIAL | wc -l`
+# replace SEQUENTIAL with  RANDOM  in the input file to randomize user selection
+TEMP_CSV="/tmp/register_$$.csv"
+cat $INPUTFILE | sed 's/SEQUENTIAL/RANDOM/g' > $TEMP_CSV	
+cat $TEMP_CSV > $INPUTFILE
+rm -f $TEMP_CSV
+
+head -n 2 $INPUTFILE 
+
+MAX_USERS=`cat $INPUTFILE | grep -v SEQUENTIAL | grep -v RANDOM | wc -l`
 PCT_USERS=$REGISTRATION_PCT # % of the users will be registered
 
 MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$MAX_USERS" |bc)`
