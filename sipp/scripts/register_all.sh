@@ -165,9 +165,9 @@ TEMP_LOG="/tmp/register_combined_${SERVER_ID:-default}_${TIMESTAMP}.log"
 
 # Cleanup function for temp files
 cleanup_temp_files() {
-	echo "Cleaning up temp files..."
-	[ -f "$TEMP_CSV" ] && rm -f "$TEMP_CSV" && echo "  Removed: $TEMP_CSV"
-	[ -f "$TEMP_LOG" ] && rm -f "$TEMP_LOG" && echo "  Removed: $TEMP_LOG"
+	echo "Cleaning up temp files (temp disabled)..."
+	#[ -f "$TEMP_CSV" ] && rm -f "$TEMP_CSV" && echo "  Removed: $TEMP_CSV"
+	#[ -f "$TEMP_LOG" ] && rm -f "$TEMP_LOG" && echo "  Removed: $TEMP_LOG"
 }
 
 # Trap to ensure cleanup on exit
@@ -229,6 +229,7 @@ else
 
 	# Use modulo of minute of hour to determine transport type for variety
 	TRANSPORT_TYPE=$((MINOFHOUR % 3));
+    set -x
 	if [ $TRANSPORT_TYPE -eq 2 ]; then
 		echo "Using UDP transport (u1)"
 		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
@@ -238,7 +239,7 @@ else
 	else
 		# TLS support (l1 = TLS with one socket)
 		echo "Using TLS transport (l1)"
-		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+        /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
 	fi
 fi
 

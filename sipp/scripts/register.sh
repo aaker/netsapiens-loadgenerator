@@ -100,6 +100,7 @@ $MEDIAPORT_LOGIC \
 -i $PRIVATEIP -mi $PRIVATEIP \
 -trace_stat -stf $STATS_FILE -fd 15 -bg "
 
+echo "SIPP command: $SIPP_CMD"
 # Log command to syslog
 logger -t sipp-register -p user.info "Starting registration: server=$SERVER_ID scenario=register transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS sip_port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
 
