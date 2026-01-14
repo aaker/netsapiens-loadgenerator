@@ -159,7 +159,7 @@
   </nop>
 
 <label id="pause_talking"/>
-<pause distribution="uniform" min="5000" max="600000" next="send_bye"/> 
+<pause distribution="uniform" min="5000" max="600000"/> 
 
 
 <label id="send_bye"/>
