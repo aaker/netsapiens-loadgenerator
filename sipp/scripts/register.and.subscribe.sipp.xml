@@ -92,6 +92,7 @@
       Contact: sip:[field1]@[local_ip]:[local_port]
       Max-Forwards: 70
       Accept: application/simple-message-summary
+      [field3]
       Event: message-summary
       Expires: 3600
       Content-Length: 0
@@ -138,6 +139,7 @@
       Max-Forwards: 70  
       Event: presence
       Expires: 3600
+      [field3]
       Accept: application/pidf+xml
       Allow-Events: presence
       Content-Length: 0
@@ -185,6 +187,7 @@
       Event: presence
       Expires: 3600
       Accept: application/pidf+xml
+      [field3]
       Allow-Events: presence
       Content-Length: 0
 
@@ -230,6 +233,7 @@
       Max-Forwards: 70  
       Event: presence
       Expires: 3600
+      [field3]
       Accept: application/pidf+xml
       Allow-Events: presence
       Content-Length: 0
@@ -277,6 +281,7 @@
       Event: presence
       Expires: 3600
       Accept: application/pidf+xml
+      [field3]
       Allow-Events: presence
       Content-Length: 0
 
@@ -324,6 +329,7 @@
       Expires: 3600
       Accept: application/pidf+xml
       Allow-Events: presence
+      [field3]
       Content-Length: 0
 
     ]]>
