@@ -108,7 +108,17 @@
     </action>
   </nop>
 
-   <recv request="INVITE" timeout="300000" ontimeout="send_bye"   crlf="true" next="accept_reinvite">
+  <!-- send rfc2833 DTMF -->
+  <nop>
+    <pause distribution="uniform" min="100" max="3000"/> 
+    <action>
+      <exec rtp_send_dtmf="1" /> 
+    </action>
+  </nop>
+
+
+  <!-- this is the reinvite for when it goes to the agent -->
+   <recv request="INVITE" timeout="45000" ontimeout="send_bye"   crlf="true" next="accept_reinvite">
   </recv>
   	
 
@@ -149,7 +159,7 @@
   </nop>
 
 <label id="pause_talking"/>
-<pause distribution="uniform" min="5000" max="90000" next="send_bye"/> 
+<pause distribution="uniform" min="5000" max="300000" next="send_bye"/> 
 
 
 <label id="send_bye"/>
