@@ -75,7 +75,7 @@
     ]]>
   </send>
 
-  <pause distribution="uniform" min="10000" max="300000"/>
+  <pause distribution="uniform" min="1000" max="8000"/>
 
   
   <send retrans="500">
@@ -113,7 +113,7 @@
     </action>
   </nop> -->
 
-  <recv request="BYE" timeout="90000" ontimeout="send_bye" ></recv>
+  <recv request="BYE" timeout="[bye_timeout]" ontimeout="send_bye" ></recv>
   <send next="99">
     <![CDATA[
 

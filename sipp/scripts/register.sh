@@ -58,6 +58,9 @@ echo "`date` - [start] $INPUTFILE $PORT $MEDIA_PORT $CONTROL_PORT (max users $MA
 
 MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
 
+#$RANDOM_15 is a random number between 10000 and 600000 (10 seconds to 10 minutes)
+RANDOM_15=$(( ( RANDOM % 590000 )  + 10000 ))
+
 
 # TLS certificate configuration (only used when TRANSPORT=l1)
 TLS_CERT="$BASE_DIR/sipp/tls/sipp.crt"
@@ -91,6 +94,7 @@ fi
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
+-set bye_timeout $RANDOM_15 \
 -oocsf $BASE_DIR/sipp/scripts/sipp_uas_pcap_g711a.xml \
 -inf $INPUTFILE \
 -inf $BASE_DIR/sipp/csv/random_user_agents.csv \
@@ -113,7 +117,7 @@ SIPP_OUTPUT=$($SIPP_CMD 2>&1)
 SIPP_EXIT=$?
 
 # Log the output
-echo "$SIPP_OUTPUT" | logger -t sipp-register -p user.info
+# echo "$SIPP_OUTPUT" | logger -t sipp-register -p user.info
 
 # Extract the actual sipp PID from the "Background mode - PID=[XXXXX]" message
 SIPP_PID=$(echo "$SIPP_OUTPUT" | grep -oP 'Background mode - PID=\[\K[0-9]+(?=\])')
