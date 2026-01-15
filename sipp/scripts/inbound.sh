@@ -12,6 +12,10 @@
 BASE_DIR="/usr/local/NetSapiens/netsapiens-loadgenerator"
 source $BASE_DIR/.env
 
+#random delay to stagger start times (0-15 seconds), seed with $$ pid
+RANDOM=$$
+sleep $(( RANDOM % 16 ))
+
 # Source port allocator for dynamic port allocation
 source "$BASE_DIR/sipp/scripts/port-allocator.sh"
 
