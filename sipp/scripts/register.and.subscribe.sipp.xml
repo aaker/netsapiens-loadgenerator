@@ -115,9 +115,9 @@
   <recv  response="200" rtd="subscribeMwi">
   </recv>
 
-  <recv  request="NOTIFY"></recv>
+  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe1"></recv>
 
-  <send  >
+  <send>
     <![CDATA[
 
       SIP/2.0 200 OK
@@ -162,9 +162,9 @@
   <recv  response="200" rtd="subscribePresence">
   </recv>
 
-  <recv  request="NOTIFY"></recv>
+  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe2"></recv>
 
-  <send  >
+  <send>
     <![CDATA[
 
       SIP/2.0 200 OK
@@ -209,9 +209,9 @@
   <recv  response="200" >
   </recv>
 
-  <recv  request="NOTIFY"></recv>
+  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe3"></recv>
 
-  <send  >
+  <send>
     <![CDATA[
 
       SIP/2.0 200 OK
@@ -256,9 +256,9 @@
   <recv  response="200" >
   </recv>
 
-  <recv  request="NOTIFY"></recv>
+  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe4"></recv>
 
-  <send  >
+  <send>
     <![CDATA[
 
       SIP/2.0 200 OK
@@ -303,9 +303,9 @@
   <recv  response="200" >
   </recv>
 
-  <recv  request="NOTIFY"></recv>
+  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe5"></recv>
 
-  <send  >
+  <send>
     <![CDATA[
 
       SIP/2.0 200 OK
@@ -350,9 +350,9 @@
   <recv  response="200" >
   </recv>
 
-  <recv  request="NOTIFY"></recv>
+  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="after_subscribe"></recv>
 
-  <send  >
+  <send>
     <![CDATA[
 
       SIP/2.0 200 OK
@@ -367,7 +367,6 @@
     ]]>
   </send>
 
-  
   <label id="after_subscribe"/>
   <nop>
     <action>
