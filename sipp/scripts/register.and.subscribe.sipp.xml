@@ -108,7 +108,7 @@
   <recv response="200" rtd="subscribeMwi">
   </recv>
 
-  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe1"></recv>
+  <recv request="NOTIFY" timeout="2000"></recv>
 
   <send>
     <![CDATA[
@@ -152,7 +152,7 @@
   <recv  response="200" rtd="subscribePresence">
   </recv>
 
-  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe2"></recv>
+  <recv request="NOTIFY" timeout="2000"></recv>
 
   <send>
     <![CDATA[
@@ -199,7 +199,7 @@
   <recv  response="200" >
   </recv>
 
-  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe3"></recv>
+  <recv request="NOTIFY" timeout="2000"></recv>
 
   <send>
     <![CDATA[
@@ -246,7 +246,7 @@
   <recv  response="200" >
   </recv>
 
-  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe4"></recv>
+  <recv request="NOTIFY" timeout="2000"></recv>
 
   <send>
     <![CDATA[
@@ -293,7 +293,7 @@
   <recv  response="200" >
   </recv>
 
-  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe5"></recv>
+  <recv request="NOTIFY" timeout="2000"></recv>
 
   <send>
     <![CDATA[
@@ -340,7 +340,7 @@
   <recv  response="200" >
   </recv>
 
-  <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="after_subscribe"></recv>
+  <recv request="NOTIFY" timeout="2000"></recv>
 
   <send>
     <![CDATA[
