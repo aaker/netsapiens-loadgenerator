@@ -11,13 +11,9 @@
   <nop>
   <action>
     <assign assign_to="5" value="0" />
-    <!-- Capture start time in seconds for 59-minute timeout -->
-    <!-- Use end_time to capture usec (we'll overwrite it), avoids "referenced 1 times" warning -->
-    <gettimeofday assign_to="start_sec,end_time" />
-    <!-- Target end time = start + 3540 seconds (59 minutes) -->
-    <assign assign_to="end_time" value="0" />
-    <add assign_to="end_time" variable="start_sec" />
-    <add assign_to="end_time" value="3540" />
+    <!-- Loop counter for 59-minute timeout: 78 loops × 45s = 58.5 min -->
+    <assign assign_to="loop_count" value="0" />
+    <assign assign_to="max_loops" value="78" />
   </action>
   </nop>
 
@@ -107,12 +103,9 @@
     ]]>
   </send>
 
-  <recv response="100" optional="true">
-  </recv>
-
   <recv response="407" auth="true" optional="true" next="send_subscribe0">  </recv>
-                             
-  <recv  response="200" rtd="subscribeMwi">
+
+  <recv response="200" rtd="subscribeMwi">
   </recv>
 
   <recv request="NOTIFY" optional="true" timeout="1000" ontimeout="send_subscribe1"></recv>
@@ -154,11 +147,8 @@
     ]]>
   </send>
 
-  <recv response="100" optional="true">
-  </recv>
-
   <recv response="407" auth="true" optional="true" next="send_subscribe1">  </recv>
-                             
+
   <recv  response="200" rtd="subscribePresence">
   </recv>
 
@@ -370,14 +360,13 @@
   <label id="after_subscribe"/>
   <nop>
     <action>
-      <!-- Get current time and check if we're still within the 59-minute window -->
-      <!-- Reuse variable 6 for usec to avoid "referenced 1 times" warning -->
-      <gettimeofday assign_to="current_sec,6" />
-      <test assign_to="6" variable="current_sec" compare="less_than" variable2="end_time" />
+      <!-- Increment loop counter and check if we should continue -->
+      <add assign_to="loop_count" value="1" />
+      <test assign_to="6" variable="loop_count" compare="less_than" variable2="max_loops" />
     </action>
   </nop>
 
-  <!-- Sleep based on the Expires value received, then loop back for re-REGISTER -->
+  <!-- Sleep 45s then loop back for re-REGISTER if under max_loops (78 × 45s = 58.5 min) -->
   <pause milliseconds="45000" test="6" next="10">  </pause>
   <!-- Scenario ends here after 1 hour -->
 
