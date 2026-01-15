@@ -108,23 +108,6 @@
   <recv response="200" rtd="subscribeMwi">
   </recv>
 
-  <recv request="NOTIFY" timeout="2000"></recv>
-
-  <send>
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
-
   <label id="send_subscribe1"/>
   <send retrans="500" start_rtd="subscribePresence">
     <![CDATA[
@@ -152,23 +135,6 @@
   <recv  response="200" rtd="subscribePresence">
   </recv>
 
-  <recv request="NOTIFY" timeout="2000"></recv>
-
-  <send>
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
-
   <label id="send_subscribe2"/>
   <send retrans="500">
     <![CDATA[
@@ -193,28 +159,8 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe2">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
-
-  <recv request="NOTIFY" timeout="2000"></recv>
-
-  <send>
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe3"/>
   <send retrans="500">
@@ -240,28 +186,8 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe3">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
-
-  <recv request="NOTIFY" timeout="2000"></recv>
-
-  <send>
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe4"/>
   <send retrans="500">
@@ -287,28 +213,8 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe4">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
-
-  <recv request="NOTIFY" timeout="2000"></recv>
-
-  <send>
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe5"/>
   <send retrans="500">
@@ -334,28 +240,8 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe5">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
-
-  <recv request="NOTIFY" timeout="2000"></recv>
-
-  <send>
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="after_subscribe"/>
   <nop>
