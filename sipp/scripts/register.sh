@@ -31,11 +31,11 @@ rm -f $TEMP_CSV
 
 head -n 2 $INPUTFILE 
 
-MAX_USERS=`cat $INPUTFILE | grep -v SEQUENTIAL | grep -v RANDOM | wc -l`
+FILE_LINE_COUNT=`cat $INPUTFILE | grep -v SEQUENTIAL | grep -v RANDOM | wc -l`
+
 PCT_USERS=$REGISTRATION_PCT # % of the users will be registered
 
-MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$MAX_USERS" |bc)`
-
+MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$FILE_LINE_COUNT" |bc)`
 LOG_FILE=$(basename "$INPUTFILE")
 CALLRATE=`printf "%.0f\n" $(echo "scale=2;$MAX_USERS/50" |bc)`
 
@@ -124,16 +124,17 @@ SIPP_PID=$(echo "$SIPP_OUTPUT" | grep -oP 'Background mode - PID=\[\K[0-9]+(?=\]
 # Give it 2 seconds to start, then verify it's still running
 sleep 2
 
+ADDITION_INFO="scenario=register server=$SERVER_ID transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS pid=$SIPP_PID call_rate=$CALLRATE sip_port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT filelinecount=$FILE_LINE_COUNT pct_reg=$PCT_USERS"
 # Check if sipp process is still running
 if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
-	logger -t sipp-register -p user.info "Registration process started successfully: server=$SERVER_ID scenario=register transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS pid=$SIPP_PID"
+	logger -t sipp-register -p user.info "Registration process started successfully:  $ADDITION_INFO"
 elif [ $SIPP_EXIT -ne 0 ]; then
-	logger -t sipp-register -p user.err "Registration process failed to start: server=$SERVER_ID scenario=register transport=$TRANSPORT file=$LOG_FILE exit_code=$SIPP_EXIT"
+	logger -t sipp-register -p user.err "Registration process failed to start: $ADDITION_INFO exit_code=$SIPP_EXIT"
 	# Log full sipp command
 	logger -t sipp-register -p user.info "Command: $SIPP_CMD"
 	exit 1
 else
-	logger -t sipp-register -p user.err "Registration process failed to start or crashed: server=$SERVER_ID scenario=register transport=$TRANSPORT file=$LOG_FILE"
+	logger -t sipp-register -p user.err "Registration process failed to start or crashed: $ADDITION_INFO"
 	# Log full sipp command
 	logger -t sipp-register -p user.info "Command: $SIPP_CMD"
 	exit 1
