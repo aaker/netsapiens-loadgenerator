@@ -91,7 +91,7 @@ fi
 TARGET_EXT_CSV="/tmp/target_ext_$$.csv"
 echo "RANDOM" > "$TARGET_EXT_CSV"
 for i in $(seq 1 1000); do
-    echo "$((1001 + RANDOM % 100))" >> "$TARGET_EXT_CSV"
+    echo "$((1001 + RANDOM % 20))" >> "$TARGET_EXT_CSV"
 done
 echo "Generated random target extensions file: $TARGET_EXT_CSV"
 

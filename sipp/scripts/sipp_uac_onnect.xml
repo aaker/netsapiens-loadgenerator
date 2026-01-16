@@ -2,66 +2,17 @@
 <!DOCTYPE scenario SYSTEM "sipp.dtd">
 
 <!--                        TEST SCENARIO                               -->
-<!-- REGISTER a user, then INVITE another extension in the same domain  -->
-<!-- (extension number equal or smaller, but above 1000).               -->
-<!-- Once answered, wait 10-30 seconds, then send BYE.                  -->
+<!-- INVITE another extension with authentication, talk 10-30 seconds,  -->
+<!-- then send BYE.                                                     -->
 
-<scenario name="REGISTER_AND_CALL">
+<scenario name="INVITE_CALL">
 
   <nop>
     <action>
       <!-- Generate random talk time between 10000 and 30000 ms -->
       <sample assign_to="talk_time" distribution="uniform" min="10000" max="30000" />
-      <!-- Generate unique call ID for INVITE dialog -->
-      <assign assign_to="invite_call_id" value="1" />
     </action>
   </nop>
-
-  <!-- REGISTER Phase -->
-  <send retrans="1500" start_rtd="register">
-    <![CDATA[
-
-	REGISTER sip:[field2] SIP/2.0
-	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
-	To: <sip:[field1]@[field2]>
-	CSeq: [cseq] REGISTER
-	Call-ID: [call_id]
-	Contact: <sip:[field1]@[local_ip]:[local_port]>
-	Expires: 3600
-	User-Agent: SIPp Load Tester
-	Max-Forwards: 70
-	Content-Length: 0
-
-    ]]>
-  </send>
-
-  <recv response="407" auth="true" rtd="register">  </recv>
-
-  <send retrans="1500">
-    <![CDATA[
-
-	REGISTER sip:[field2] SIP/2.0
-	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
-	To: <sip:[field1]@[field2]>
-	CSeq: [cseq] REGISTER
-	Call-ID: [call_id]
-	Contact: <sip:[field1]@[local_ip]:[local_port]>
-	Expires: 3600
-	User-Agent: SIPp Load Tester
-	[field3]
-	Max-Forwards: 70
-	Content-Length: 0
-
-    ]]>
-  </send>
-
-  <recv response="200" rtd="register">
-  </recv>
-
-  <!-- Small pause after registration before calling -->
-  <pause milliseconds="500"/>
 
   <!-- INVITE Phase - Call target extension -->
   <send retrans="500" start_rtd="invite">
@@ -71,7 +22,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	To: <sip:[field4]@[field2]>
-	Call-ID: [$invite_call_id]-[call_id]
+	Call-ID: [call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -123,7 +74,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [$invite_call_id]-[call_id]
+	Call-ID: [call_id]
 	CSeq: [cseq] ACK
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -143,7 +94,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [$invite_call_id]-[call_id]
+	Call-ID: [call_id]
 	CSeq: [cseq] BYE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -166,7 +117,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	To: <sip:[field4]@[field2]>
-	Call-ID: [$invite_call_id]-[call_id]
+	Call-ID: [call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -215,7 +166,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [$invite_call_id]-[call_id]
+	Call-ID: [call_id]
 	CSeq: [cseq] ACK
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -233,7 +184,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [$invite_call_id]-[call_id]
+	Call-ID: [call_id]
 	CSeq: [cseq] BYE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
