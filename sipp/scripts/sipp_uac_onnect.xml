@@ -10,17 +10,9 @@
 
   <nop>
     <action>
-      <!-- Calculate target extension: random between 1001 and our extension -->
-      <!-- field1 contains our extension number -->
-      <assignstr assign_to="our_ext" value="[field1]" />
-      <!-- Generate random offset from 1001 to our_ext -->
-      <!-- We'll subtract a random value from our extension, min result 1001 -->
-      <assign assign_to="target_ext" value="[field1]" />
-      <sample assign_to="random_offset" distribution="uniform" min="0" max="100" />
-      <subtract assign_to="target_ext" variable="random_offset" />
-      <!-- Ensure target_ext is at least 1001 -->
-      <test assign_to="need_floor" variable="target_ext" compare="less_than" value="1001" />
-      <assign assign_to="target_ext" value="1001" test="need_floor" />
+      <!-- Generate random target extension between 1001 and 1100 -->
+      <!-- This will call a random extension in the typical range -->
+      <sample assign_to="target_ext" distribution="uniform" min="1001" max="1100" />
       <!-- Generate random talk time between 10000 and 30000 ms -->
       <sample assign_to="talk_time" distribution="uniform" min="10000" max="30000" />
     </action>

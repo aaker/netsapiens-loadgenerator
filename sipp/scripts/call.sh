@@ -29,8 +29,8 @@ head -n 2 $INPUTFILE
 
 FILE_LINE_COUNT=$(cat $INPUTFILE | grep -v SEQUENTIAL | grep -v RANDOM | wc -l)
 
-# Percentage of users to make calls (use CALL_PCT from .env or default to 10%)
-PCT_USERS=${CALL_PCT:-0.10}
+# Percentage of users to make calls (use CALL_PCT from .env or default to 5%)
+PCT_USERS=${CALL_PCT:-0.05}
 
 MAX_USERS=$(printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$FILE_LINE_COUNT" | bc))
 
