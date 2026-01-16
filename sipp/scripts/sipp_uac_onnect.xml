@@ -118,9 +118,6 @@
   </recv>
 
   <recv response="200" rrs="true" rtd="invite">
-    <action>
-      <ereg regexp=".*" search_in="hdr" header="To:" assign_to="remote_to" />
-    </action>
   </recv>
 
   <!-- ACK the 200 OK -->
