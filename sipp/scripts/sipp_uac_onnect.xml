@@ -27,7 +27,7 @@
 	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
 	To: <sip:[field1]@[field2]>
 	CSeq: [cseq] REGISTER
-	Call-ID: reg-[call_id]
+	Call-ID: [call_id]
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Expires: 3600
 	User-Agent: SIPp Load Tester
@@ -47,7 +47,7 @@
 	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
 	To: <sip:[field1]@[field2]>
 	CSeq: [cseq] REGISTER
-	Call-ID: reg-[call_id]
+	Call-ID: [call_id]
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Expires: 3600
 	User-Agent: SIPp Load Tester
