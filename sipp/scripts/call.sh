@@ -20,7 +20,7 @@ SERVER_ID=$8  # Optional: for multi-server stats tracking
 PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 
 # Replace SEQUENTIAL with RANDOM in the input file to randomize user selection
-TEMP_CSV="/tmp/call_$$.csv"
+TEMP_CSV="call_$$.csv"
 cat $INPUTFILE | sed 's/SEQUENTIAL/RANDOM/g' > $TEMP_CSV
 cat $TEMP_CSV > $INPUTFILE
 rm -f $TEMP_CSV
@@ -88,7 +88,7 @@ if [ "$TRANSPORT" == "l1" ]; then
 fi
 
 # Generate CSV file with random target extensions (1001-1100)
-TARGET_EXT_CSV="/tmp/target_ext.csv"
+TARGET_EXT_CSV="target_ext.csv"
 echo "RANDOM" > "$TARGET_EXT_CSV"
 for i in $(seq 1 1000); do
     echo "$((1001 + RANDOM % 20))" >> "$TARGET_EXT_CSV"
