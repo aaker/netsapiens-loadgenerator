@@ -11,8 +11,9 @@
   <nop>
     <action>
       <!-- Generate random target extension between 1001 and 1100 -->
-      <!-- This will call a random extension in the typical range -->
-      <sample assign_to="target_ext" distribution="uniform" min="1001" max="1100" />
+      <sample assign_to="target_float" distribution="uniform" min="1001" max="1100" />
+      <!-- Convert to integer string using sprintf with %d format -->
+      <sprintf assign_to="target_ext" format="%d" value0="target_float" />
       <!-- Generate random talk time between 10000 and 30000 ms -->
       <sample assign_to="talk_time" distribution="uniform" min="10000" max="30000" />
     </action>
