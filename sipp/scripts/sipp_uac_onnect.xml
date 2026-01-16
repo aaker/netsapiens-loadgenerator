@@ -18,10 +18,10 @@
   <send retrans="500" start_rtd="invite">
     <![CDATA[
 
-	INVITE sip:[field4]@[field2] SIP/2.0
+	INVITE sip:[field0 file="/tmp/target_ext.csv"]@[field2] SIP/2.0
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
-	To: <sip:[field4]@[field2]>
+	To: <sip:[field0 file="/tmp/target_ext.csv"]@[field2]>
 	Call-ID: [call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
@@ -113,10 +113,10 @@
   <send retrans="500">
     <![CDATA[
 
-	INVITE sip:[field4]@[field2] SIP/2.0
+	INVITE sip:[field0 file="/tmp/target_ext.csv"]@[field2] SIP/2.0
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
-	To: <sip:[field4]@[field2]>
+	To: <sip:[field0 file="/tmp/target_ext.csv"]@[field2]>
 	Call-ID: [call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
