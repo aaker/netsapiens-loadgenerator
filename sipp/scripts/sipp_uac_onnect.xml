@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!--                        TEST SCENARIO                               -->
+<!-- REGISTER a user, then INVITE another extension in the same domain  -->
+<!-- (extension number equal or smaller, but above 1000).               -->
+<!-- Once answered, wait 10-30 seconds, then send BYE.                  -->
+
+<scenario name="REGISTER_AND_CALL">
+
+  <nop>
+    <action>
+      <!-- Calculate target extension: random between 1001 and our extension -->
+      <!-- field1 contains our extension number -->
+      <assignstr assign_to="our_ext" value="[field1]" />
+      <!-- Generate random offset from 1001 to our_ext -->
+      <!-- We'll subtract a random value from our extension, min result 1001 -->
+      <assign assign_to="target_ext" value="[field1]" />
+      <sample assign_to="random_offset" distribution="uniform" min="0" max="100" />
+      <subtract assign_to="target_ext" variable="random_offset" />
+      <!-- Ensure target_ext is at least 1001 -->
+      <test assign_to="need_floor" variable="target_ext" compare="less_than" value="1001" />
+      <assign assign_to="target_ext" value="1001" test="need_floor" />
+      <!-- Generate random talk time between 10000 and 30000 ms -->
+      <sample assign_to="talk_time" distribution="uniform" min="10000" max="30000" />
+    </action>
+  </nop>
+
+  <!-- REGISTER Phase -->
+  <send retrans="1500" start_rtd="register">
+    <![CDATA[
+
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: reg-[call_id]
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Expires: 3600
+	User-Agent: SIPp Load Tester
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" rtd="register">  </recv>
+
+  <send retrans="1500">
+    <![CDATA[
+
+	REGISTER sip:[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+	To: <sip:[field1]@[field2]>
+	CSeq: [cseq] REGISTER
+	Call-ID: reg-[call_id]
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Expires: 3600
+	User-Agent: SIPp Load Tester
+	[field3]
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" optional="true" next="1">  </recv>
+
+  <recv response="200" rtd="register">
+  </recv>
+
+  <label id="1"/>
+
+  <!-- Small pause after registration before calling -->
+  <pause milliseconds="500"/>
+
+  <!-- INVITE Phase - Call target extension -->
+  <send retrans="500" start_rtd="invite">
+    <![CDATA[
+
+	INVITE sip:[$target_ext]@[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
+	To: <sip:[$target_ext]@[field2]>
+	Call-ID: [call_id]
+	CSeq: [cseq] INVITE
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Max-Forwards: 70
+	User-Agent: SIPp Load Tester
+	Content-Type: application/sdp
+	Content-Length: [len]
+
+	v=0
+	o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+	s=-
+	c=IN IP[media_ip_type] [media_ip]
+	t=0 0
+	m=audio [media_port] RTP/AVP 0 8 101
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:8 PCMA/8000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-15
+	a=sendrecv
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true">
+  </recv>
+
+  <recv response="407" auth="true" optional="true" next="2">  </recv>
+
+  <recv response="180" optional="true">
+  </recv>
+
+  <recv response="183" optional="true">
+  </recv>
+
+  <!-- Handle busy/unavailable - just end gracefully -->
+  <recv response="486" optional="true" next="unregister">
+  </recv>
+
+  <recv response="480" optional="true" next="unregister">
+  </recv>
+
+  <recv response="603" optional="true" next="unregister">
+  </recv>
+
+  <recv response="200" rrs="true" rtd="invite">
+    <action>
+      <ereg regexp=".*" search_in="hdr" header="To:" assign_to="remote_to" />
+    </action>
+  </recv>
+
+  <!-- ACK the 200 OK -->
+  <send>
+    <![CDATA[
+
+	ACK [next_url] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
+	[last_To:]
+	Call-ID: [call_id]
+	CSeq: [cseq] ACK
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Talk time: random 10-30 seconds, with RTP echo -->
+  <pause variable="talk_time"/>
+
+  <!-- Send BYE to end the call -->
+  <send retrans="500">
+    <![CDATA[
+
+	BYE [next_url] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
+	[last_To:]
+	Call-ID: [call_id]
+	CSeq: [cseq] BYE
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="200">
+  </recv>
+
+  <goto label="end"/>
+
+  <!-- Label for INVITE retry after 407 -->
+  <label id="2"/>
+  <send retrans="500">
+    <![CDATA[
+
+	INVITE sip:[$target_ext]@[field2] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
+	To: <sip:[$target_ext]@[field2]>
+	Call-ID: [call_id]
+	CSeq: [cseq] INVITE
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Max-Forwards: 70
+	User-Agent: SIPp Load Tester
+	[field3]
+	Content-Type: application/sdp
+	Content-Length: [len]
+
+	v=0
+	o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+	s=-
+	c=IN IP[media_ip_type] [media_ip]
+	t=0 0
+	m=audio [media_port] RTP/AVP 0 8 101
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:8 PCMA/8000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-15
+	a=sendrecv
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true">
+  </recv>
+
+  <recv response="180" optional="true">
+  </recv>
+
+  <recv response="183" optional="true">
+  </recv>
+
+  <recv response="486" optional="true" next="unregister">
+  </recv>
+
+  <recv response="480" optional="true" next="unregister">
+  </recv>
+
+  <recv response="603" optional="true" next="unregister">
+  </recv>
+
+  <recv response="200" rrs="true">
+    <action>
+      <ereg regexp=".*" search_in="hdr" header="To:" assign_to="remote_to" />
+    </action>
+  </recv>
+
+  <send>
+    <![CDATA[
+
+	ACK [next_url] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
+	[last_To:]
+	Call-ID: [call_id]
+	CSeq: [cseq] ACK
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <pause variable="talk_time"/>
+
+  <send retrans="500">
+    <![CDATA[
+
+	BYE [next_url] SIP/2.0
+	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
+	[last_To:]
+	Call-ID: [call_id]
+	CSeq: [cseq] BYE
+	Contact: <sip:[field1]@[local_ip]:[local_port]>
+	Max-Forwards: 70
+	Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="200">
+  </recv>
+
+  <goto label="end"/>
+
+  <!-- Unregister on call failure -->
+  <label id="unregister"/>
+
+  <label id="end"/>
+
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200, 500, 1000, 2000, 5000, 10000"/>
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000, 30000"/>
+
+</scenario>
