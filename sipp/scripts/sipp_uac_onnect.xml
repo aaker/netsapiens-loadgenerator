@@ -166,7 +166,7 @@
   <recv response="200">
   </recv>
 
-  <goto label="end"/>
+  <nop next="end"/>
 
   <!-- Label for INVITE retry after 407 -->
   <label id="2"/>
@@ -262,7 +262,7 @@
   <recv response="200">
   </recv>
 
-  <goto label="end"/>
+  <nop next="end"/>
 
   <!-- Unregister on call failure -->
   <label id="unregister"/>
