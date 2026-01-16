@@ -87,14 +87,19 @@ if [ "$TRANSPORT" == "l1" ]; then
     fi
 fi
 
-# Generate random target extension between 1001 and 1100
-TARGET_EXT=$((1001 + RANDOM % 100))
+# Generate CSV file with random target extensions (1001-1100)
+TARGET_EXT_CSV="/tmp/target_ext_$$.csv"
+echo "RANDOM" > "$TARGET_EXT_CSV"
+for i in $(seq 1 1000); do
+    echo "$((1001 + RANDOM % 100))" >> "$TARGET_EXT_CSV"
+done
+echo "Generated random target extensions file: $TARGET_EXT_CSV"
 
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
 -sf $BASE_DIR/sipp/scripts/sipp_uac_onnect.xml \
 -inf $INPUTFILE \
--key target_ext $TARGET_EXT \
+-inf $TARGET_EXT_CSV \
 -recv_timeout 30000 \
 -watchdog_interval 0 -watchdog_minor_threshold 920000 -watchdog_major_threshold 9200000 \
 -aa -default_behaviors -abortunexp \

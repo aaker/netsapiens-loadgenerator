@@ -12,6 +12,8 @@
     <action>
       <!-- Generate random talk time between 10000 and 30000 ms -->
       <sample assign_to="talk_time" distribution="uniform" min="10000" max="30000" />
+      <!-- Generate unique call ID for INVITE dialog -->
+      <assign assign_to="invite_call_id" value="1" />
     </action>
   </nop>
 
@@ -65,11 +67,11 @@
   <send retrans="500" start_rtd="invite">
     <![CDATA[
 
-	INVITE sip:[target_ext]@[field2] SIP/2.0
+	INVITE sip:[field4]@[field2] SIP/2.0
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
-	To: <sip:[target_ext]@[field2]>
-	Call-ID: [call_id]
+	To: <sip:[field4]@[field2]>
+	Call-ID: [$invite_call_id]-[call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -121,7 +123,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [call_id]
+	Call-ID: [$invite_call_id]-[call_id]
 	CSeq: [cseq] ACK
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -141,7 +143,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [call_id]
+	Call-ID: [$invite_call_id]-[call_id]
 	CSeq: [cseq] BYE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -160,11 +162,11 @@
   <send retrans="500">
     <![CDATA[
 
-	INVITE sip:[target_ext]@[field2] SIP/2.0
+	INVITE sip:[field4]@[field2] SIP/2.0
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
-	To: <sip:[target_ext]@[field2]>
-	Call-ID: [call_id]
+	To: <sip:[field4]@[field2]>
+	Call-ID: [$invite_call_id]-[call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -213,7 +215,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [call_id]
+	Call-ID: [$invite_call_id]-[call_id]
 	CSeq: [cseq] ACK
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
@@ -231,7 +233,7 @@
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
 	[last_To:]
-	Call-ID: [call_id]
+	Call-ID: [$invite_call_id]-[call_id]
 	CSeq: [cseq] BYE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
