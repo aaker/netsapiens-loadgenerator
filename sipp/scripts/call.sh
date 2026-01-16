@@ -87,10 +87,14 @@ if [ "$TRANSPORT" == "l1" ]; then
     fi
 fi
 
+# Generate random target extension between 1001 and 1100
+TARGET_EXT=$((1001 + RANDOM % 100))
+
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
 -sf $BASE_DIR/sipp/scripts/sipp_uac_onnect.xml \
 -inf $INPUTFILE \
+-key target_ext $TARGET_EXT \
 -recv_timeout 30000 \
 -watchdog_interval 0 -watchdog_minor_threshold 920000 -watchdog_major_threshold 9200000 \
 -aa -default_behaviors -abortunexp \

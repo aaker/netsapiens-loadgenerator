@@ -10,12 +10,6 @@
 
   <nop>
     <action>
-      <!-- Generate random target extension between 1001 and 1100 -->
-      <!-- Use call_number modulo 100 + 1001 to get integer extension -->
-      <assign assign_to="target_ext" value="1001" />
-      <assign assign_to="rand_add" value="[call_number]" />
-      <mod assign_to="rand_add" value="100" />
-      <add assign_to="target_ext" variable="rand_add" />
       <!-- Generate random talk time between 10000 and 30000 ms -->
       <sample assign_to="talk_time" distribution="uniform" min="10000" max="30000" />
     </action>
@@ -75,10 +69,10 @@
   <send retrans="500" start_rtd="invite">
     <![CDATA[
 
-	INVITE sip:[$target_ext]@[field2] SIP/2.0
+	INVITE sip:[target_ext]@[field2] SIP/2.0
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
-	To: <sip:[$target_ext]@[field2]>
+	To: <sip:[target_ext]@[field2]>
 	Call-ID: [call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
@@ -176,10 +170,10 @@
   <send retrans="500">
     <![CDATA[
 
-	INVITE sip:[$target_ext]@[field2] SIP/2.0
+	INVITE sip:[target_ext]@[field2] SIP/2.0
 	Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
 	From: <sip:[field1]@[field2]>;tag=[pid]SIPpTag[call_number]
-	To: <sip:[$target_ext]@[field2]>
+	To: <sip:[target_ext]@[field2]>
 	Call-ID: [call_id]
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
