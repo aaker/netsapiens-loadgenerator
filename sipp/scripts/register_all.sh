@@ -173,74 +173,83 @@ cleanup_temp_files() {
 # Trap to ensure cleanup on exit
 trap cleanup_temp_files EXIT
 
-echo "Combining CSV files matching modulo $MINOFHOUR..."
+# Calculate 10-minute window range (0-9, 10-19, 20-29, 30-39, 40-49, 50-59)
+WINDOW_START=$((MINOFHOUR / 10 * 10))
+WINDOW_END=$((WINDOW_START + 9))
+
+echo "Combining CSV files for 10-minute window: $WINDOW_START-$WINDOW_END (minute $MINOFHOUR)"
+echo "This window gets 1/6th of total devices"
 echo "Temp CSV file: $TEMP_CSV"
 echo "Temp log file: $TEMP_LOG"
 echo "---"
 
-# First pass: Collect all matching files and combine into single temp CSV
+# Collect all files in this 10-minute window
 FILE_COUNT=0
 HEADER_WRITTEN=false
 
 for file in $CSV_PATH/*; do
-	#modulo COUNTER AND MINOFHOUR
-	MODU=$((COUNTER % 60));
-	if [ $MODU -eq $MINOFHOUR ]; then
-		echo "Including file: $file" | tee -a "$TEMP_LOG"
+	# Calculate modulo for this file
+	MODU=$((COUNTER % 60))
+
+	# Check if this file falls in the current 10-minute window
+	if [ $MODU -ge $WINDOW_START ] && [ $MODU -le $WINDOW_END ]; then
+		echo "Including file: $file (modulo $MODU in window $WINDOW_START-$WINDOW_END)" | tee -a "$TEMP_LOG"
 
 		# Handle CSV header - only write it once from the first file
 		if [ "$HEADER_WRITTEN" = false ]; then
-			# Copy first file including header
 			cat "$file" >> "$TEMP_CSV"
 			HEADER_WRITTEN=true
 		else
-			# Skip header line (first line) for subsequent files
 			tail -n +2 "$file" >> "$TEMP_CSV"
 		fi
 
 		FILE_COUNT=$((FILE_COUNT + 1))
 	fi
-	COUNTER=$((COUNTER + 1));
+	COUNTER=$((COUNTER + 1))
 done
 
 echo "---"
 echo "Combined $FILE_COUNT files into $TEMP_CSV"
-echo "Files included in this batch:" >> "$TEMP_LOG"
 
 # Check if we have any files to process
 if [ $FILE_COUNT -eq 0 ]; then
-	echo "No files matched modulo $MINOFHOUR, nothing to register."
+	echo "No files matched window $WINDOW_START-$WINDOW_END, nothing to register."
+	exit 0
+fi
+
+TOTAL_LINES=$(wc -l < "$TEMP_CSV")
+echo "Total lines in combined CSV: $TOTAL_LINES"
+
+# Allocate ports dynamically for this SIPp instance
+echo "Allocating ports for combined batch..."
+if ! allocate_ports 1 1 1; then
+	echo "ERROR: Failed to allocate ports for combined batch, exiting..."
+	exit 1
+fi
+
+SIPPORT=$ALLOCATED_SIP_PORT
+MEDIAPORT=$ALLOCATED_MEDIA_PORT
+CONTROLPORT=$ALLOCATED_CONTROL_PORT
+
+echo "  Allocated - SIP: $SIPPORT, Media: $MEDIAPORT, Control: $CONTROLPORT"
+
+# Determine transport based on 10-minute window (minute % 30)
+TRANSPORT_CYCLE=$((MINOFHOUR % 30))
+
+set -x
+if [ $TRANSPORT_CYCLE -eq 0 ]; then
+	echo "Using UDP transport (u1) - runs at :00, :30"
+	/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+elif [ $TRANSPORT_CYCLE -eq 10 ]; then
+	echo "Using TCP transport (t1) - runs at :10, :40"
+	/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "t1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+elif [ $TRANSPORT_CYCLE -eq 20 ]; then
+	echo "Using TLS transport (l1) - runs at :20, :50"
+	/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
 else
-	TOTAL_LINES=$(wc -l < "$TEMP_CSV")
-	echo "Total lines in combined CSV: $TOTAL_LINES"
-
-	# Allocate ports dynamically for this SIPp instance
-	echo "Allocating ports for combined batch..."
-	if ! allocate_ports 1 1 1; then
-		echo "ERROR: Failed to allocate ports for combined batch, exiting..."
-		exit 1
-	fi
-
-	SIPPORT=$ALLOCATED_SIP_PORT
-	MEDIAPORT=$ALLOCATED_MEDIA_PORT
-	CONTROLPORT=$ALLOCATED_CONTROL_PORT
-
-	echo "  Allocated - SIP: $SIPPORT, Media: $MEDIAPORT, Control: $CONTROLPORT"
-
-	# Use modulo of minute of hour to determine transport type for variety
-	TRANSPORT_TYPE=$((MINOFHOUR % 3));
-    set -x
-	if [ $TRANSPORT_TYPE -eq 2 ]; then
-		echo "Using UDP transport (u1)"
-		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
-	elif [ $TRANSPORT_TYPE -eq 1 ]; then
-		echo "Using TCP transport (t1)"
-		/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "t1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
-	else
-		# TLS support (l1 = TLS with one socket)
-		echo "Using TLS transport (l1)"
-        /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
-	fi
+	echo "Unexpected minute $MINOFHOUR (cycle $TRANSPORT_CYCLE) - should only run at :00, :10, :20, :30, :40, :50"
+    /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+	#exit 1
 fi
 
 # Temp files will be cleaned up by the trap on EXIT

@@ -37,7 +37,12 @@ PCT_USERS=$REGISTRATION_PCT # % of the users will be registered
 
 MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$FILE_LINE_COUNT" |bc)`
 LOG_FILE=$(basename "$INPUTFILE")
-CALLRATE=`printf "%.0f\n" $(echo "scale=2;$MAX_USERS/50" |bc)`
+# Spread registrations over 9 minutes (540 seconds) to fit in 10-minute window
+CALLRATE=`printf "%.0f\n" $(echo "scale=2;$MAX_USERS/540" |bc)`
+# Ensure minimum rate of 1 call/sec for small device counts
+if [ $CALLRATE -lt 1 ]; then
+	CALLRATE=1
+fi
 
 
 echo "Registering $INPUTFILE"
