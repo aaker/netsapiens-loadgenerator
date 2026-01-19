@@ -66,6 +66,12 @@ MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
 #$RANDOM_15 is a random number between 10000 and 600000 (10 seconds to 10 minutes)
 RANDOM_15=$(( ( RANDOM % 590000 )  + 10000 ))
 
+# Duration limit: 80 minutes (4800 seconds) allows for:
+# - 9 min ramp-up to register all users
+# - 58.5 min main registration loop (78 iterations × 45s)
+# - 12.5 min buffer for incoming calls via -oocsf
+DURATION_SECONDS=4800
+
 
 # TLS certificate configuration (only used when TRANSPORT=l1)
 TLS_CERT="$BASE_DIR/sipp/tls/sipp.crt"
@@ -107,11 +113,12 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_U
 -aa -default_behaviors -abortunexp \
 $MEDIAPORT_LOGIC \
 -i $PRIVATEIP -mi $PRIVATEIP \
+-d $DURATION_SECONDS \
 -trace_stat -stf $STATS_FILE -fd 15 -bg "
 
 echo "SIPP command: $SIPP_CMD"
 # Log command to syslog
-logger -t sipp-register -p user.info "Starting registration: server=$SERVER_ID scenario=register transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS sip_port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
+logger -t sipp-register -p user.info "Starting registration: server=$SERVER_ID scenario=register transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS duration=${DURATION_SECONDS}s sip_port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
 
 
 
@@ -132,7 +139,7 @@ START_TIME=$(date +%s)
 # Give it 2 seconds to start, then verify it's still running
 sleep 2
 
-ADDITION_INFO="scenario=register server=$SERVER_ID transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS pid=$SIPP_PID call_rate=$CALLRATE sip_port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT filelinecount=$FILE_LINE_COUNT pct_reg=$PCT_USERS"
+ADDITION_INFO="scenario=register server=$SERVER_ID transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS duration=${DURATION_SECONDS}s pid=$SIPP_PID call_rate=$CALLRATE sip_port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT filelinecount=$FILE_LINE_COUNT pct_reg=$PCT_USERS"
 # Check if sipp process is still running
 if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 	logger -t sipp-register -p user.info "Registration process started successfully:  $ADDITION_INFO"
