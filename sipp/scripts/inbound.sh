@@ -322,20 +322,40 @@ echo "$SIPP_OUTPUT" | logger -t sipp-inbound -p user.info
 # Extract the actual sipp PID from the "Background mode - PID=[XXXXX]" message
 SIPP_PID=$(echo "$SIPP_OUTPUT" | grep -oP 'Background mode - PID=\[\K[0-9]+(?=\])')
 
+# Record start time for runtime calculation
+START_TIME=$(date +%s)
+
 # Give it 2 seconds to start, then verify it's still running
 sleep 2
 
 # Check if sipp process is still running
 if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 	logger -t sipp-inbound -p user.info "Inbound process started successfully: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL calls=$NUMCALLS pid=$SIPP_PID"
+
+	# Monitor the process until completion
+	echo "Monitoring SIPp process (PID: $SIPP_PID) - checking every 20 seconds..."
+	while true; do
+		sleep 20
+
+		# Check if process is still running
+		if ! ps -p $SIPP_PID > /dev/null 2>&1; then
+			# Process has ended - calculate runtime
+			END_TIME=$(date +%s)
+			RUNTIME_SECONDS=$((END_TIME - START_TIME))
+			RUNTIME_MINUTES=$(echo "scale=1; $RUNTIME_SECONDS / 60" | bc)
+
+			# Log completion with runtime
+			logger -t sipp-inbound -p user.info "Inbound process completed: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL calls=$NUMCALLS pid=$SIPP_PID runtime=${RUNTIME_MINUTES}min"
+			echo "SIPp process completed after ${RUNTIME_MINUTES} minutes"
+			break
+		fi
+	done
 elif [ $SIPP_EXIT -ne 0 ]; then
 	logger -t sipp-inbound -p user.err "Inbound process failed to start: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE exit_code=$SIPP_EXIT"
     # Log full sipp command
 	logger -t sipp-inbound -p user.info "Command: $SIPP_CMD"
 	exit 1
 else
-
-
 	logger -t sipp-inbound -p user.err "Inbound process failed to start or crashed: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE"
     # Log full sipp command
 	logger -t sipp-inbound -p user.info "Command: $SIPP_CMD"
