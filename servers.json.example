@@ -8,8 +8,9 @@
       "maxResellers":5,
       "peakCps": 10,
       "registrationPct": 0.8,
+      "sendRtp": 1,
       "seed": 12345,
-      "description": "Production Server 1 - Primary load testing environment"
+      "description": "Production Server 1 - Primary load testing environment. Optional sendRtp: 0=disabled (SDP only), 1=enabled. Overrides SEND_RTP from .env"
     },
     {
       "id": "prod2",
@@ -19,6 +20,7 @@
       "maxResellers":5,
       "peakCps": 20,
       "registrationPct": 0.9,
+      "sendRtp": 1,
       "seed": 67890,
       "description": "Production Server 2 - Secondary load testing environment"
     },
@@ -30,8 +32,9 @@
       "maxResellers":5,
       "peakCps": 0.5,
       "registrationPct": 0.75,
+      "sendRtp": 0,
       "seed": 11111,
-      "description": "Staging environment for testing - low load with decimal CPS"
+      "description": "Staging environment for testing - low load with decimal CPS. RTP disabled for signaling-only testing"
     }
   ]
 }

@@ -158,6 +158,31 @@ if [ -z "$PEAK_CPS" ]; then
 	PEAK_CPS=7
 fi
 
+# Determine if RTP should be sent (default: enabled)
+SEND_RTP_FINAL=1  # Default to enabled
+SERVER_SEND_RTP=""
+
+# Check for server-specific setting first
+if [ -n "$SERVER_ID" ] && [ -f "$BASE_DIR/servers.json" ]; then
+    if command -v jq &> /dev/null; then
+        SERVER_SEND_RTP=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sendRtp // empty" "$BASE_DIR/servers.json")
+        if [ -n "$SERVER_SEND_RTP" ] && [ "$SERVER_SEND_RTP" != "null" ]; then
+            SEND_RTP_FINAL=$SERVER_SEND_RTP
+            echo "Using server-specific RTP setting: SEND_RTP=$SEND_RTP_FINAL"
+        fi
+    fi
+fi
+
+# Fall back to .env if no server-specific setting
+if [ -z "$SERVER_SEND_RTP" ] || [ "$SERVER_SEND_RTP" == "null" ]; then
+    if [ -n "$SEND_RTP" ]; then
+        SEND_RTP_FINAL=$SEND_RTP
+        echo "Using .env RTP setting: SEND_RTP=$SEND_RTP_FINAL"
+    fi
+fi
+
+echo "RTP Playback: $([ "$SEND_RTP_FINAL" == "1" ] && echo "ENABLED" || echo "DISABLED (signaling only)")"
+
 #add some randomness to the PEAK_CPS to avoid exact same call rate every run, make it + or - 10%
 # Use bc for decimal arithmetic to support CPS < 1
 TEN_PERCENT=$(echo "scale=4; $PEAK_CPS * 0.1" | bc)
@@ -196,8 +221,23 @@ echo "Allocated ports - SIP: $SIP_PORT, Media: $MEDIA_PORT, Control: $CONTROL_PO
 
 if [ "$IP_USE_PUBLIC" == "1" ]; then
 	sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
-else 
+else
 	sed -i -e "s/\[media_ip\]/$PRIVATEIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+fi
+
+# Conditionally enable/disable RTP playback by commenting/uncommenting play_pcap_audio
+if [ "$SEND_RTP_FINAL" != "1" ]; then
+    echo "Disabling RTP playback in XML scenario (commenting out play_pcap_audio)"
+    # Comment out play_pcap_audio lines
+    sed -i -e 's/<exec play_pcap_audio=/<!-- RTP_DISABLED: <exec play_pcap_audio=/g' \
+           -e 's/play_pcap_audio="g711a\.pcap"\/>/play_pcap_audio="g711a.pcap"\/> -->/g' \
+           /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+else
+    echo "Enabling RTP playback in XML scenario (uncommenting play_pcap_audio if needed)"
+    # Restore any previously commented RTP lines
+    sed -i -e 's/<!-- RTP_DISABLED: <exec play_pcap_audio=/<exec play_pcap_audio=/g' \
+           -e 's/play_pcap_audio="g711a\.pcap"\/> -->/play_pcap_audio="g711a.pcap"\/>/g' \
+           /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
 fi
 
 
@@ -269,7 +309,7 @@ $TLS_OPTIONS \
 -trace_stat -stf $STATS_FILE -fd 15 -bg "
 
 # Log command to syslog
-logger -t sipp-inbound -p user.info "Starting inbound calls: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE sip_port=$SIP_PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
+logger -t sipp-inbound -p user.info "Starting inbound calls: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL sip_port=$SIP_PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
 
 # Execute sipp command (runs in background with -bg flag)
 # Capture output to extract the PID
@@ -287,7 +327,7 @@ sleep 2
 
 # Check if sipp process is still running
 if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
-	logger -t sipp-inbound -p user.info "Inbound process started successfully: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE calls=$NUMCALLS pid=$SIPP_PID"
+	logger -t sipp-inbound -p user.info "Inbound process started successfully: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL calls=$NUMCALLS pid=$SIPP_PID"
 elif [ $SIPP_EXIT -ne 0 ]; then
 	logger -t sipp-inbound -p user.err "Inbound process failed to start: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE exit_code=$SIPP_EXIT"
     # Log full sipp command
