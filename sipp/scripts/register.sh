@@ -146,8 +146,17 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 
 	# Monitor the process until completion
 	echo "Monitoring SIPp process (PID: $SIPP_PID) - checking every 20 seconds..."
+	SOFT_KILL_SENT=false
+	TERM_KILL_SENT=false
+	HARD_KILL_SENT=false
+
 	while true; do
 		sleep 20
+
+		# Calculate elapsed time
+		CURRENT_TIME=$(date +%s)
+		ELAPSED_SECONDS=$((CURRENT_TIME - START_TIME))
+		ELAPSED_MINUTES=$(echo "scale=1; $ELAPSED_SECONDS / 60" | bc)
 
 		# Check if process is still running
 		if ! ps -p $SIPP_PID > /dev/null 2>&1; then
@@ -160,6 +169,31 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 			logger -t sipp-register -p user.info "Registration process completed: $ADDITION_INFO runtime=${RUNTIME_MINUTES}min"
 			echo "SIPp process completed after ${RUNTIME_MINUTES} minutes"
 			break
+		fi
+
+		# Soft kill at 75 minutes (4500 seconds) - send quit command via control port
+		if [ $ELAPSED_SECONDS -ge 4500 ] && [ "$SOFT_KILL_SENT" = false ]; then
+			echo "Runtime ${ELAPSED_MINUTES}min exceeded 75 min threshold - sending soft shutdown via control port $CONTROL_PORT"
+			logger -t sipp-register -p user.warning "Soft shutdown triggered: $ADDITION_INFO elapsed=${ELAPSED_MINUTES}min"
+			# Send 'q' command to SIPp control port to trigger graceful shutdown
+			echo "q" | nc -w 1 localhost $CONTROL_PORT 2>/dev/null || true
+			SOFT_KILL_SENT=true
+		fi
+
+		# SIGTERM at 85 minutes (5100 seconds) if still running
+		if [ $ELAPSED_SECONDS -ge 5100 ] && [ "$TERM_KILL_SENT" = false ]; then
+			echo "Runtime ${ELAPSED_MINUTES}min exceeded 85 min threshold - sending SIGTERM to PID $SIPP_PID"
+			logger -t sipp-register -p user.warning "SIGTERM sent: $ADDITION_INFO elapsed=${ELAPSED_MINUTES}min"
+			kill -TERM $SIPP_PID 2>/dev/null || true
+			TERM_KILL_SENT=true
+		fi
+
+		# Hard kill (SIGKILL) at 90 minutes (5400 seconds) if still running
+		if [ $ELAPSED_SECONDS -ge 5400 ] && [ "$HARD_KILL_SENT" = false ]; then
+			echo "Runtime ${ELAPSED_MINUTES}min exceeded 90 min threshold - sending SIGKILL to PID $SIPP_PID"
+			logger -t sipp-register -p user.error "SIGKILL sent (force kill): $ADDITION_INFO elapsed=${ELAPSED_MINUTES}min"
+			kill -9 $SIPP_PID 2>/dev/null || true
+			HARD_KILL_SENT=true
 		fi
 	done
 elif [ $SIPP_EXIT -ne 0 ]; then
