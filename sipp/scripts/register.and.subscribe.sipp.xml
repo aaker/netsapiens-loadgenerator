@@ -12,8 +12,9 @@
   <action>
     <assign assign_to="5" value="0" />
     <!-- Loop counter for 59-minute timeout: 78 loops × 45s = 58.5 min -->
-    <assign assign_to="loop_count" value="0" />
-    <assign assign_to="max_loops" value="78" />
+    <!-- Using numeric variables: 8=loop_count, 9=max_loops -->
+    <assign assign_to="8" value="0" />
+    <assign assign_to="9" value="78" />
   </action>
   </nop>
 
@@ -247,8 +248,8 @@
   <nop>
     <action>
       <!-- Increment loop counter and check if we should continue -->
-      <add assign_to="loop_count" value="1" />
-      <test assign_to="6" variable="loop_count" compare="less_than" variable2="max_loops" />
+      <add assign_to="8" value="1" />
+      <test assign_to="6" variable="8" compare="less_than" variable2="9" />
     </action>
   </nop>
 
