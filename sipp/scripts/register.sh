@@ -114,7 +114,7 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_U
 $MEDIAPORT_LOGIC \
 -i $PRIVATEIP -mi $PRIVATEIP \
 -d $DURATION_SECONDS \
--trace_stat -stf $STATS_FILE -fd 15 -bg "
+-trace_stat -stf $STATS_FILE -fd 15 -trace_screen -bg "
 
 echo "SIPP command: $SIPP_CMD"
 # Log command to syslog
@@ -146,9 +146,27 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 
 	# Monitor the process until completion
 	echo "Monitoring SIPp process (PID: $SIPP_PID) - checking every 20 seconds..."
+
+	# Calculate expected milestones
+	RAMPUP_SECONDS=$((MAX_USERS / CALLRATE))
+	RAMPUP_MINUTES=$(echo "scale=1; $RAMPUP_SECONDS / 60" | bc)
+	LOOP_DURATION_SECONDS=$((78 * 45))  # 78 loops × 45s = 3510s = 58.5 min
+	EXPECTED_END_SECONDS=$((RAMPUP_SECONDS + LOOP_DURATION_SECONDS))
+	EXPECTED_END_MINUTES=$(echo "scale=1; $EXPECTED_END_SECONDS / 60" | bc)
+
+	echo "Expected milestones:"
+	echo "  - Ramp-up complete: ${RAMPUP_MINUTES} min (registering $MAX_USERS users at $CALLRATE users/sec)"
+	echo "  - Scenario end: ${EXPECTED_END_MINUTES} min (ramp-up + 78 loops of 45s re-registers)"
+	echo "Screen dumps: register_${SIPP_PID}_screens.log (triggered every minute via USR2)"
+	logger -t sipp-register -p user.info "Expected timeline: rampup=${RAMPUP_MINUTES}min total=${EXPECTED_END_MINUTES}min $ADDITION_INFO"
+
 	SOFT_KILL_SENT=false
 	TERM_KILL_SENT=false
 	HARD_KILL_SENT=false
+	RAMPUP_LOGGED=false
+	EXPECTED_END_LOGGED=false
+	LAST_STATUS_LOG=0
+	LAST_SCREEN_DUMP=0
 
 	while true; do
 		sleep 20
@@ -157,6 +175,14 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 		CURRENT_TIME=$(date +%s)
 		ELAPSED_SECONDS=$((CURRENT_TIME - START_TIME))
 		ELAPSED_MINUTES=$(echo "scale=1; $ELAPSED_SECONDS / 60" | bc)
+
+		# Trigger screen dump every minute via USR2 signal
+		if [ $((ELAPSED_SECONDS - LAST_SCREEN_DUMP)) -ge 60 ]; then
+			if ps -p $SIPP_PID > /dev/null 2>&1; then
+				kill -USR2 $SIPP_PID 2>/dev/null || true
+				LAST_SCREEN_DUMP=$ELAPSED_SECONDS
+			fi
+		fi
 
 		# Check if process is still running
 		if ! ps -p $SIPP_PID > /dev/null 2>&1; then
@@ -169,6 +195,76 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 			logger -t sipp-register -p user.info "Registration process completed: $ADDITION_INFO runtime=${RUNTIME_MINUTES}min"
 			echo "SIPp process completed after ${RUNTIME_MINUTES} minutes"
 			break
+		fi
+
+		# Log when ramp-up should be complete
+		if [ $ELAPSED_SECONDS -ge $RAMPUP_SECONDS ] && [ "$RAMPUP_LOGGED" = false ]; then
+			echo "Ramp-up phase should be complete (elapsed: ${ELAPSED_MINUTES}min, expected: ${RAMPUP_MINUTES}min)"
+			logger -t sipp-register -p user.info "Ramp-up complete: $ADDITION_INFO elapsed=${ELAPSED_MINUTES}min"
+			RAMPUP_LOGGED=true
+		fi
+
+		# Log when scenario should end (but it's still running)
+		if [ $ELAPSED_SECONDS -ge $EXPECTED_END_SECONDS ] && [ "$EXPECTED_END_LOGGED" = false ]; then
+			echo "WARNING: Process still running past expected end time (elapsed: ${ELAPSED_MINUTES}min, expected: ${EXPECTED_END_MINUTES}min)"
+			logger -t sipp-register -p user.warning "Running past expected end: $ADDITION_INFO elapsed=${ELAPSED_MINUTES}min expected=${EXPECTED_END_MINUTES}min"
+			EXPECTED_END_LOGGED=true
+		fi
+
+		# Periodic status logging every 5 minutes
+		if [ $((ELAPSED_SECONDS - LAST_STATUS_LOG)) -ge 300 ]; then
+			# Determine current phase
+			if [ $ELAPSED_SECONDS -lt $RAMPUP_SECONDS ]; then
+				PHASE="rampup"
+				PROGRESS_PCT=$(echo "scale=1; ($ELAPSED_SECONDS * 100) / $RAMPUP_SECONDS" | bc)
+				STATUS_MSG="Phase: $PHASE (${PROGRESS_PCT}% complete)"
+			elif [ $ELAPSED_SECONDS -lt $EXPECTED_END_SECONDS ]; then
+				PHASE="reregister_loop"
+				LOOP_ELAPSED=$((ELAPSED_SECONDS - RAMPUP_SECONDS))
+				CURRENT_LOOP=$((LOOP_ELAPSED / 45))
+				STATUS_MSG="Phase: $PHASE (loop $CURRENT_LOOP/78)"
+			else
+				PHASE="overtime"
+				OVERTIME_SECONDS=$((ELAPSED_SECONDS - EXPECTED_END_SECONDS))
+				OVERTIME_MINUTES=$(echo "scale=1; $OVERTIME_SECONDS / 60" | bc)
+				STATUS_MSG="Phase: $PHASE (+${OVERTIME_MINUTES}min past expected end)"
+			fi
+
+			# Read actual statistics from SIPp stats file if available
+			STATS_MSG=""
+			if [ -f "$STATS_FILE" ]; then
+				# Get the last line of stats (most recent snapshot)
+				LAST_STATS=$(tail -n 1 "$STATS_FILE" 2>/dev/null)
+
+				if [ -n "$LAST_STATS" ]; then
+					# Parse CSV fields (semicolon-delimited by default)
+					# Field order: StartTime;LastResetTime;CurrentTime;ElapsedTime;CallRate;IncomingCall;OutgoingCall;TotalCallCreated;CurrentCall;SuccessfulCall;FailedCall;...
+					IFS=';' read -ra STATS_ARRAY <<< "$LAST_STATS"
+
+					# Extract key metrics (0-indexed)
+					SIPP_ELAPSED="${STATS_ARRAY[3]}"          # ElapsedTime (msec)
+					SIPP_CALL_RATE="${STATS_ARRAY[4]}"        # CallRate
+					SIPP_TOTAL_CREATED="${STATS_ARRAY[7]}"    # TotalCallCreated
+					SIPP_CURRENT_CALLS="${STATS_ARRAY[8]}"    # CurrentCall
+					SIPP_SUCCESS="${STATS_ARRAY[9]}"          # SuccessfulCall
+					SIPP_FAILED="${STATS_ARRAY[10]}"          # FailedCall
+
+					# Convert elapsed time to minutes
+					if [ -n "$SIPP_ELAPSED" ] && [ "$SIPP_ELAPSED" != "ElapsedTime" ]; then
+						SIPP_ELAPSED_MIN=$(echo "scale=1; $SIPP_ELAPSED / 60000" | bc 2>/dev/null || echo "?")
+						STATS_MSG="sipp_stats: elapsed=${SIPP_ELAPSED_MIN}min created=$SIPP_TOTAL_CREATED active=$SIPP_CURRENT_CALLS success=$SIPP_SUCCESS failed=$SIPP_FAILED rate=$SIPP_CALL_RATE"
+					fi
+				fi
+			fi
+
+			echo "Status check: ${ELAPSED_MINUTES}min elapsed - $STATUS_MSG"
+			if [ -n "$STATS_MSG" ]; then
+				echo "  SIPp stats: $STATS_MSG"
+				logger -t sipp-register -p user.info "Status: $STATUS_MSG $STATS_MSG $ADDITION_INFO elapsed=${ELAPSED_MINUTES}min"
+			else
+				logger -t sipp-register -p user.info "Status: $STATUS_MSG $ADDITION_INFO elapsed=${ELAPSED_MINUTES}min"
+			fi
+			LAST_STATUS_LOG=$ELAPSED_SECONDS
 		fi
 
 		# Soft kill at 75 minutes (4500 seconds) - send quit command via control port
