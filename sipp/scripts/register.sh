@@ -102,7 +102,7 @@ if [ "$TRANSPORT" == "l1" ]; then
 	fi
 fi
 
-SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS \
+SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
 -oocsf $BASE_DIR/sipp/scripts/sipp_uas_pcap_g711a.xml \
@@ -113,7 +113,6 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_U
 -aa -default_behaviors -abortunexp \
 $MEDIAPORT_LOGIC \
 -i $PRIVATEIP -mi $PRIVATEIP \
--d $DURATION_SECONDS \
 -trace_stat -stf $STATS_FILE -fd 15 -trace_screen -bg "
 
 echo "SIPP command: $SIPP_CMD"
