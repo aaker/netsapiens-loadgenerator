@@ -9,6 +9,10 @@
 BASE_DIR="/usr/local/NetSapiens/netsapiens-loadgenerator"
 source $BASE_DIR/.env
 
+# Debug mode: controls verbose logging (screen dumps, frequent status checks)
+# Set DEBUG=1 in .env or export DEBUG=1 to enable
+DEBUG=${DEBUG:-0}
+
 # Source port allocator for port release on exit
 source "$BASE_DIR/sipp/scripts/port-allocator.sh"
 
@@ -102,6 +106,12 @@ if [ "$TRANSPORT" == "l1" ]; then
 	fi
 fi
 
+# Conditionally add debug flags
+TRACE_SCREEN=""
+if [ "$DEBUG" = "1" ]; then
+	TRACE_SCREEN="-trace_screen"
+fi
+
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
@@ -113,7 +123,7 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_U
 -aa -default_behaviors -abortunexp \
 $MEDIAPORT_LOGIC \
 -i $PRIVATEIP -mi $PRIVATEIP \
--trace_stat -stf $STATS_FILE -fd 15 -trace_screen -bg "
+-trace_stat -stf $STATS_FILE -fd 15 $TRACE_SCREEN -bg "
 
 echo "SIPP command: $SIPP_CMD"
 # Log command to syslog
@@ -156,8 +166,10 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 	echo "Expected milestones:"
 	echo "  - Ramp-up complete: ${RAMPUP_MINUTES} min (registering $MAX_USERS users at $CALLRATE users/sec)"
 	echo "  - Scenario end: ${EXPECTED_END_MINUTES} min (ramp-up + 78 loops of 45s re-registers)"
-	echo "Screen dumps: register_${SIPP_PID}_screens.log (triggered every minute via USR2)"
-	logger -t sipp-register -p user.info "Expected timeline: rampup=${RAMPUP_MINUTES}min total=${EXPECTED_END_MINUTES}min $ADDITION_INFO"
+	if [ "$DEBUG" = "1" ]; then
+		echo "  - Debug mode enabled: screen dumps to register_${SIPP_PID}_screens.log (every minute via USR2)"
+	fi
+	logger -t sipp-register -p user.info "Expected timeline: rampup=${RAMPUP_MINUTES}min total=${EXPECTED_END_MINUTES}min $ADDITION_INFO debug=$DEBUG"
 
 	SOFT_KILL_SENT=false
 	TERM_KILL_SENT=false
@@ -175,8 +187,8 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 		ELAPSED_SECONDS=$((CURRENT_TIME - START_TIME))
 		ELAPSED_MINUTES=$(echo "scale=1; $ELAPSED_SECONDS / 60" | bc)
 
-		# Trigger screen dump every minute via USR2 signal
-		if [ $((ELAPSED_SECONDS - LAST_SCREEN_DUMP)) -ge 60 ]; then
+		# Trigger screen dump every minute via USR2 signal (only in debug mode)
+		if [ "$DEBUG" = "1" ] && [ $((ELAPSED_SECONDS - LAST_SCREEN_DUMP)) -ge 60 ]; then
 			if ps -p $SIPP_PID > /dev/null 2>&1; then
 				kill -USR2 $SIPP_PID 2>/dev/null || true
 				LAST_SCREEN_DUMP=$ELAPSED_SECONDS
@@ -210,8 +222,9 @@ if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
 			EXPECTED_END_LOGGED=true
 		fi
 
-		# Periodic status logging every 5 minutes
-		if [ $((ELAPSED_SECONDS - LAST_STATUS_LOG)) -ge 300 ]; then
+		# Periodic status logging (5 min in debug mode, 15 min otherwise)
+		STATUS_INTERVAL=$( [ "$DEBUG" = "1" ] && echo 300 || echo 900 )
+		if [ $((ELAPSED_SECONDS - LAST_STATUS_LOG)) -ge $STATUS_INTERVAL ]; then
 			# Determine current phase
 			if [ $ELAPSED_SECONDS -lt $RAMPUP_SECONDS ]; then
 				PHASE="rampup"
