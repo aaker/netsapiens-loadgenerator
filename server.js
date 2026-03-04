@@ -56,8 +56,8 @@ const CONFIG = {
     QUEUE_EXTENSION_START: 4000,
     MAC_ADDRESS_PERCENTAGE: 0.5, // 50% of users get MAC addresses
     RECORDING_PERCENTAGE: 0.25, // 25% get recording (1/4)
-    AGENTS_PER_QUEUE_PERCENTAGE: 0.1, // 10% of domain users per queue
-    MIN_AGENTS_PER_QUEUE: 3,
+    AGENTS_PER_QUEUE_PERCENTAGE: 0.15, // 10% of domain users per queue
+    MIN_AGENTS_PER_QUEUE: 6,
     LARGE_DOMAIN_THRESHOLD: 100,
     USERS_PER_SITE: 30,
     QUEUES_PER_USERS_RATIO: 10, // 1 queue per 10 users
