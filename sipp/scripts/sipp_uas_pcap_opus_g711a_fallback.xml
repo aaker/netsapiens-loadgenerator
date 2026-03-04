@@ -75,7 +75,7 @@
     ]]>
   </send>
 
-  <pause distribution="uniform" min="10000" max="300000"/>
+  <pause distribution="uniform" min="1000" max="5000"/>
 
 
   <send retrans="500">
@@ -98,7 +98,7 @@
       t=0 0
       m=audio [media_port] RTP/AVP 111 8 101
       a=rtpmap:111 opus/48000/2
-      a=fmtp:111 minptime=10; useinbandfec=1
+      a=fmtp:111 minptime=10;useinbandfec=1
       a=rtpmap:8 PCMA/8000
       a=rtpmap:101 telephone-event/8000
       a=fmtp:101 0-15
