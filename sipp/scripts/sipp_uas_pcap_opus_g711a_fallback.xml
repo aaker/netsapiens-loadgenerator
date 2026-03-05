@@ -118,7 +118,7 @@
     </action>
   </nop> -->
 
-  <recv request="BYE" timeout="900000" ontimeout="send_bye" ></recv>
+  <recv request="BYE" timeout="400000" ontimeout="send_bye" ></recv>
   <send next="99">
     <![CDATA[
 
