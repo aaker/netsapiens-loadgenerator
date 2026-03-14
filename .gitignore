@@ -20,3 +20,5 @@ avatar/.DS_Store
 .env
 
 sipp/csv/servers/
+
+coverage/
