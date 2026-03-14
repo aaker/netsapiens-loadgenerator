@@ -12,6 +12,10 @@
 BASE_DIR="/usr/local/NetSapiens/netsapiens-loadgenerator"
 source $BASE_DIR/.env
 
+#random delay to stagger start times (0-15 seconds), seed with $$ pid
+RANDOM=$$
+sleep $(( RANDOM % 16 ))
+
 # Source port allocator for dynamic port allocation
 source "$BASE_DIR/sipp/scripts/port-allocator.sh"
 
@@ -117,7 +121,7 @@ if [ -n "$SERVER_ID" ]; then
 else
     # Legacy single-server mode
     SUT=${SAS_SERVER:-$TARGET_SERVER}
-    INPUTFILE="$BASE_DIR/sipp/csv/phonenumbers/${TIMEZONE}.csv"
+    INPUTFILE="$BASE_DIR/sipp/csv/servers/default/phonenumbers/${TIMEZONE}.csv"
     echo "Legacy single-server mode"
 fi
 
@@ -154,6 +158,31 @@ if [ -z "$PEAK_CPS" ]; then
 	PEAK_CPS=7
 fi
 
+# Determine if RTP should be sent (default: enabled)
+SEND_RTP_FINAL=1  # Default to enabled
+SERVER_SEND_RTP=""
+
+# Check for server-specific setting first
+if [ -n "$SERVER_ID" ] && [ -f "$BASE_DIR/servers.json" ]; then
+    if command -v jq &> /dev/null; then
+        SERVER_SEND_RTP=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sendRtp // empty" "$BASE_DIR/servers.json")
+        if [ -n "$SERVER_SEND_RTP" ] && [ "$SERVER_SEND_RTP" != "null" ]; then
+            SEND_RTP_FINAL=$SERVER_SEND_RTP
+            echo "Using server-specific RTP setting: SEND_RTP=$SEND_RTP_FINAL"
+        fi
+    fi
+fi
+
+# Fall back to .env if no server-specific setting
+if [ -z "$SERVER_SEND_RTP" ] || [ "$SERVER_SEND_RTP" == "null" ]; then
+    if [ -n "$SEND_RTP" ]; then
+        SEND_RTP_FINAL=$SEND_RTP
+        echo "Using .env RTP setting: SEND_RTP=$SEND_RTP_FINAL"
+    fi
+fi
+
+echo "RTP Playback: $([ "$SEND_RTP_FINAL" == "1" ] && echo "ENABLED" || echo "DISABLED (signaling only)")"
+
 #add some randomness to the PEAK_CPS to avoid exact same call rate every run, make it + or - 10%
 # Use bc for decimal arithmetic to support CPS < 1
 TEN_PERCENT=$(echo "scale=4; $PEAK_CPS * 0.1" | bc)
@@ -179,7 +208,7 @@ PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1
 
 # Allocate ports for this inbound call session (runs ~5 minutes)
 echo "Allocating ports for inbound calls..."
-if ! allocate_ports 1 4 1; then
+if ! allocate_ports 1 1 1; then
 	echo "ERROR: Failed to allocate ports for inbound calls"
 	exit 1
 fi
@@ -188,12 +217,25 @@ SIP_PORT=$ALLOCATED_SIP_PORT
 MEDIA_PORT=$ALLOCATED_MEDIA_PORT
 CONTROL_PORT=$ALLOCATED_CONTROL_PORT
 
-echo "Allocated ports - SIP: $SIP_PORT, Media: $MEDIA_PORT-$((MEDIA_PORT+3)), Control: $CONTROL_PORT"
+echo "Allocated ports - SIP: $SIP_PORT, Media: $MEDIA_PORT, Control: $CONTROL_PORT"
 
 if [ "$IP_USE_PUBLIC" == "1" ]; then
 	sed -i -e "s/\[media_ip\]/$PUBLICIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
-else 
+else
 	sed -i -e "s/\[media_ip\]/$PRIVATEIP/g" /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+fi
+
+# Conditionally enable/disable RTP playback by commenting/uncommenting play_pcap_audio
+if [ "$SEND_RTP_FINAL" != "1" ]; then
+    echo "Disabling RTP playback in XML scenario (commenting out play_pcap_audio)"
+    # Comment out play_pcap_audio lines - only if not already commented
+    sed -i -e 's/^[[:space:]]*<exec play_pcap_audio="g711a\.pcap"\/>/      <!-- RTP_DISABLED: <exec play_pcap_audio="g711a.pcap"\/> -->/g' \
+           /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
+else
+    echo "Enabling RTP playback in XML scenario (uncommenting play_pcap_audio if needed)"
+    # Restore any previously commented RTP lines - only if currently commented
+    sed -i -e 's/^[[:space:]]*<!-- RTP_DISABLED: <exec play_pcap_audio="g711a\.pcap"\/> -->/<exec play_pcap_audio="g711a.pcap"\/>/g' \
+           /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
 fi
 
 
@@ -247,6 +289,8 @@ if [ "$TRANSPORT" == "l1" ]; then
 	fi
 fi
 
+MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
+
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $NUMCALLS \
 -sf $BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml \
 -inf $INPUTFILE \
@@ -255,7 +299,7 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $NUMCALLS \
 -i $PRIVATEIP \
 -p $SIP_PORT \
 -cp $CONTROL_PORT \
--min_rtp_port $MEDIA_PORT -max_rtp_port $((MEDIA_PORT + 3)) \
+$MEDIAPORT_LOGIC \
 $TLS_OPTIONS \
 -inf $BASE_DIR/sipp/csv/random_caller_ids.csv \
 -recv_timeout 60000 \
@@ -263,7 +307,7 @@ $TLS_OPTIONS \
 -trace_stat -stf $STATS_FILE -fd 15 -bg "
 
 # Log command to syslog
-logger -t sipp-inbound -p user.info "Starting inbound calls: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE sip_port=$SIP_PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
+logger -t sipp-inbound -p user.info "Starting inbound calls: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL sip_port=$SIP_PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
 
 # Execute sipp command (runs in background with -bg flag)
 # Capture output to extract the PID
@@ -276,20 +320,40 @@ echo "$SIPP_OUTPUT" | logger -t sipp-inbound -p user.info
 # Extract the actual sipp PID from the "Background mode - PID=[XXXXX]" message
 SIPP_PID=$(echo "$SIPP_OUTPUT" | grep -oP 'Background mode - PID=\[\K[0-9]+(?=\])')
 
+# Record start time for runtime calculation
+START_TIME=$(date +%s)
+
 # Give it 2 seconds to start, then verify it's still running
 sleep 2
 
 # Check if sipp process is still running
 if [ -n "$SIPP_PID" ] && ps -p $SIPP_PID > /dev/null 2>&1; then
-	logger -t sipp-inbound -p user.info "Inbound process started successfully: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE calls=$NUMCALLS pid=$SIPP_PID"
+	logger -t sipp-inbound -p user.info "Inbound process started successfully: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL calls=$NUMCALLS pid=$SIPP_PID"
+
+	# Monitor the process until completion
+	echo "Monitoring SIPp process (PID: $SIPP_PID) - checking every 20 seconds..."
+	while true; do
+		sleep 20
+
+		# Check if process is still running
+		if ! ps -p $SIPP_PID > /dev/null 2>&1; then
+			# Process has ended - calculate runtime
+			END_TIME=$(date +%s)
+			RUNTIME_SECONDS=$((END_TIME - START_TIME))
+			RUNTIME_MINUTES=$(echo "scale=1; $RUNTIME_SECONDS / 60" | bc)
+
+			# Log completion with runtime
+			logger -t sipp-inbound -p user.info "Inbound process completed: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL calls=$NUMCALLS pid=$SIPP_PID runtime=${RUNTIME_MINUTES}min"
+			echo "SIPp process completed after ${RUNTIME_MINUTES} minutes"
+			break
+		fi
+	done
 elif [ $SIPP_EXIT -ne 0 ]; then
 	logger -t sipp-inbound -p user.err "Inbound process failed to start: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE exit_code=$SIPP_EXIT"
     # Log full sipp command
 	logger -t sipp-inbound -p user.info "Command: $SIPP_CMD"
 	exit 1
 else
-
-
 	logger -t sipp-inbound -p user.err "Inbound process failed to start or crashed: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE"
     # Log full sipp command
 	logger -t sipp-inbound -p user.info "Command: $SIPP_CMD"

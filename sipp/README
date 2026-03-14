@@ -1,0 +1,40 @@
+
+#TIPS
+
+#best to compile SIPp from source. 
+
+1. Install Prerequisites
+    sudo apt update
+    sudo apt install -y \
+        git \
+        build-essential \
+        cmake \
+        libssl-dev \
+        libpcap-dev \
+        libncurses5-dev \
+        libsctp-dev \
+        lksctp-tools
+
+2. Clone SIPp Repository
+
+    cd /tmp
+    git clone https://github.com/SIPp/sipp.git
+    cd sipp
+
+3. Build SIPp
+    # Create build directory
+    mkdir build
+    cd build
+
+    # Configure with CMake
+    cmake .. -DUSE_SSL=1  -DUSE_PCAP=1 -DUSE_SCTP=1
+
+    # Build (use -j to speed up with multiple cores)
+    make -j$(nproc)
+
+4. Install SIPp
+
+    sudo make install
+
+5. Verify Installation
+    sipp -v

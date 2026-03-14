@@ -11,6 +11,10 @@
   <nop>
   <action>
     <assign assign_to="5" value="0" />
+    <!-- Loop counter for 59-minute timeout: 78 loops × 45s = 58.5 min -->
+    <!-- Using numeric variables: 8=loop_count, 9=max_loops -->
+    <assign assign_to="8" value="0" />
+    <assign assign_to="9" value="78" />
   </action>
   </nop>
 
@@ -92,6 +96,7 @@
       Contact: sip:[field1]@[local_ip]:[local_port]
       Max-Forwards: 70
       Accept: application/simple-message-summary
+      [field3]
       Event: message-summary
       Expires: 3600
       Content-Length: 0
@@ -99,30 +104,10 @@
     ]]>
   </send>
 
-  <recv response="100" optional="true">
-  </recv>
-
   <recv response="407" auth="true" optional="true" next="send_subscribe0">  </recv>
-                             
-  <recv  response="200" rtd="subscribeMwi">
+
+  <recv response="200" rtd="subscribeMwi">
   </recv>
-
-  <recv  request="NOTIFY"></recv>
-
-  <send  >
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe1"/>
   <send retrans="500" start_rtd="subscribePresence">
@@ -138,6 +123,7 @@
       Max-Forwards: 70  
       Event: presence
       Expires: 3600
+      [field3]
       Accept: application/pidf+xml
       Allow-Events: presence
       Content-Length: 0
@@ -145,30 +131,10 @@
     ]]>
   </send>
 
-  <recv response="100" optional="true">
-  </recv>
-
   <recv response="407" auth="true" optional="true" next="send_subscribe1">  </recv>
-                             
+
   <recv  response="200" rtd="subscribePresence">
   </recv>
-
-  <recv  request="NOTIFY"></recv>
-
-  <send  >
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe2"/>
   <send retrans="500">
@@ -185,6 +151,7 @@
       Event: presence
       Expires: 3600
       Accept: application/pidf+xml
+      [field3]
       Allow-Events: presence
       Content-Length: 0
 
@@ -193,28 +160,8 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe2">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
-
-  <recv  request="NOTIFY"></recv>
-
-  <send  >
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe3"/>
   <send retrans="500">
@@ -230,6 +177,7 @@
       Max-Forwards: 70  
       Event: presence
       Expires: 3600
+      [field3]
       Accept: application/pidf+xml
       Allow-Events: presence
       Content-Length: 0
@@ -239,28 +187,8 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe3">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
-
-  <recv  request="NOTIFY"></recv>
-
-  <send  >
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe4"/>
   <send retrans="500">
@@ -277,6 +205,7 @@
       Event: presence
       Expires: 3600
       Accept: application/pidf+xml
+      [field3]
       Allow-Events: presence
       Content-Length: 0
 
@@ -285,28 +214,8 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe4">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
-
-  <recv  request="NOTIFY"></recv>
-
-  <send  >
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
 
   <label id="send_subscribe5"/>
   <send retrans="500">
@@ -324,6 +233,7 @@
       Expires: 3600
       Accept: application/pidf+xml
       Allow-Events: presence
+      [field3]
       Content-Length: 0
 
     ]]>
@@ -331,39 +241,21 @@
 
   <recv response="407" auth="true" optional="true" next="send_subscribe5">  </recv>
 
-  <!-- By adding rrs="true" (Record Route Sets), the route sets         -->
-  <!-- are saved and used for following messages sent. Useful to test   -->
-  <!-- against stateful SIP proxies/B2BUAs.                             -->
   <recv  response="200" >
   </recv>
 
-  <recv  request="NOTIFY"></recv>
-
-  <send  >
-    <![CDATA[
-
-      SIP/2.0 200 OK
-      [last_Via:]
-      [last_From:]
-      [last_To:]
-      [last_Call-ID:]
-      [last_CSeq:]
-      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Length: 0
-
-    ]]>
-  </send>
-
-  
   <label id="after_subscribe"/>
   <nop>
     <action>
-      <test assign_to="6" variable="5" compare="less_than" value="60.5" />
+      <!-- Increment loop counter and check if we should continue -->
+      <add assign_to="8" value="1" />
+      <test assign_to="6" variable="8" compare="less_than" variable2="9" />
     </action>
   </nop>
 
-  <pause milliseconds="58000" test="6" next="10">  </pause> 
-  <!-- <pause next="10">  </pause> -->
+  <!-- Sleep 45s then loop back for re-REGISTER if under max_loops (78 × 45s = 58.5 min) -->
+  <pause milliseconds="45000" test="6" next="10">  </pause>
+  <!-- Scenario ends here after 1 hour -->
 
   <ResponseTimeRepartition value="2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 100, 125, 150, 175, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 2000"/>
   <CallLengthRepartition value="10"/>

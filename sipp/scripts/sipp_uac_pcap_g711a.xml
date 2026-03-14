@@ -29,7 +29,7 @@
 
       OPTIONS sip:[field0]@[remote_ip]:[remote_port] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier:[local_port]>;tag=[call_number]
+      From: <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier>;tag=[call_number]
       To: <sip:[field0]@[remote_ip]:[remote_port]>
       Call-ID: [call_id]
       CSeq: 1 OPTIONS
@@ -48,7 +48,7 @@
 
       INVITE sip:[field0]@[remote_ip]:[remote_port] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: "[field0 file="random_caller_ids.csv"]" <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier:[local_port]>;tag=[call_number]
+      From: "[field0 file="random_caller_ids.csv"]" <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier>;tag=[call_number]
       To: <sip:[field0]@[remote_ip]:[remote_port]>
       Call-ID: [call_id]
       CSeq: 1 INVITE
@@ -89,7 +89,7 @@
 
       ACK sip:[field0]@[remote_ip]:[remote_port] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: [field0 file="random_caller_ids.csv"] <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier:[local_port]>;tag=[call_number]
+      From: [field0 file="random_caller_ids.csv"] <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier>;tag=[call_number]
       To: sut <sip:[field0]@[remote_ip]:[remote_port]>[peer_tag_param]
       Call-ID: [call_id]
       CSeq: 1 ACK
@@ -108,7 +108,17 @@
     </action>
   </nop>
 
-   <recv request="INVITE" timeout="300000" ontimeout="send_bye"   crlf="true" next="accept_reinvite">
+  <!-- send rfc2833 DTMF -->
+  <nop>
+    <pause distribution="uniform" min="100" max="3000"/> 
+    <action>
+      <exec rtp_send_dtmf="1" /> 
+    </action>
+  </nop>
+
+
+  <!-- this is the reinvite for when it goes to the agent -->
+   <recv request="INVITE" timeout="45000" ontimeout="send_bye"   crlf="true" next="accept_reinvite">
   </recv>
   	
 
@@ -149,8 +159,7 @@
   </nop>
 
 <label id="pause_talking"/>
-<pause distribution="uniform" min="5000" max="90000" next="send_bye"/> 
-
+<pause distribution="uniform" min="5000" max="480000"/> 
 
 <label id="send_bye"/>
   <send retrans="500" next="reply_bye_200" >
@@ -158,7 +167,7 @@
 
       BYE sip:[field0]@[remote_ip]:[remote_port] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: [field0 file="random_caller_ids.csv"] <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier:[local_port]>;tag=[call_number]
+      From: [field0 file="random_caller_ids.csv"] <sip:[field1 file="random_caller_ids.csv"]@inbound-carrier>;tag=[call_number]
       To: sut <sip:[field0]@[remote_ip]:[remote_port]>[peer_tag_param]
       Call-ID: [call_id]
       CSeq: 2 BYE

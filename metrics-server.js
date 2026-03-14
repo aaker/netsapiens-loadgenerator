@@ -284,6 +284,10 @@ async function updateMetrics() {
         }
 
         const metadata = parseStatsFilename(filename);
+        // In legacy single-server mode (no servers.json), fall back to TARGET_SERVER from .env
+        if (metadata.serverId === 'default' && process.env.TARGET_SERVER) {
+          metadata.serverId = process.env.TARGET_SERVER;
+        }
         const { serverId, scenario, transport } = metadata;
 
         // Update state tracker and get deltas
@@ -416,6 +420,10 @@ function processStatsFile(filePath) {
     }
 
     const metadata = parseStatsFilename(filename);
+    // In legacy single-server mode (no servers.json), fall back to TARGET_SERVER from .env
+    if (metadata.serverId === 'default' && process.env.TARGET_SERVER) {
+      metadata.serverId = process.env.TARGET_SERVER;
+    }
     const { serverId, scenario, transport } = metadata;
 
     // Update cache

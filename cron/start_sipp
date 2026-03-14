@@ -1,5 +1,5 @@
-#this script is used to start the sipp load generator for registration. Running every min and starts a new sipp instance that should run for 1 hour. Will only start some of the registrations per min.
-* * * * * root cd /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/ && /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register_all.sh 
+#this script is used to start the sipp load generator for registration. Running every 10 min and consolidates all CSV files per transport type (UDP at :00/:30, TCP at :10/:40, TLS at :20/:50).
+*/10 * * * * root cd /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/ && /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register_all.sh 
 #below schedules 5 min run times of the inbound script for each timezone for roughly a 8 hour day based on that timezone.
 #Transport distribution: UDP (u1) on minutes 0,15,30,45; TCP (t1) on minutes 5,20,35,50; TLS (l1) on minutes 10,25,40,55 for even minute patterns
 #Transport distribution: UDP (u1) on minutes 1,16,31,46; TCP (t1) on minutes 6,21,36,51; TLS (l1) on minutes 11,26,41,56 for odd minute patterns
@@ -31,4 +31,8 @@
 1,16,31,46 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "u1" --server all
 6,21,36,51 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "t1" --server all
 11,26,41,56 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "l1" --server all
+
+#handle on-net calls. run every min
+* 11-23 * * * /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
+* 0-4 * * * /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
 
