@@ -33,6 +33,6 @@
 11,26,41,56 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "l1" --server all
 
 #handle on-net calls. run every min
-* 11-23 * * * /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
-* 0-4 * * * /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
+* 11-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
+* 0-4 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
 

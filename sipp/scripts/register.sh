@@ -37,7 +37,16 @@ head -n 2 $INPUTFILE
 
 FILE_LINE_COUNT=`cat $INPUTFILE | grep -v SEQUENTIAL | grep -v RANDOM | wc -l`
 
-PCT_USERS=$REGISTRATION_PCT # % of the users will be registered
+# Time-based registration variation using a cosine curve:
+#   Peak:   +0.20 at 19:00 UTC (evening business hours peak)
+#   Trough: -0.20 at 07:00 UTC (early morning low)
+CURRENT_HOUR=$(date -u +%H)
+CURRENT_MIN=$(date -u +%M)
+TIME_ADJUSTMENT=$(awk -v hour="$CURRENT_HOUR" -v min="$CURRENT_MIN" \
+    'BEGIN { pi=3.14159265358979; frac=hour+min/60; printf "%.4f", 0.2*cos(2*pi*(frac-19)/24) }')
+PCT_USERS=$(awk -v base="$REGISTRATION_PCT" -v adj="$TIME_ADJUSTMENT" \
+    'BEGIN { v=base+adj; if(v<0) v=0; if(v>1) v=1; printf "%.4f", v }')
+echo "PCT_USERS: $PCT_USERS (base: $REGISTRATION_PCT, time_adjustment: $TIME_ADJUSTMENT, UTC hour: $CURRENT_HOUR:$CURRENT_MIN)"
 
 MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$FILE_LINE_COUNT" |bc)`
 LOG_FILE=$(basename "$INPUTFILE")

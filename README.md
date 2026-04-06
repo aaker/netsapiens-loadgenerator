@@ -7,6 +7,25 @@ This set of tools is designed to help generatate a batch of domains with users, 
 
 This application is unsupported by netsapiens/crexendo and is designed for a sample application, test tool and learning use case. Any support or advancement would be a community effort only with no warranties or SLAs provided by the original contributor or netsapiens. These are also real calls that will be tracked against any license or session limits.
 
+## SIPP
+
+This tool heavily uses sipp and is recommended to be compiled from source with TLS 
+
+```bash
+sudo apt update
+sudo apt install -y build-essential cmake libssl-dev libpcap-dev libnet1-dev  libsctp-dev  libncurses5-dev pkg-config libpugixml-dev libgtest-dev
+cd /usr/local/NetSapiens/
+git clone https://github.com/SIPp/sipp.git
+git fetch origin tag  v3.7.7
+git checkout tags/v3.7.7
+cd sipp
+cmake . -DUSE_SSL=1 -DUSE_PCAP=1 -DBUILD_TESTING=OFF
+make
+ln -s /usr/local/NetSapiens/sipp/sipp /usr/bin/sipp
+/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/generate_tls_certs.sh
+```
+
+
 ## Multi-Server Support
 
 This tool now supports testing multiple target servers from a single installation! You can configure and manage load generation for multiple NetSapiens servers with:
@@ -142,7 +161,7 @@ Follow steps below to install and configure tool.
 * x86_64 or Arm
 * Packages
     ```
-     apt install git dnsutils cron rsync nodejs npm memcached vim sip-tester iputils-ping 2to3 python-is-python3
+     apt install git dnsutils cron rsync nodejs npm memcached vim  iputils-ping 2to3 python-is-python3 bc
      ```
 
 ### Steps
