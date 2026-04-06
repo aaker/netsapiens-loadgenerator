@@ -44,9 +44,11 @@ CURRENT_HOUR=$(date -u +%H)
 CURRENT_MIN=$(date -u +%M)
 TIME_ADJUSTMENT=$(awk -v hour="$CURRENT_HOUR" -v min="$CURRENT_MIN" \
     'BEGIN { pi=3.14159265358979; frac=hour+min/60; printf "%.4f", 0.2*cos(2*pi*(frac-19)/24) }')
-PCT_USERS=$(awk -v base="$REGISTRATION_PCT" -v adj="$TIME_ADJUSTMENT" \
-    'BEGIN { v=base+adj; if(v<0) v=0; if(v>1) v=1; printf "%.4f", v }')
-echo "PCT_USERS: $PCT_USERS (base: $REGISTRATION_PCT, time_adjustment: $TIME_ADJUSTMENT, UTC hour: $CURRENT_HOUR:$CURRENT_MIN)"
+PCT_USERS=$(awk -v base="$REGISTRATION_PCT" -v adj="$TIME_ADJUSTMENT" -v seed="$RANDOM" \
+    'BEGIN { srand(seed); noise=(rand()*0.10)-0.05; v=base+adj+noise; if(v<0) v=0; if(v>1) v=1; printf "%.4f", v; printf " %.4f", noise > "/dev/stderr" }' \
+    2>/tmp/pct_noise_$$)
+NOISE=$(cat /tmp/pct_noise_$$); rm -f /tmp/pct_noise_$$
+echo "PCT_USERS: $PCT_USERS (base: $REGISTRATION_PCT, time_adjustment: $TIME_ADJUSTMENT, noise: $NOISE, UTC hour: $CURRENT_HOUR:$CURRENT_MIN)"
 
 MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$FILE_LINE_COUNT" |bc)`
 LOG_FILE=$(basename "$INPUTFILE")
