@@ -43,9 +43,9 @@ FILE_LINE_COUNT=`cat $INPUTFILE | grep -v SEQUENTIAL | grep -v RANDOM | wc -l`
 CURRENT_HOUR=$(date -u +%H)
 CURRENT_MIN=$(date -u +%M)
 TIME_ADJUSTMENT=$(awk -v hour="$CURRENT_HOUR" -v min="$CURRENT_MIN" \
-    'BEGIN { pi=3.14159265358979; frac=hour+min/60; printf "%.4f", 0.2*cos(2*pi*(frac-19)/24) }')
+    'BEGIN { pi=3.14159265358979; frac=hour+min/60; printf "%.4f", 0.1*cos(2*pi*(frac-19)/24) }')
 PCT_USERS=$(awk -v base="$REGISTRATION_PCT" -v adj="$TIME_ADJUSTMENT" -v seed="$RANDOM" \
-    'BEGIN { srand(seed); noise=(rand()*0.10)-0.05; v=base+adj+noise; if(v<0) v=0; if(v>1) v=1; printf "%.4f", v; printf " %.4f", noise > "/dev/stderr" }' \
+    'BEGIN { srand(seed); noise=(rand()*0.04)-0.02; v=base+adj+noise; if(v<0) v=0; if(v>1) v=1; printf "%.4f", v; printf " %.4f", noise > "/dev/stderr" }' \
     2>/tmp/pct_noise_$$)
 NOISE=$(cat /tmp/pct_noise_$$); rm -f /tmp/pct_noise_$$
 echo "PCT_USERS: $PCT_USERS (base: $REGISTRATION_PCT, time_adjustment: $TIME_ADJUSTMENT, noise: $NOISE, UTC hour: $CURRENT_HOUR:$CURRENT_MIN)"
