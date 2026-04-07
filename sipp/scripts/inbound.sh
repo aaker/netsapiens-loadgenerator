@@ -329,7 +329,7 @@ $TLS_OPTIONS \
 -trace_stat -stf $STATS_FILE -fd 15 -bg "
 
 # Log command to syslog
-logger -t sipp-inbound -p user.info "Starting inbound calls: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL sip_port=$SIP_PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
+logger -t sipp-inbound -p user.info "Starting inbound calls: server=$SERVER_ID scenario=inbound transport=$TRANSPORT timezone=$TIMEZONE send_rtp=$SEND_RTP_FINAL sip_port=$SIP_PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT call_rate=$CALLRATE num_calls=$NUMCALLS"
 
 # Execute sipp command (runs in background with -bg flag)
 # Capture output to extract the PID
