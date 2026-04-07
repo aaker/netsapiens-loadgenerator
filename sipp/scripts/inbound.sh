@@ -185,7 +185,8 @@ echo "RTP Playback: $([ "$SEND_RTP_FINAL" == "1" ] && echo "ENABLED" || echo "DI
 
 # Time-based CPS multiplier
 # Curve expressed in local time via CPS_TZ_OFFSET (default -7 for PDT)
-# Shape: peaks at 11am and 1pm local, noon dip (90%), 10% overnight (6pm-6am)
+# Shape: steep 3hr morning ramp, 9am peak, lunch dip (11am/1pm=0.93, noon~0.78),
+#        gradual afternoon decline, steep 2hr evening cliff, ~5% overnight
 # Day-of-week scaling: Mon-Fri=100%, Sat=40%, Sun=20%
 CPS_TZ_OFFSET=${CPS_TZ_OFFSET:--7}
 CURRENT_HOUR_UTC=$(date -u +%H)
@@ -196,18 +197,27 @@ CPS_MULTIPLIER=$(awk -v hour="$CURRENT_HOUR_UTC" -v min="$CURRENT_MIN_UTC" -v of
     utc_frac = hour + min/60
     # Convert to local fractional hour, wrap to [0,24)
     local_frac = (utc_frac + offset + 48) % 24
-    if (local_frac >= 6 && local_frac < 11) {
-        # Ramp up: 0.1 at 6am -> 1.0 at 11am
-        mult = 0.1 + 0.9 * (local_frac - 6) / 5
-    } else if (local_frac >= 11 && local_frac < 13) {
-        # Cosine dip: peaks at 11am and 1pm, trough at noon
-        mult = 0.95 + 0.05 * cos(pi * (local_frac - 11))
-    } else if (local_frac >= 13 && local_frac < 18) {
-        # Ramp down: 1.0 at 1pm -> 0.1 at 6pm
-        mult = 1.0 - 0.9 * (local_frac - 13) / 5
+    if (local_frac < 6) {
+        # Overnight low
+        mult = 0.05
+    } else if (local_frac < 9) {
+        # Steep morning ramp: 0.05 at 6am -> 1.0 at 9am (3 hours)
+        mult = 0.05 + 0.95 * (local_frac - 6) / 3
+    } else if (local_frac < 11) {
+        # Morning plateau taper: 1.0 at 9am -> 0.93 at 11am
+        mult = 1.0 - 0.07 * (local_frac - 9) / 2
+    } else if (local_frac < 13) {
+        # Lunch dip: 0.93 at 11am, ~0.78 trough at noon, 0.93 at 1pm
+        mult = 0.855 + 0.075 * cos(pi * (local_frac - 11))
+    } else if (local_frac < 17) {
+        # Gradual afternoon decline: 0.93 at 1pm -> 0.40 at 5pm
+        mult = 0.93 - 0.53 * (local_frac - 13) / 4
+    } else if (local_frac < 19) {
+        # Steep evening cliff: 0.40 at 5pm -> 0.05 at 7pm
+        mult = 0.40 - 0.35 * (local_frac - 17) / 2
     } else {
-        # Overnight low (6pm-6am)
-        mult = 0.1
+        # Overnight low
+        mult = 0.05
     }
     # Day-of-week scaling (dow: 1=Mon...6=Sat, 7=Sun)
     if (dow == 6) mult = mult * 0.4
