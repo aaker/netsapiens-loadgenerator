@@ -38,17 +38,20 @@ head -n 2 $INPUTFILE
 FILE_LINE_COUNT=`cat $INPUTFILE | grep -v SEQUENTIAL | grep -v RANDOM | wc -l`
 
 # Time-based registration variation using a cosine curve:
-#   Peak:   +0.20 at 19:00 UTC (evening business hours peak)
-#   Trough: -0.20 at 07:00 UTC (early morning low)
+#   Peak:   +0.10 at local noon (most devices registered mid-day)
+#   Trough: -0.10 at local midnight
+# CPS_TZ_OFFSET controls local time reference (default -7 for PDT), shared with inbound.sh
+CPS_TZ_OFFSET=${CPS_TZ_OFFSET:--7}
 CURRENT_HOUR=$(date -u +%H)
 CURRENT_MIN=$(date -u +%M)
-TIME_ADJUSTMENT=$(awk -v hour="$CURRENT_HOUR" -v min="$CURRENT_MIN" \
-    'BEGIN { pi=3.14159265358979; frac=hour+min/60; printf "%.4f", 0.1*cos(2*pi*(frac-19)/24) }')
+TIME_ADJUSTMENT=$(awk -v hour="$CURRENT_HOUR" -v min="$CURRENT_MIN" -v offset="$CPS_TZ_OFFSET" \
+    'BEGIN { pi=3.14159265358979; utc_frac=hour+min/60; local_frac=(utc_frac+offset+48)%24; printf "%.4f", 0.1*cos(2*pi*(local_frac-12)/24) }')
 PCT_USERS=$(awk -v base="$REGISTRATION_PCT" -v adj="$TIME_ADJUSTMENT" -v seed="$RANDOM" \
     'BEGIN { srand(seed); noise=(rand()*0.04)-0.02; v=base+adj+noise; if(v<0) v=0; if(v>1) v=1; printf "%.4f", v; printf " %.4f", noise > "/dev/stderr" }' \
     2>/tmp/pct_noise_$$)
 NOISE=$(cat /tmp/pct_noise_$$); rm -f /tmp/pct_noise_$$
-echo "PCT_USERS: $PCT_USERS (base: $REGISTRATION_PCT, time_adjustment: $TIME_ADJUSTMENT, noise: $NOISE, UTC hour: $CURRENT_HOUR:$CURRENT_MIN)"
+LOCAL_HOUR=$(awk -v h="$CURRENT_HOUR" -v m="$CURRENT_MIN" -v o="$CPS_TZ_OFFSET" 'BEGIN{printf "%.2f", (h+m/60+o+48)%24}')
+echo "PCT_USERS: $PCT_USERS (base: $REGISTRATION_PCT, time_adjustment: $TIME_ADJUSTMENT, noise: $NOISE, local_hour: $LOCAL_HOUR, UTC: $CURRENT_HOUR:$CURRENT_MIN, tz_offset: $CPS_TZ_OFFSET)"
 
 MAX_USERS=`printf "%.0f\n" $(echo "scale=2;$PCT_USERS*$FILE_LINE_COUNT" |bc)`
 LOG_FILE=$(basename "$INPUTFILE")
