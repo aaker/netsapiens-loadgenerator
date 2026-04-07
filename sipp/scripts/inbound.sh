@@ -183,24 +183,46 @@ fi
 
 echo "RTP Playback: $([ "$SEND_RTP_FINAL" == "1" ] && echo "ENABLED" || echo "DISABLED (signaling only)")"
 
-#add some randomness to the PEAK_CPS to avoid exact same call rate every run, make it + or - 10%
-# Use bc for decimal arithmetic to support CPS < 1
-TEN_PERCENT=$(echo "scale=4; $PEAK_CPS * 0.1" | bc)
+# Time-based CPS multiplier
+# Curve expressed in local time via CPS_TZ_OFFSET (default -7 for PDT)
+# Shape: peaks at 11am and 1pm local, noon dip (90%), 10% overnight (6pm-6am)
+# Day-of-week scaling: Mon-Fri=100%, Sat=40%, Sun=20%
+CPS_TZ_OFFSET=${CPS_TZ_OFFSET:--7}
+CURRENT_HOUR_UTC=$(date -u +%H)
+CURRENT_MIN_UTC=$(date -u +%M)
+CURRENT_DOW=$(date -u +%u)  # 1=Monday ... 6=Saturday, 7=Sunday
+CPS_MULTIPLIER=$(awk -v hour="$CURRENT_HOUR_UTC" -v min="$CURRENT_MIN_UTC" -v offset="$CPS_TZ_OFFSET" -v dow="$CURRENT_DOW" 'BEGIN {
+    pi = 3.14159265358979
+    utc_frac = hour + min/60
+    # Convert to local fractional hour, wrap to [0,24)
+    local_frac = (utc_frac + offset + 48) % 24
+    if (local_frac >= 6 && local_frac < 11) {
+        # Ramp up: 0.1 at 6am -> 1.0 at 11am
+        mult = 0.1 + 0.9 * (local_frac - 6) / 5
+    } else if (local_frac >= 11 && local_frac < 13) {
+        # Cosine dip: peaks at 11am and 1pm, trough at noon
+        mult = 0.95 + 0.05 * cos(pi * (local_frac - 11))
+    } else if (local_frac >= 13 && local_frac < 18) {
+        # Ramp down: 1.0 at 1pm -> 0.1 at 6pm
+        mult = 1.0 - 0.9 * (local_frac - 13) / 5
+    } else {
+        # Overnight low (6pm-6am)
+        mult = 0.1
+    }
+    # Day-of-week scaling (dow: 1=Mon...6=Sat, 7=Sun)
+    if (dow == 6) mult = mult * 0.4
+    else if (dow == 7) mult = mult * 0.2
+    printf "%.4f", mult
+}')
 
-# Generate random adjustment between 0 and 10% of PEAK_CPS
-# RANDOM generates 0-32767, we'll scale it to 0-1 range then multiply by 10%
-RANDOM_FACTOR=$(echo "scale=4; $RANDOM / 32767" | bc)
-RANDOM_ADJUSTMENT=$(echo "scale=4; $TEN_PERCENT * $RANDOM_FACTOR" | bc)
-
-# Randomly add or subtract the adjustment
-if (( RANDOM % 2 )); then
-	PEAK_CPS=$(echo "scale=4; $PEAK_CPS + $RANDOM_ADJUSTMENT" | bc)
-else
-	PEAK_CPS=$(echo "scale=4; $PEAK_CPS - $RANDOM_ADJUSTMENT" | bc)
-fi
-
-#round PEAK_CPS to 2 decimal places (to support CPS < 1)
-PEAK_CPS=$(echo "scale=2; $PEAK_CPS / 1" | bc)
+# Apply multiplier and ±2% random noise to PEAK_CPS
+PEAK_CPS=$(awk -v cps="$PEAK_CPS" -v mult="$CPS_MULTIPLIER" -v seed="$RANDOM" \
+    'BEGIN { srand(seed); noise=(rand()*0.04)-0.02; v=cps*mult*(1+noise); if(v<0.01) v=0.01; printf "%.2f", v; printf " %.4f", noise > "/dev/stderr" }' \
+    2>/tmp/inbound_noise_$$)
+NOISE=$(cat /tmp/inbound_noise_$$); rm -f /tmp/inbound_noise_$$
+LOCAL_HOUR=$(awk -v h="$CURRENT_HOUR_UTC" -v m="$CURRENT_MIN_UTC" -v o="$CPS_TZ_OFFSET" 'BEGIN{printf "%.2f", (h+m/60+o+48)%24}')
+DOW_NAME=$(awk -v d="$CURRENT_DOW" 'BEGIN{split("Mon,Tue,Wed,Thu,Fri,Sat,Sun",a,","); print a[d]}')
+echo "PEAK_CPS: $PEAK_CPS (multiplier: $CPS_MULTIPLIER, noise: $NOISE, local_hour: $LOCAL_HOUR, UTC: ${CURRENT_HOUR_UTC}:${CURRENT_MIN_UTC}, tz_offset: $CPS_TZ_OFFSET, day: $DOW_NAME)"
 
 
 PUBLICIP=`dig +short myip.opendns.com @resolver1.opendns.com -4`

@@ -1,36 +1,38 @@
 #this script is used to start the sipp load generator for registration. Running every 10 min and consolidates all CSV files per transport type (UDP at :00/:30, TCP at :10/:40, TLS at :20/:50).
-*/10 * * * * root cd /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/ && /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register_all.sh 
-#below schedules 5 min run times of the inbound script for each timezone for roughly a 8 hour day based on that timezone.
+*/10 * * * * root cd /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/ && /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/register_all.sh
+#below schedules 5 min run times of the inbound script for each timezone, running 24/7.
+#CPS is shaped by the time-based multiplier in inbound.sh (peaks at 11am/1pm local, 10% overnight).
+#Set CPS_TZ_OFFSET in .env to match the server's reference timezone (default: -7 for PDT).
 #Transport distribution: UDP (u1) on minutes 0,15,30,45; TCP (t1) on minutes 5,20,35,50; TLS (l1) on minutes 10,25,40,55 for even minute patterns
 #Transport distribution: UDP (u1) on minutes 1,16,31,46; TCP (t1) on minutes 6,21,36,51; TLS (l1) on minutes 11,26,41,56 for odd minute patterns
 #US_Hawaii (even pattern)
-0,15,30,45 18-23,0-3 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Hawaii" "u1" --server all
-5,20,35,50 18-23,0-3 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Hawaii" "t1" --server all
-10,25,40,55 18-23,0-3 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Hawaii" "l1" --server all
+0,15,30,45 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Hawaii" "u1" --server all
+5,20,35,50 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Hawaii" "t1" --server all
+10,25,40,55 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Hawaii" "l1" --server all
 #US_Alaska (odd pattern)
-1,16,31,46 17-23,0-2 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Alaska" "u1" --server all
-6,21,36,51 17-23,0-2 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Alaska" "t1" --server all
-11,26,41,56 17-23,0-2 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Alaska" "l1" --server all
+1,16,31,46 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Alaska" "u1" --server all
+6,21,36,51 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Alaska" "t1" --server all
+11,26,41,56 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Alaska" "l1" --server all
 #US_Pacific (even pattern +2)
-2,17,32,47 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Pacific" "u1" --server all
-7,22,37,52 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Pacific" "t1" --server all
-12,27,42,57 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Pacific" "l1" --server all
+2,17,32,47 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Pacific" "u1" --server all
+7,22,37,52 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Pacific" "t1" --server all
+12,27,42,57 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Pacific" "l1" --server all
 #US_Arizona (odd pattern +3)
-3,18,33,48 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Arizona" "u1" --server all
-8,23,38,53 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Arizona" "t1" --server all
-13,28,43,58 15-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Arizona" "l1" --server all
+3,18,33,48 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Arizona" "u1" --server all
+8,23,38,53 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Arizona" "t1" --server all
+13,28,43,58 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Arizona" "l1" --server all
 #US_Mountain (even pattern +4)
-4,19,34,49 14-22 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Mountain" "u1" --server all
-9,24,39,54 14-22 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Mountain" "t1" --server all
-14,29,44,59 14-22 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Mountain" "l1" --server all
+4,19,34,49 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Mountain" "u1" --server all
+9,24,39,54 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Mountain" "t1" --server all
+14,29,44,59 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Mountain" "l1" --server all
 #US_Central (even pattern)
-0,15,30,45 13-21 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Central" "u1" --server all
-5,20,35,50 13-21 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Central" "t1" --server all
-10,25,40,55 13-21 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Central" "l1" --server all
+0,15,30,45 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Central" "u1" --server all
+5,20,35,50 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Central" "t1" --server all
+10,25,40,55 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Central" "l1" --server all
 #US_Eastern (odd pattern)
-1,16,31,46 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "u1" --server all
-6,21,36,51 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "t1" --server all
-11,26,41,56 12-20 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "l1" --server all
+1,16,31,46 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "u1" --server all
+6,21,36,51 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "t1" --server all
+11,26,41,56 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/inbound.sh "US_Eastern" "l1" --server all
 
 #handle on-net calls. run every min
 * 11-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
