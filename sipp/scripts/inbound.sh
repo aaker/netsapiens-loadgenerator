@@ -227,10 +227,10 @@ CPS_CLIFF_LEVEL=${CPS_CLIFF_LEVEL:-0.40}         # level at start of evening cli
 
 CURRENT_HOUR_UTC=$(date -u +%H)
 CURRENT_MIN_UTC=$(date -u +%M)
-CURRENT_DOW=$(date -u +%u)  # 1=Monday ... 6=Saturday, 7=Sunday
+CURRENT_DOW_UTC=$(date -u +%u)  # 1=Monday ... 6=Saturday, 7=Sunday (UTC)
 CPS_MULTIPLIER=$(awk \
     -v hour="$CURRENT_HOUR_UTC" -v min="$CURRENT_MIN_UTC" \
-    -v offset="$CPS_TZ_OFFSET" -v dow="$CURRENT_DOW" \
+    -v offset="$CPS_TZ_OFFSET" -v dow_utc="$CURRENT_DOW_UTC" \
     -v ramp_start="$CPS_RAMP_START_HOUR" -v peak_hour="$CPS_PEAK_HOUR" \
     -v lunch_start="$CPS_LUNCH_START_HOUR" -v lunch_end="$CPS_LUNCH_END_HOUR" \
     -v cliff_start="$CPS_CLIFF_START_HOUR" -v cliff_end="$CPS_CLIFF_END_HOUR" \
@@ -242,7 +242,16 @@ CPS_MULTIPLIER=$(awk \
     pi = 3.14159265358979
     utc_frac = hour + min/60
     # Convert to local fractional hour, wrap to [0,24)
-    local_frac = (utc_frac + offset + 48) % 24
+    local_sum = utc_frac + offset
+    local_frac = (local_sum + 48) % 24
+    # Derive local day-of-week from the same offset (avoids Sunday-night
+    # spikes when UTC has already rolled into Monday but local is still Sun).
+    day_shift = 0
+    if (local_sum < 0) day_shift = -1
+    else if (local_sum >= 24) day_shift = 1
+    dow = dow_utc + day_shift
+    if (dow < 1) dow += 7apt 
+    if (dow > 7) dow -= 7
     # Overnight cosine dip spans cliff_end -> ramp_start (wrapping midnight)
     overnight_duration = (24 - cliff_end) + ramp_start
     overnight_A = (overnight + deep_overnight) / 2
@@ -285,7 +294,9 @@ PEAK_CPS=$(awk -v cps="$PEAK_CPS" -v mult="$CPS_MULTIPLIER" -v seed="$RANDOM" \
     2>/tmp/inbound_noise_$$)
 NOISE=$(cat /tmp/inbound_noise_$$); rm -f /tmp/inbound_noise_$$
 LOCAL_HOUR=$(awk -v h="$CURRENT_HOUR_UTC" -v m="$CURRENT_MIN_UTC" -v o="$CPS_TZ_OFFSET" 'BEGIN{printf "%.2f", (h+m/60+o+48)%24}')
-DOW_NAME=$(awk -v d="$CURRENT_DOW" 'BEGIN{split("Mon,Tue,Wed,Thu,Fri,Sat,Sun",a,","); print a[d]}')
+LOCAL_DOW=$(awk -v h="$CURRENT_HOUR_UTC" -v m="$CURRENT_MIN_UTC" -v o="$CPS_TZ_OFFSET" -v d="$CURRENT_DOW_UTC" \
+    'BEGIN{s=h+m/60+o; shift=0; if(s<0)shift=-1; else if(s>=24)shift=1; ld=d+shift; if(ld<1)ld+=7; if(ld>7)ld-=7; print ld}')
+DOW_NAME=$(awk -v d="$LOCAL_DOW" 'BEGIN{split("Mon,Tue,Wed,Thu,Fri,Sat,Sun",a,","); print a[d]}')
 echo "PEAK_CPS: $PEAK_CPS (multiplier: $CPS_MULTIPLIER, noise: $NOISE, local_hour: $LOCAL_HOUR, UTC: ${CURRENT_HOUR_UTC}:${CURRENT_MIN_UTC}, tz_offset: $CPS_TZ_OFFSET, day: $DOW_NAME)"
 
 

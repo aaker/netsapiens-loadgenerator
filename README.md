@@ -97,7 +97,7 @@ for server in prod1 prod2 staging; do
 done
 ```
 
-**How it works:**
+**How it works:** 
 - The script reads all server IDs from `servers.json`
 - Loops through each server sequentially
 - Calls itself recursively with each specific server ID
