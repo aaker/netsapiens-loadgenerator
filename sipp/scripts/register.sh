@@ -129,7 +129,7 @@ fi
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
--oocsf $BASE_DIR/sipp/scripts/sipp_uas_pcap_g711a.xml \
+-oocsf $BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml \
 -inf $INPUTFILE \
 -inf $BASE_DIR/sipp/csv/random_user_agents.csv \
 -recv_timeout 60000 \
