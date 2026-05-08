@@ -294,7 +294,7 @@ async function processSingleDomain(description, i) {
                 userArgs['recording-configuration'] = "yes";
             }
 
-            deviceArgs['device-transcode-opus'] = (u % 10 < (CONFIG.TRANSCODE_OPUS_PERCENTAGE * 10)) ? "yes" : "no";
+            deviceArgs['device-transcode-opus'] = (seedrandom(SEED + domain + u + "opus")() < CONFIG.TRANSCODE_OPUS_PERCENTAGE) ? "yes" : "no";
             
             let macArgs = {
                 domain: domain,
