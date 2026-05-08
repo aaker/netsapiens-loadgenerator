@@ -307,7 +307,7 @@ async function processSingleDomain(description, i) {
             }
 
             deviceArgs['device-transcode-opus'] = (seedrandom(SEED + domain + u + "opus")() < CONFIG.TRANSCODE_OPUS_PERCENTAGE) ? "yes" : "no";
-            deviceArgs['device-sip-nat-traversal-enabled'] = 'automatic';
+            deviceArgs['device-sip-nat-traversal'] = 'automatic';
             
             let macArgs = {
                 domain: domain,
