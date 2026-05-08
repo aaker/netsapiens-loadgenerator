@@ -146,14 +146,25 @@
         crlf="true">
   </recv>
 
-  <!-- Play a pre-recorded PCAP file (RTP stream)                       -->
-  <!-- NOTE: Depending on negotiated codec, use opus.pcap or g711a.pcap -->
-  <!-- <nop>
+  <!-- Send RTP: branch on negotiated codec -->
+  <nop test="opus_offered" next="play_opus"/>
+  <!-- G.711a path: play g711a.pcap -->
+  <nop>
     <action>
       <exec play_pcap_audio="g711a.pcap"/>
     </action>
-  </nop> -->
+  </nop>
+  <nop next="wait_bye"/>
 
+  <!-- Opus path: play opus.pcap (PT=121, 48kHz, 20ms frames) -->
+  <label id="play_opus"/>
+  <nop>
+    <action>
+      <exec play_pcap_audio="opus.pcap"/>
+    </action>
+  </nop>
+
+  <label id="wait_bye"/>
   <recv request="BYE" timeout="400000" ontimeout="send_bye" ></recv>
   <send next="99">
     <![CDATA[

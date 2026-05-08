@@ -127,7 +127,7 @@ if [ "$DEBUG" = "1" ]; then
 fi
 
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
--t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
+-t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT  \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
 -oocsf $BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml \
 -inf $INPUTFILE \
@@ -138,6 +138,8 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_U
 $MEDIAPORT_LOGIC \
 -i $PRIVATEIP -mi $PRIVATEIP \
 -trace_stat -stf $STATS_FILE -fd 15 $TRACE_SCREEN -bg "
+
+#remove -rtp_echo as now playing media from pcap 
 
 echo "SIPP command: $SIPP_CMD"
 # Log command to syslog
