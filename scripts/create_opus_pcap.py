@@ -9,7 +9,7 @@ Usage:
     python3 create_opus_pcap.py [input.wav] [output.pcap]
 
 Defaults:
-    input  = sipp/scripts/2024-conversation-02-side-a.wav
+    input  = sipp/scripts/mr.telephone.man.wav
     output = sipp/scripts/opus.pcap
 
 SIPp replaces the destination IP/port at playback time, so the dummy
@@ -25,7 +25,7 @@ import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
-DEFAULT_INPUT = os.path.join(REPO_ROOT, "sipp", "scripts", "2024-conversation-02-side-a.wav")
+DEFAULT_INPUT = os.path.join(REPO_ROOT, "sipp", "scripts", "mr.telephone.man.wav")
 DEFAULT_OUTPUT = os.path.join(REPO_ROOT, "sipp", "scripts", "opus.pcap")
 
 # RTP parameters for Opus
@@ -54,10 +54,10 @@ def encode_to_ogg_opus(input_path: str, tmp_ogg: str) -> None:
         "-acodec", "libopus",
         "-ar", "48000",
         "-ac", "1",
-        "-b:a", "24k",
+        "-b:a", "64k",
         "-frame_duration", str(FRAME_MS),
-        "-vbr", "off",        # CBR keeps frame sizes predictable
-        "-application", "voip",
+        "-vbr", "on",
+        "-application", "audio",
         tmp_ogg,
     ]
     result = subprocess.run(cmd, capture_output=True)
@@ -221,7 +221,7 @@ def main():
 
     print(f"Input:  {input_path}")
     print(f"Output: {output_path}")
-    print(f"Encoding to OGG/Opus ({OPUS_CLOCK}Hz, {FRAME_MS}ms frames, CBR 24kbps)...")
+    print(f"Encoding to OGG/Opus ({OPUS_CLOCK}Hz, {FRAME_MS}ms frames, VBR 64kbps)...")
 
     with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp:
         tmp_ogg = tmp.name
