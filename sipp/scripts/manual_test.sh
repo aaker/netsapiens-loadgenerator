@@ -55,7 +55,8 @@ sipp "$SUT" \
     -mp $MEDIA_PORT \
     -i "$PRIVATEIP" \
     -mi "$PRIVATEIP" \
-    -sf "$BASE_DIR/sipp/scripts/register_then_accept_opus.sipp.xml" \
+    -sf "$BASE_DIR/sipp/scripts/register_then_accept.sipp.xml" \
+    -oocsf "$BASE_DIR/sipp/scripts/register_then_accept_opus.sipp.xml" \
     -inf "$INPUTFILE" \
     -inf "$BASE_DIR/sipp/csv/random_user_agents.csv" \
     -recv_timeout 60000 \

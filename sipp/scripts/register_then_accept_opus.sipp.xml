@@ -2,96 +2,26 @@
 <!DOCTYPE scenario SYSTEM "sipp.dtd">
 
 <!--                                                                    -->
-<!--  Register, wait for an incoming INVITE, answer it, and stream RTP  -->
-<!--  from a pre-recorded PCAP. Codec negotiation:                      -->
+<!--  UAS responder with Opus/G.711a fallback and PCAP RTP playback.    -->
+<!--  Designed for use as -oocsf alongside a registration scenario.     -->
+<!--                                                                    -->
+<!--  When SIPp receives an INVITE whose Call-ID doesn't match any      -->
+<!--  existing call (i.e. a server-initiated inbound call), it spawns   -->
+<!--  a new instance of this scenario to handle it. [call_id] is        -->
+<!--  automatically set to the INVITE's Call-ID in this context.        -->
+<!--                                                                    -->
+<!--  Codec negotiation:                                                 -->
 <!--    - OPUS (PT 121) offered → reply with OPUS SDP, play opus.pcap   -->
 <!--    - OPUS not offered      → reply with G.711a SDP, play g711a.pcap-->
 <!--                                                                    -->
-<!--  CSV field layout (same as device CSVs from server.js):            -->
-<!--    field0  Display Name                                            -->
-<!--    field1  SIP user (username only, no @domain)                    -->
-<!--    field2  Domain                                                  -->
-<!--    field3  Auth header  [authentication username=X password=Y]     -->
-<!--                                                                    -->
 
-<scenario name="Register then Accept with Opus/G.711a PCAP">
+<scenario name="UAS Accept with Opus/G.711a PCAP">
 
-  <!-- ================================================================ -->
-  <!-- Registration                                                      -->
-  <!-- ================================================================ -->
-
-  <nop>
+  <recv request="INVITE" crlf="true" rrs="true">
     <action>
-      <assign assign_to="5" value="0" />
-    </action>
-  </nop>
-
-  <send retrans="1000" start_rtd="register">
-    <![CDATA[
-
-      REGISTER sip:[field2] SIP/2.0
-      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
-      To: <sip:[field1]@[field2]>
-      CSeq: [cseq] REGISTER
-      Call-ID: [call_id]
-      Contact: <sip:[field1]@[local_ip]:[local_port]>
-      Expires: [expires]
-      User-Agent: "[field0 file="random_user_agents.csv"]"
-      Accept-Language: en
-      Max-Forwards: 70
-      Content-Length: 0
-
-    ]]>
-  </send>
-
-  <recv response="407" auth="true" rtd="register">  </recv>
-
-  <label id="10">  </label>
-  <send retrans="1000" start_rtd="reregister">
-    <![CDATA[
-
-      REGISTER sip:[field2] SIP/2.0
-      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
-      To: <sip:[field1]@[field2]>
-      CSeq: [cseq] REGISTER
-      Call-ID: [call_id]
-      Contact: <sip:[field1]@[local_ip]:[local_port]>
-      Expires: [expires]
-      User-Agent: SIPp/Linux
-      Accept-Language: en
-      [field3]
-      Max-Forwards: 70
-      Content-Length: 0
-
-    ]]>
-  </send>
-
-  <recv response="407" auth="true" optional="true" next="10">  </recv>
-
-  <recv response="200" rtd="reregister">
-    <action>
-      <ereg regexp="[0-9]+" search_in="hdr" header="Expires:" assign_to="1" />
-      <add assign_to="5" value="1"/>
-      <subtract assign_to="1" value="15"/>
-      <todouble assign_to="2" variable="1"/>
-      <multiply assign_to="2" value="1000"/>
-    </action>
-  </recv>
-
-  <!-- ================================================================ -->
-  <!-- Wait for incoming INVITE (up to 60s after registration)          -->
-  <!-- Save the INVITE Call-ID separately — it differs from [call_id]   -->
-  <!-- which belongs to the REGISTER dialog.                            -->
-  <!-- ================================================================ -->
-
-  <recv request="INVITE" crlf="true" rrs="true" timeout="60000">
-    <action>
-      <ereg regexp=".*" search_in="hdr" header="From"    assign_to="remote_from"/>
+      <ereg regexp=".*"          search_in="hdr" header="From"    assign_to="remote_from"/>
       <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
-      <ereg regexp=".*" search_in="hdr" header="Call-ID" assign_to="invite_callid"/>
-      <!-- Non-empty if the caller offers OPUS (PT 121) -->
+      <!-- Non-empty match means caller offered OPUS PT 121 -->
       <ereg regexp="a=rtpmap:121" search_in="body" assign_to="opus_offered" checkIt="false"/>
     </action>
   </recv>
@@ -127,7 +57,7 @@
 
   <pause distribution="uniform" min="1000" max="5000"/>
 
-  <!-- Branch: OPUS offered → OPUS 200 OK; else → G.711a 200 OK -->
+  <!-- Branch: OPUS offered → OPUS 200 OK; else fall through to G.711a -->
   <nop test="opus_offered" next="200ok_opus"/>
 
   <!-- G.711a 200 OK -->
@@ -191,10 +121,7 @@
   <recv request="ACK" rtd="true" crlf="true">
   </recv>
 
-  <!-- ================================================================ -->
-  <!-- RTP playback: branch on negotiated codec                         -->
-  <!-- ================================================================ -->
-
+  <!-- RTP playback: branch on negotiated codec -->
   <nop test="opus_offered" next="play_opus"/>
   <nop>
     <action>
@@ -209,10 +136,6 @@
       <exec play_pcap_audio="opus.pcap"/>
     </action>
   </nop>
-
-  <!-- ================================================================ -->
-  <!-- BYE handling                                                      -->
-  <!-- ================================================================ -->
 
   <label id="wait_bye"/>
   <recv request="BYE" timeout="400000" ontimeout="send_bye">
@@ -232,18 +155,18 @@
     ]]>
   </send>
 
-  <!-- Timeout path: we send the BYE using the saved INVITE Call-ID -->
+  <!-- Timeout path: we send the BYE -->
   <label id="send_bye"/>
   <send retrans="1000">
     <![CDATA[
 
       BYE [$remote_contact] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port]
-      From: [field0] <sip:[field1]@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
       To: [$remote_from]
-      Call-ID: [$invite_callid]
+      Call-ID: [call_id]
       CSeq: 2 BYE
-      Contact: <sip:[field1]@[local_ip]:[local_port]>
+      Contact: <sip:sipp@[local_ip]:[local_port]>
       Content-Length: 0
 
     ]]>
