@@ -89,6 +89,18 @@ const NDP_SERVERNAME = process.env.NDP_SERVERNAME || "core1";
 const RESELLER = process.env.RESELLER || "NetSapiens";
 const RECORDING_DIVISER = process.env.RECORDING_DIVISER || 4;
 
+// Whether a 409 (duplicate) response triggers an update (PUT). Defaults to yes
+// when MAX_DOMAIN <= 1000, no above that to avoid hammering large deployments.
+// Override per object type with env vars (1=yes, 0=no).
+const _updateDefault = MAX_DOMAIN <= 1000;
+const UPDATE_ON_409 = {
+    resellers:    process.env.UPDATE_RESELLERS    !== undefined ? process.env.UPDATE_RESELLERS    === '1' : _updateDefault,
+    domains:      process.env.UPDATE_DOMAINS      !== undefined ? process.env.UPDATE_DOMAINS      === '1' : _updateDefault,
+    users:        process.env.UPDATE_USERS        !== undefined ? process.env.UPDATE_USERS        === '1' : _updateDefault,
+    devices:      process.env.UPDATE_DEVICES      !== undefined ? process.env.UPDATE_DEVICES      === '1' : _updateDefault,
+    phonenumbers: process.env.UPDATE_PHONENUMBERS !== undefined ? process.env.UPDATE_PHONENUMBERS === '1' : _updateDefault,
+    queues:       process.env.UPDATE_QUEUES       !== undefined ? process.env.UPDATE_QUEUES       === '1' : _updateDefault,
+};
 
 // Input validation
 function validateEnvironment() {
@@ -471,9 +483,9 @@ buildDomains();
 
 async function createReseller(data) {
     const path = `resellers`;
-    await apiClient.apiCreateSync(path, data
-        ,() =>{ console.log("Created reseller " + data.reseller + " with description " + data.description); }
-        ,updateReseller
+    await apiClient.apiCreateSync(path, data,
+        () => { console.log("Created reseller " + data.reseller + " with description " + data.description); },
+        UPDATE_ON_409.resellers ? updateReseller : () => {}
     );
 }
 
@@ -504,7 +516,7 @@ async function createDomain(args) {
     }
 
     const path = `domains`;
-    await apiClient.apiCreateSync(path, data, () => { }, updateDomain);
+    await apiClient.apiCreateSync(path, data, () => { }, UPDATE_ON_409.domains ? updateDomain : () => {});
     await new Promise(resolve => setTimeout(resolve, 200));
 
 }
@@ -538,14 +550,14 @@ async function updateNdpUiConfig(data) {
 async function createUser(data) {
     data.synchronous = 'yes';
     const path = `domains/` + data.domain + '/users';
-    await apiClient.apiCreateSync(path, data, () => { }, updateUser);
+    await apiClient.apiCreateSync(path, data, () => { }, UPDATE_ON_409.users ? updateUser : () => {});
 }
 
 async function createDevice(data) {
     const path = `domains/` + data.domain + '/users/' + data.user + '/devices';
     // Pass server ID to utils.addToCsv for server-specific CSV paths
     const successCallback = (deviceData) => utils.addToCsv(deviceData, selectedServer.id);
-    await apiClient.apiCreate(path, data, successCallback, updateDevice);
+    await apiClient.apiCreate(path, data, successCallback, UPDATE_ON_409.devices ? updateDevice : () => {});
 }
 
 async function createMac(data) {
@@ -567,7 +579,7 @@ async function createPhonenumber(data) {
     const path = `domains/` + data.domain + '/phonenumbers';
     // Pass server ID to utils.addToCsvNumber for server-specific CSV paths
     const successCallback = (phoneData) => utils.addToCsvNumber(phoneData, selectedServer.id);
-    apiClient.apiCreate(path, data, successCallback, updatePhonenumber);
+    apiClient.apiCreate(path, data, successCallback, UPDATE_ON_409.phonenumbers ? updatePhonenumber : () => {});
 }
 
 async function updatePhonenumber(data) {
@@ -578,7 +590,7 @@ async function updatePhonenumber(data) {
 async function createQueue(i, data) {
     data.synchronous = 'yes';
     const path = `domains/` + data.domain + '/callqueues';
-    await apiClient.apiCreateSync(path, data, () => {  }, updateQueue);
+    await apiClient.apiCreateSync(path, data, () => {}, UPDATE_ON_409.queues ? updateQueue : () => {});
 }
 
 function updateQueue(data) {
