@@ -371,7 +371,7 @@ async function processSingleDomain(description, i) {
                 const deviceSubBatch = successfulUsers.slice(i, i + deviceBatchSize);
                 
                 // Create all devices in this sub-batch concurrently
-                deviceSubBatch.forEach(deviceArgs => createDevice(deviceArgs));
+                await Promise.all(deviceSubBatch.map(deviceArgs => createDevice(deviceArgs)));
                 
                 // Smaller delay between device batches
                 if (i + deviceBatchSize < successfulUsers.length && !CONFIG.REDUCE_DELAYS) {
@@ -573,6 +573,7 @@ async function updateUser(data) {
 
 async function updateDevice(data) {
     const path = `domains/` + data.domain + '/users/' + data.user + '/devices/' + data.device;
+    console.log(`Updating ${path} with data:`, data);
     apiClient.apiUpdate(path, data);
 }
 
