@@ -14,6 +14,7 @@
 
 BASE_DIR="/usr/local/NetSapiens/netsapiens-loadgenerator"
 source "$BASE_DIR/.env"
+source "$BASE_DIR/sipp/scripts/opus-utils.sh"
 
 NUMCALLS=${1:-1}
 
@@ -46,9 +47,17 @@ echo "  Media port: $MEDIA_PORT"
 echo "========================================"
 echo ""
 
+_OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-99}")
+_UAS_SCENARIO=$(make_uas_scenario \
+    "$BASE_DIR/sipp/scripts/register_then_accept_opus.sipp.xml" \
+    "$_OPUS_REGEX" "${OPUS_PCT:-99}")
+
+echo "  Opus pct:   ${OPUS_PCT:-99}%  (regex: $_OPUS_REGEX)"
+echo "  UAS file:   $_UAS_SCENARIO"
+echo ""
+
 sipp "$SUT" \
     -key expires 60 \
-    -key opus_pct "${OPUS_PCT:-33}" \
     -r 1 -m "$NUMCALLS" -l "$NUMCALLS" \
     -t u1 \
     -p $SIP_PORT \
@@ -57,11 +66,11 @@ sipp "$SUT" \
     -i "$PRIVATEIP" \
     -mi "$PRIVATEIP" \
     -sf "$BASE_DIR/sipp/scripts/register_then_accept.sipp.xml" \
-    -oocsf "$BASE_DIR/sipp/scripts/register_then_accept_opus.sipp.xml" \
+    -oocsf "$_UAS_SCENARIO" \
     -inf "$INPUTFILE" \
     -inf "$BASE_DIR/sipp/csv/random_user_agents.csv" \
     -recv_timeout 60000 \
     -watchdog_interval 0 \
     -aa -default_behaviors -abortunexp \
-    -trace_msg \
+    -trace_msg -trace_logs \
     -trace_stat -stf /tmp/manual_test_$$.csv -fd 5

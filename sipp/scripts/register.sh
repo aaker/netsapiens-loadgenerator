@@ -126,26 +126,11 @@ if [ "$DEBUG" = "1" ]; then
 	TRACE_SCREEN="-trace_screen"
 fi
 
-# Build a regex matching the last-2-digit bucket of the Call-ID numeric prefix for OPUS_PCT%
-# of calls. Injected into the UAS scenario via sed so no SIPp keyword substitution needed.
-_opus_regex() {
-    local N=${1:-99}
-    [ "$N" -gt 100 ] && N=100
-    [ "$N" -lt 0 ]   && N=0
-    local tens=$(( N / 10 ))
-    local units=$(( N % 10 ))
-    if   [ "$N" -le 0 ];   then echo "NOMATCH"        # 0% - never matches
-    elif [ "$N" -ge 100 ]; then echo "[0-9][0-9]"     # 100% - always matches
-    elif [ "$units" -eq 0 ]; then echo "[0-$(( tens - 1 ))][0-9]"
-    elif [ "$tens"  -eq 0 ]; then echo "0[0-$(( units - 1 ))]"
-    else echo "[0-$(( tens - 1 ))][0-9]|${tens}[0-$(( units - 1 ))]"
-    fi
-}
-
+source "$BASE_DIR/sipp/scripts/opus-utils.sh"
 _OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-99}")
-_UAS_SCENARIO="/tmp/sipp_uas_opus_${OPUS_PCT:-99}.xml"
-sed "s#__OPUS_REGEX__#${_OPUS_REGEX}#g" \
-    "$BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml" > "$_UAS_SCENARIO"
+_UAS_SCENARIO=$(make_uas_scenario \
+    "$BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml" \
+    "$_OPUS_REGEX" "${OPUS_PCT:-99}")
 
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT  \
