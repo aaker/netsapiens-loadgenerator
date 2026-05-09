@@ -30,10 +30,12 @@
       <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
       <!-- Non-empty if caller offered OPUS (PT 121) -->
       <ereg regexp="a=rtpmap:121" search_in="body" assign_to="opus_offered" checkIt="false"/>
-      <!-- Extract last 2 digits of call_number from Call-ID (gives 00-99, cycles evenly). -->
-      <!-- Compare < opus_pct for threshold: opus_pct=99 → 99% Opus, 0 → always G.711a.  -->
+      <!-- Extract last 2 digits of call_number from Call-ID (always 00-99, cycles evenly). -->
+      <!-- opus_pct must be zero-padded 2 digits (00-99) for correct string comparison.   -->
+      <!-- strcmp: -1 if roll<pct → add1=0(falsy→Opus), 0 or 1 → add1≥1(truthy→G.711a). -->
       <ereg regexp="^[0-9]*([0-9][0-9])[^0-9]" search_in="hdr" header="Call-ID" assign_to="ignored,opus_roll" checkIt="false"/>
-      <compare assign_to="use_opus" variable="opus_roll" compare="less_than" value="[opus_pct]"/>
+      <strcmp assign_to="cmp_result" variable="opus_roll" value="[opus_pct]"/>
+      <add assign_to="cmp_result" variable="cmp_result" value="1"/>
     </action>
   </recv>
 
@@ -85,7 +87,8 @@
   <nop next="200ok_g711a"/>
 
   <label id="check_pct"/>
-  <nop test="use_opus" next="200ok_opus"/>
+  <!-- cmp_result=0 → opus_roll < opus_pct → Opus; non-zero → G.711a -->
+  <nop test="cmp_result" next="200ok_g711a"/>
 
   <!-- G.711a 200 OK -->
   <label id="200ok_g711a"/>

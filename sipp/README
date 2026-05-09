@@ -11,9 +11,9 @@
         cmake \
         libssl-dev \
         libpcap-dev \
-        libncurses5-dev \
+        libncurses-dev \
         libsctp-dev \
-        lksctp-tools \ 
+        lksctp-tools \
         libgsl-dev
 
 2. Clone SIPp Repository

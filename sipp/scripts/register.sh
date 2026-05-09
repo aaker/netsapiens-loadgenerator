@@ -126,7 +126,12 @@ if [ "$DEBUG" = "1" ]; then
 	TRACE_SCREEN="-trace_screen"
 fi
 
-SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key opus_pct ${OPUS_PCT:-33} -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
+# Zero-pad opus_pct to 2 digits for 2-digit string comparison in UAS scenario (cap at 99).
+_OPUS_RAW=${OPUS_PCT:-33}
+[ "$_OPUS_RAW" -gt 99 ] 2>/dev/null && _OPUS_RAW=99
+_OPUS_PCT_PAD=$(printf "%02d" "$_OPUS_RAW")
+
+SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key opus_pct ${_OPUS_PCT_PAD} -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT  \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
 -oocsf $BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml \
