@@ -23,12 +23,9 @@
       <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
       <!-- Non-empty if caller offered OPUS (PT 121) -->
       <ereg regexp="a=rtpmap:121" search_in="body" assign_to="opus_offered" checkIt="false"/>
-      <!-- Extract last 2 digits of call_number from Call-ID (always 00-99, cycles evenly). -->
-      <!-- opus_pct must be zero-padded 2 digits (00-99) for correct string comparison.   -->
-      <!-- strcmp: -1 if roll<pct → add1=0(falsy→Opus), 0 or 1 → add1≥1(truthy→G.711a). -->
-      <ereg regexp="([0-9][0-9])-[0-9a-f]" search_in="hdr" header="Call-ID" assign_to="opus_roll,opus_roll" checkIt="false"/>
-      <strcmp assign_to="cmp_result" variable="opus_roll" value="[opus_pct]"/>
-      <add assign_to="cmp_result" value="1"/>
+      <!-- Match last 2 digits of Call-ID numeric prefix against __OPUS_REGEX__ (injected   -->
+      <!-- by launch script sed from OPUS_PCT). Non-empty → bucket is in Opus range.        -->
+      <ereg regexp="(__OPUS_REGEX__)-[0-9a-f]" search_in="hdr" header="Call-ID" assign_to="use_opus,use_opus" checkIt="false"/>
     </action>
   </recv>
 
@@ -63,14 +60,12 @@
 
   <pause distribution="uniform" min="1000" max="5000"/>
 
-  <!-- Branch: OPUS offered AND percentage passes → OPUS 200 OK, else → G.711a 200 OK -->
+  <!-- Branch: OPUS offered AND bucket in Opus range → OPUS 200 OK, else → G.711a 200 OK -->
   <nop test="opus_offered" next="check_pct"/>
   <nop next="200ok_g711a"/>
 
   <label id="check_pct"/>
-  <!-- cmp_result=0 → opus_roll < opus_pct → Opus; non-zero → G.711a -->
-  <nop test="cmp_result" next="200ok_g711a"/>
-  <nop next="200ok_opus"/>
+  <nop test="use_opus" next="200ok_opus"/>
 
   <!-- G.711a 200 OK -->
   <label id="200ok_g711a"/>

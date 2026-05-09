@@ -126,15 +126,31 @@ if [ "$DEBUG" = "1" ]; then
 	TRACE_SCREEN="-trace_screen"
 fi
 
-# Zero-pad opus_pct to 2 digits for 2-digit string comparison in UAS scenario (cap at 99).
-_OPUS_RAW=${OPUS_PCT:-33}
-[ "$_OPUS_RAW" -gt 99 ] 2>/dev/null && _OPUS_RAW=99
-_OPUS_PCT_PAD=$(printf "%02d" "$_OPUS_RAW")
+# Build a regex matching the last-2-digit bucket of the Call-ID numeric prefix for OPUS_PCT%
+# of calls. Injected into the UAS scenario via sed so no SIPp keyword substitution needed.
+_opus_regex() {
+    local N=${1:-99}
+    [ "$N" -gt 100 ] && N=100
+    [ "$N" -lt 0 ]   && N=0
+    local tens=$(( N / 10 ))
+    local units=$(( N % 10 ))
+    if   [ "$N" -le 0 ];   then echo "NOMATCH"        # 0% - never matches
+    elif [ "$N" -ge 100 ]; then echo "[0-9][0-9]"     # 100% - always matches
+    elif [ "$units" -eq 0 ]; then echo "[0-$(( tens - 1 ))][0-9]"
+    elif [ "$tens"  -eq 0 ]; then echo "0[0-$(( units - 1 ))]"
+    else echo "[0-$(( tens - 1 ))][0-9]|${tens}[0-$(( units - 1 ))]"
+    fi
+}
 
-SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key opus_pct ${_OPUS_PCT_PAD} -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
+_OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-99}")
+_UAS_SCENARIO="/tmp/sipp_uas_opus_${OPUS_PCT:-99}.xml"
+sed "s#__OPUS_REGEX__#${_OPUS_REGEX}#g" \
+    "$BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml" > "$_UAS_SCENARIO"
+
+SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT  \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
--oocsf $BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml \
+-oocsf $_UAS_SCENARIO \
 -inf $INPUTFILE \
 -inf $BASE_DIR/sipp/csv/random_user_agents.csv \
 -recv_timeout 60000 \
