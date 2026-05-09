@@ -13,7 +13,8 @@
         libpcap-dev \
         libncurses5-dev \
         libsctp-dev \
-        lksctp-tools
+        lksctp-tools \ 
+        libgsl-dev
 
 2. Clone SIPp Repository
 
@@ -27,7 +28,7 @@
     cd build
 
     # Configure with CMake
-    cmake .. -DUSE_SSL=1  -DUSE_PCAP=1 -DUSE_SCTP=1
+    cmake .. -DUSE_SSL=1  -DUSE_PCAP=1 -DUSE_SCTP=1 -DUSE_GSL=1
 
     # Build (use -j to speed up with multiple cores)
     make -j$(nproc)

@@ -23,6 +23,10 @@
       <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
       <!-- Non-empty if caller offered OPUS (PT 121) -->
       <ereg regexp="a=rtpmap:121" search_in="body" assign_to="opus_offered" checkIt="false"/>
+      <!-- Extract last 2 digits of call_number from Call-ID (gives 00-99, cycles evenly). -->
+      <!-- Compare < opus_pct for threshold: opus_pct=99 → 99% Opus, 0 → always G.711a.  -->
+      <ereg regexp="^[0-9]*([0-9][0-9])[^0-9]" search_in="hdr" header="Call-ID" assign_to="ignored,opus_roll" checkIt="false"/>
+      <compare assign_to="use_opus" variable="opus_roll" compare="less_than" value="[opus_pct]"/>
     </action>
   </recv>
 
@@ -57,9 +61,12 @@
 
   <pause distribution="uniform" min="1000" max="5000"/>
 
-  <!-- Branch: OPUS offered → OPUS 200 OK, otherwise → G.711a 200 OK -->
-  <nop test="opus_offered" next="200ok_opus"/>
+  <!-- Branch: OPUS offered AND percentage passes → OPUS 200 OK, else → G.711a 200 OK -->
+  <nop test="opus_offered" next="check_pct"/>
   <nop next="200ok_g711a"/>
+
+  <label id="check_pct"/>
+  <nop test="use_opus" next="200ok_opus"/>
 
   <!-- G.711a 200 OK -->
   <label id="200ok_g711a"/>
