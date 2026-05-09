@@ -89,6 +89,7 @@
   <label id="check_pct"/>
   <!-- cmp_result=0 → opus_roll < opus_pct → Opus; non-zero → G.711a -->
   <nop test="cmp_result" next="200ok_g711a"/>
+  <nop next="200ok_opus"/>
 
   <!-- G.711a 200 OK -->
   <label id="200ok_g711a"/>
