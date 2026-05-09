@@ -21,8 +21,11 @@
     <action>
       <ereg regexp=".*"          search_in="hdr" header="From"    assign_to="remote_from"/>
       <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
-      <!-- Non-empty match means caller offered OPUS PT 121 -->
+      <!-- Non-empty if caller offered OPUS (PT 121) -->
       <ereg regexp="a=rtpmap:121" search_in="body" assign_to="opus_offered" checkIt="false"/>
+      <!-- Roll 1-100 and compare against opus_pct (-key opus_pct, default 33) -->
+      <random min="1" max="100" assign_to="opus_roll"/>
+      <compare assign_to="use_opus" variable="opus_roll" compare="less_than_or_equal" value="[opus_pct]"/>
     </action>
   </recv>
 
@@ -57,10 +60,16 @@
 
   <pause distribution="uniform" min="1000" max="5000"/>
 
-  <!-- Branch: OPUS offered → OPUS 200 OK; else fall through to G.711a -->
-  <nop test="opus_offered" next="200ok_opus"/>
+  <!-- Branch: OPUS offered AND percentage roll passes → OPUS 200 OK -->
+  <!--         OPUS not offered OR roll fails           → G.711a 200 OK -->
+  <nop test="opus_offered" next="check_pct"/>
+  <nop next="200ok_g711a"/>
+
+  <label id="check_pct"/>
+  <nop test="use_opus" next="200ok_opus"/>
 
   <!-- G.711a 200 OK -->
+  <label id="200ok_g711a"/>
   <send retrans="500">
     <![CDATA[
 
@@ -86,6 +95,9 @@
 
     ]]>
   </send>
+  <nop>
+    <action><assign assign_to="codec_opus" value="0"/></action>
+  </nop>
   <nop next="recv_ack"/>
 
   <!-- OPUS 200 OK -->
@@ -116,13 +128,16 @@
 
     ]]>
   </send>
+  <nop>
+    <action><assign assign_to="codec_opus" value="1"/></action>
+  </nop>
 
   <label id="recv_ack"/>
   <recv request="ACK" rtd="true" crlf="true">
   </recv>
 
-  <!-- RTP playback: branch on negotiated codec -->
-  <nop test="opus_offered" next="play_opus"/>
+  <!-- RTP playback driven by what we actually negotiated -->
+  <nop test="codec_opus" next="play_opus"/>
   <nop>
     <action>
       <exec play_pcap_audio="g711a.pcap"/>

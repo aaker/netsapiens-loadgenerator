@@ -48,6 +48,7 @@ echo ""
 
 sipp "$SUT" \
     -key expires 60 \
+    -key opus_pct "${OPUS_PCT:-33}" \
     -r 1 -m "$NUMCALLS" -l "$NUMCALLS" \
     -t u1 \
     -p $SIP_PORT \
