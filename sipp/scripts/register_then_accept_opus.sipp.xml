@@ -23,8 +23,9 @@
       <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
       <!-- Non-empty if caller offered OPUS (PT 121) -->
       <ereg regexp="a=rtpmap:121" search_in="body" assign_to="opus_offered" checkIt="false"/>
-      <!-- Match last 2 digits of Call-ID numeric prefix against __OPUS_REGEX__ (injected   -->
-      <!-- by launch script sed from OPUS_PCT). Non-empty → bucket is in Opus range.        -->
+      <!-- Match last digit of Call-ID numeric prefix against __OPUS_REGEX__ (injected        -->
+      <!-- by launch script sed from OPUS_PCT, 10% granularity).                            -->
+      <!-- e.g. OPUS_PCT=90 → [0-8] matches digits 0-8 (90% of calls → Opus).              -->
       <ereg regexp="(__OPUS_REGEX__)-[0-9a-f]" search_in="hdr" header="Call-ID" assign_to="use_opus,use_opus" checkIt="false"/>
     </action>
   </recv>
