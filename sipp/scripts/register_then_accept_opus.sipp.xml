@@ -28,7 +28,7 @@
       <!-- strcmp: -1 if roll<pct → add1=0(falsy→Opus), 0 or 1 → add1≥1(truthy→G.711a). -->
       <ereg regexp="^[0-9]*([0-9][0-9])[^0-9]" search_in="hdr" header="Call-ID" assign_to="ignored,opus_roll" checkIt="false"/>
       <strcmp assign_to="cmp_result" variable="opus_roll" value="[opus_pct]"/>
-      <add assign_to="cmp_result" variable="cmp_result" value="1"/>
+      <add assign_to="cmp_result" value="1"/>
     </action>
   </recv>
 
