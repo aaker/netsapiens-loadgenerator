@@ -223,6 +223,101 @@ Note: Changes to the .env file for rate CPS and REGISTRAION will take effect ove
 Create a connection to match on "inbound-carrier" and lock to IP if needed. Send calls to "Inbound DID" or your normal inbound dial plan. 
 * natwan = sdp #set on connection accpeting traffic from sipp. allows us to use "echo" function to test audio.
 
+### Recommended Load Generator Host Tuning
+
+When SIPp streams audio from PCAP (`play_pcap_audio`), packet rates climb fast and most of the kernel CPU shows up as `%soft` (NET_RX softirq), not `%irq`. The defaults on a typical cloud VM are too aggressive on interrupt frequency and too small on receive batching for sustained RTP load. The settings below noticeably reduce softirq load with no functional change — in practice they have reclaimed ~15 percentage points of CPU on an 8-core cloud VM under sustained call load.
+
+Replace `ens3` with your interface name (check with `ip -br link`).
+
+#### NIC tuning (ethtool)
+
+```bash
+# Coalescing: cap IRQs by batching packets at the NIC level.
+# Cloud VMs often default to rx-usecs=8 with adaptive on, which is too
+# fine-grained for sustained RTP. 200us is a reasonable starting point.
+ethtool -C ens3 adaptive-rx off adaptive-tx off \
+  rx-usecs 200 tx-usecs 200 rx-frames 128 tx-frames 128
+
+# Bigger ring buffers absorb bursts without drops
+ethtool -G ens3 rx 4096 tx 4096
+
+# Generic Receive Offload (cheap win when supported)
+ethtool -K ens3 gro on
+
+# Maximize RX queues so RSS spreads softirq across all cores
+ethtool -L ens3 combined $(ethtool -l ens3 | awk '/Combined:/{v=$2} END{print v}' | tail -1) 2>/dev/null || true
+```
+
+#### Kernel network knobs
+
+Drop in `/etc/sysctl.d/99-sipp-loadgen.conf`:
+
+```ini
+# Larger NAPI batch — reduces "time_squeeze" (NAPI running out of budget)
+net.core.netdev_budget = 600
+net.core.netdev_budget_usecs = 8000
+net.core.dev_weight = 128
+
+# Backlog headroom for traffic spikes
+net.core.netdev_max_backlog = 5000
+
+# Socket buffers for higher concurrent call counts
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.core.rmem_default = 1048576
+net.core.wmem_default = 1048576
+```
+
+Apply with `sysctl --system`.
+
+#### Make NIC tuning persistent
+
+`ethtool` settings do not survive reboot. To persist, drop in a systemd oneshot (edit `ens3` to your interface):
+
+```bash
+cat >/etc/systemd/system/nic-tune.service <<'EOF'
+[Unit]
+Description=NIC tuning for SIPp load generator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/ethtool -C ens3 adaptive-rx off adaptive-tx off rx-usecs 200 tx-usecs 200 rx-frames 128 tx-frames 128
+ExecStart=/usr/sbin/ethtool -G ens3 rx 4096 tx 4096
+ExecStart=/usr/sbin/ethtool -K ens3 gro on
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now nic-tune.service
+```
+
+#### Verification
+
+```bash
+# %soft should drop a few points and stay evenly spread across cores
+mpstat -P ALL 1 5
+
+# Column 2 (dropped) must stay 0. Column 3 (time_squeeze) rate should slow.
+cat /proc/net/softnet_stat
+awk '{print strtonum("0x"$3)}' /proc/net/softnet_stat > /tmp/a; sleep 10
+awk '{print strtonum("0x"$3)}' /proc/net/softnet_stat > /tmp/b
+paste /tmp/a /tmp/b | awk '{printf "cpu%d  %d squeeze/sec\n",NR-1,($2-$1)/10}'
+
+# Per-queue packet counts — flag if one RSS queue takes a disproportionate share
+ethtool -S ens3 | grep -iE 'rx_queue_[0-9]+_packets|tx_queue_[0-9]+_packets'
+
+# Confirm no NIC-level drops
+ethtool -S ens3 | grep -iE 'drop|discard|miss|error|no_buf'
+```
+
+#### When tuning hits its limit
+
+These knobs reclaim ~10-20% of softirq overhead at best. If `%soft` is still pinning the box at high call volumes, the only real levers are **fewer packets** (longer RTP ptime — 40ms halves packet rate vs 20ms — or fewer concurrent calls) or a larger instance. Kernel tuning does not conjure CPU.
+
 ### Example run
 
 **Legacy Single-Server Mode:**
