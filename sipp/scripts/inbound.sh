@@ -99,6 +99,8 @@ if [ "$SERVER_ID" == "all" ]; then
 fi
 
 # Determine target server and CSV path
+SIP_PORT_NUM=""
+SIP_TLS_PORT_NUM=""
 if [ -n "$SERVER_ID" ]; then
     # Multi-server mode: Load configuration from servers.json
     if [ -f "$BASE_DIR/servers.json" ]; then
@@ -108,6 +110,8 @@ if [ -n "$SERVER_ID" ]; then
                 echo "Error: Server '$SERVER_ID' not found in servers.json"
                 exit 1
             fi
+            SIP_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipPort // empty" "$BASE_DIR/servers.json")
+            SIP_TLS_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipTlsPort // empty" "$BASE_DIR/servers.json")
         else
             echo "Error: jq is required for multi-server mode but not installed"
             exit 1
@@ -124,6 +128,10 @@ else
     INPUTFILE="$BASE_DIR/sipp/csv/servers/default/phonenumbers/${TIMEZONE}.csv"
     echo "Legacy single-server mode"
 fi
+
+# Fall back to env-provided SIP ports if not set per-server, then to standard defaults
+SIP_PORT_NUM=${SIP_PORT_NUM:-${SIP_PORT:-5060}}
+SIP_TLS_PORT_NUM=${SIP_TLS_PORT_NUM:-${SIP_TLS_PORT:-5061}}
 
 
 echo "Target server: $SUT"
@@ -361,9 +369,12 @@ fi
 TLS_CERT="$BASE_DIR/sipp/tls/sipp.crt"
 TLS_KEY="$BASE_DIR/sipp/tls/sipp.key"
 TLS_OPTIONS=""
-SIP_PORT_ADD_ON=""
 if [ "$TRANSPORT" == "l1" ]; then
-    SIP_PORT_ADD_ON=":5061"
+    SIP_PORT_ADD_ON=":$SIP_TLS_PORT_NUM"
+else
+    SIP_PORT_ADD_ON=":$SIP_PORT_NUM"
+fi
+if [ "$TRANSPORT" == "l1" ]; then
 	if [ -f "$TLS_CERT" ] && [ -f "$TLS_KEY" ]; then
 		# Add TLS version options - use TLS 1.2 for better compatibility
 		# Include system CA bundle for verifying server certificates

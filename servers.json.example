@@ -35,6 +35,20 @@
       "sendRtp": 0,
       "seed": 11111,
       "description": "Staging environment for testing - low load with decimal CPS. RTP disabled for signaling-only testing"
+    },
+    {
+      "id": "nonstd-ports",
+      "hostname": "test.example.com",
+      "apikey": "nss_test_api_key",
+      "sipPort": 5080,
+      "sipTlsPort": 5082,
+      "maxDomains": 5,
+      "maxResellers": 1,
+      "peakCps": 1,
+      "registrationPct": 0.5,
+      "sendRtp": 1,
+      "seed": 22222,
+      "description": "Example with non-standard SIP ports. Optional sipPort (UDP/TCP, default 5060) and sipTlsPort (TLS, default 5061) override the destination port SIPp sends to. API still uses HTTPS on 443."
     }
   ]
 }

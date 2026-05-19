@@ -57,6 +57,8 @@ if [ "$1" == "--server" ] && [ -n "$2" ]; then
 fi
 
 # Determine CSV path and target server
+SIP_PORT_NUM=""
+SIP_TLS_PORT_NUM=""
 if [ -n "$SERVER_ID" ]; then
     # Multi-server mode: Load configuration from servers.json
     if [ -f "$BASE_DIR/servers.json" ]; then
@@ -67,6 +69,8 @@ if [ -n "$SERVER_ID" ]; then
                 echo "Error: Server '$SERVER_ID' not found in servers.json"
                 exit 1
             fi
+            SIP_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipPort // empty" "$BASE_DIR/servers.json")
+            SIP_TLS_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipTlsPort // empty" "$BASE_DIR/servers.json")
         else
             echo "Error: jq is required for multi-server mode but not installed"
             echo "Install with: sudo apt-get install jq (Ubuntu) or brew install jq (macOS)"
@@ -97,7 +101,11 @@ else
     echo "Legacy single-server mode: Using TARGET_SERVER from .env"
 fi
 
-echo "Target server: $SUT"
+# Fall back to env-provided SIP ports if not set per-server, then to standard defaults
+SIP_PORT_NUM=${SIP_PORT_NUM:-${SIP_PORT:-5060}}
+SIP_TLS_PORT_NUM=${SIP_TLS_PORT_NUM:-${SIP_TLS_PORT:-5061}}
+
+echo "Target server: $SUT (SIP udp/tcp: $SIP_PORT_NUM, TLS: $SIP_TLS_PORT_NUM)"
 echo "CSV path: $CSV_PATH"
 
 FILES=$(ls $CSV_PATH/* 2>/dev/null | wc -l)
@@ -204,13 +212,13 @@ TRANSPORT_TYPE=$((MINOFHOUR % 3))
 
 if [ $TRANSPORT_TYPE -eq 2 ]; then
     echo "Using UDP transport (u1)"
-    $BASE_DIR/sipp/scripts/call.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+    $BASE_DIR/sipp/scripts/call.sh "$SUT" "$TEMP_CSV" "u1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID" "$SIP_PORT_NUM"
 elif [ $TRANSPORT_TYPE -eq 1 ]; then
     echo "Using TCP transport (t1)"
-    $BASE_DIR/sipp/scripts/call.sh "$SUT" "$TEMP_CSV" "t1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+    $BASE_DIR/sipp/scripts/call.sh "$SUT" "$TEMP_CSV" "t1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID" "$SIP_PORT_NUM"
 else
     echo "Using TLS transport (l1)"
-    $BASE_DIR/sipp/scripts/call.sh "$SUT" "$TEMP_CSV" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID"
+    $BASE_DIR/sipp/scripts/call.sh "$SUT" "$TEMP_CSV" "l1" $SIPPORT $MEDIAPORT $CONTROLPORT $PUBLICIP "$SERVER_ID" "$SIP_TLS_PORT_NUM"
 fi
 
 # Cleanup stale locks

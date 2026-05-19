@@ -16,6 +16,7 @@ MEDIA_PORT=$5
 CONTROL_PORT=$6
 MEDIA_IP=$7
 SERVER_ID=$8  # Optional: for multi-server stats tracking
+SUT_PORT=$9   # Optional: SIP destination port on the SUT (defaults to 5060 udp/tcp, 5061 tls)
 
 PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 
@@ -66,10 +67,16 @@ MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
 TLS_CERT="$BASE_DIR/sipp/tls/sipp.crt"
 TLS_KEY="$BASE_DIR/sipp/tls/sipp.key"
 TLS_OPTIONS=""
-SIP_PORT_ADD_ON=""
+# Build SIP destination port suffix from explicit override or transport-based default
+if [ -n "$SUT_PORT" ]; then
+    SIP_PORT_ADD_ON=":$SUT_PORT"
+elif [ "$TRANSPORT" == "l1" ]; then
+    SIP_PORT_ADD_ON=":5061"
+else
+    SIP_PORT_ADD_ON=""
+fi
 
 if [ "$TRANSPORT" == "l1" ]; then
-    SIP_PORT_ADD_ON=":5061"
     if [ -f "$TLS_CERT" ] && [ -f "$TLS_KEY" ]; then
         TLS_CA_PATH=""
         if [ -f "/etc/ssl/certs/ca-certificates.crt" ]; then
