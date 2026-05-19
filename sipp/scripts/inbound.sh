@@ -74,24 +74,34 @@ if [ "$SERVER_ID" == "all" ]; then
         echo "Transport: $TRANSPORT"
         echo "=========================================="
 
-        # Loop through each server and call this script recursively
+        # Loop through each server and launch in parallel, with a short stagger
+        # between launches so all servers' inbound batches run concurrently
+        # within the same 5-minute window.
+        SERVER_COUNT=$(echo "$SERVER_IDS" | wc -w)
+        STAGGER_MAX=15
+        STAGGER_DELAY=$STAGGER_MAX
+        if [ "$SERVER_COUNT" -gt 1 ]; then
+            # Spread launches across the first STAGGER_MAX seconds at most
+            STAGGER_DELAY=$(( STAGGER_MAX / (SERVER_COUNT - 1) ))
+            [ "$STAGGER_DELAY" -lt 1 ] && STAGGER_DELAY=1
+            [ "$STAGGER_DELAY" -gt "$STAGGER_MAX" ] && STAGGER_DELAY=$STAGGER_MAX
+        fi
+
+        FIRST=1
         for SID in $SERVER_IDS; do
-            echo ""
-            echo ">>> Starting inbound calls for server: $SID (timezone: $TIMEZONE, transport: $TRANSPORT)"
-            echo "---"
-            $0 "$TIMEZONE" "$TRANSPORT" --server "$SID" 
-            
-            RESULT=$?
-            if [ $RESULT -ne 0 ]; then
-                echo "Warning: Inbound calls for server '$SID' failed with exit code $RESULT"
-            else
-                echo ">>> Completed inbound calls for server: $SID"
+            if [ "$FIRST" -eq 0 ]; then
+                sleep "$STAGGER_DELAY"
             fi
+            FIRST=0
             echo ""
+            echo ">>> Launching inbound calls for server: $SID (timezone: $TIMEZONE, transport: $TRANSPORT)"
+            echo "---"
+            $0 "$TIMEZONE" "$TRANSPORT" --server "$SID" &
         done
 
+        echo ""
         echo "=========================================="
-        echo "Finished running for all servers"
+        echo "Launched $SERVER_COUNT servers in parallel (stagger=${STAGGER_DELAY}s)"
         echo "=========================================="
         exit 0
 
