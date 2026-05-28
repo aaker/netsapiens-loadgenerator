@@ -587,7 +587,6 @@ async function updateUser(data) {
 
 async function updateDevice(data) {
     const path = `domains/` + data.domain + '/users/' + data.user + '/devices/' + data.device;
-    console.log(`Updating ${path} with data:`, data);
     apiClient.apiUpdate(path, data);
 }
 
