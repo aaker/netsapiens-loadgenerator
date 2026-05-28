@@ -100,6 +100,7 @@ const UPDATE_ON_409 = {
     devices:      process.env.UPDATE_DEVICES      !== undefined ? process.env.UPDATE_DEVICES      === '1' : _updateDefault,
     phonenumbers: process.env.UPDATE_PHONENUMBERS !== undefined ? process.env.UPDATE_PHONENUMBERS === '1' : _updateDefault,
     queues:       process.env.UPDATE_QUEUES       !== undefined ? process.env.UPDATE_QUEUES       === '1' : _updateDefault,
+    mac:          process.env.UPDATE_MAC          !== undefined ? process.env.UPDATE_MAC          === '1' : _updateDefault
 };
 
 // Input validation
@@ -280,6 +281,9 @@ async function processSingleDomain(description, i) {
             }
         });
         const avatarCount = avatarFilenames.length;
+
+        const authKey = md5(SEED + domain + CONFIG.USER_EXTENSION_START + "@" + domain).substring(0, 13); //pysdo generate a random password here
+        const macAuthKey = md5(SEED + domain + "mac" + CONFIG.USER_EXTENSION_START + "@" + domain).substring(0, 6); //pysdo generate a random password here
         
         for (let u = 0; u < domainSize; u++) {
             let userArgs = {
@@ -299,7 +303,7 @@ async function processSingleDomain(description, i) {
                 user: CONFIG.USER_EXTENSION_START + u,
                 device: CONFIG.USER_EXTENSION_START + u,
                 displayName: userArgs["name-first-name"] + " " + userArgs["name-last-name"],
-                'device-sip-registration-password': md5((CONFIG.USER_EXTENSION_START + u) + "@" + domain).substring(0, 12), //pysdo random password here. 
+                'device-sip-registration-password': authKey, //pysdo random password here. 
             }
             
             if (u % RECORDING_DIVISER == 0) { // 25% of users will use call recording.
@@ -315,6 +319,9 @@ async function processSingleDomain(description, i) {
                 'device-provisioning-mac-address': md5("mac" + (CONFIG.USER_EXTENSION_START + u) + "@" + domain).replace(/[^0-9a-fA-F]/g, '').substring(0, 12),
                 'model': randomdata.phoneModels[u % randomdata.phoneModels.length],
                 'server': NDP_SERVERNAME,
+                'device-provisioning-username': "user", //pysdo random password here.
+                'device-provisioning-password': macAuthKey //pysdo random password here.
+                
             }
 
             if (domain.startsWith("a") || domain.startsWith("b"))
@@ -563,8 +570,15 @@ async function createDevice(data) {
 
 async function createMac(data) {
     const path = `domains/` + data.domain + '/phones';
-    await apiClient.apiCreate(path, data);
+    await apiClient.apiCreate(path, data, () => { }, UPDATE_ON_409.mac ? updateMac : () => {});
 }
+
+async function updateMac(data) {
+    const path = `domains/` + data.domain + '/phones/' + data.mac;
+    apiClient.apiUpdate(path, data);
+}
+
+
 
 async function updateUser(data) {
     const path = `domains/` + data.domain + '/users/' + data.user;
