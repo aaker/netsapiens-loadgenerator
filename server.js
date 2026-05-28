@@ -574,7 +574,7 @@ async function createMac(data) {
 }
 
 async function updateMac(data) {
-    const path = `domains/` + data.domain + '/phones/' + data.mac;
+    const path = `domains/` + data.domain + '/phones/' + data['device-provisioning-mac-address'];
     apiClient.apiUpdate(path, data);
 }
 
