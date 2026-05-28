@@ -56,7 +56,7 @@ const CONFIG = {
     QUEUE_EXTENSION_START: 4000,
     MAC_ADDRESS_PERCENTAGE: 0.5, // 50% of users get MAC addresses
     RECORDING_PERCENTAGE: 0.25, // 25% get recording (1/4)
-    TRANSCODE_OPUS_PERCENTAGE: parseFloat(process.env.TRANSCODE_OPUS_PCT) || 0.2, // 20% of devices get transcode-opus=yes
+    TRANSCODE_OPUS_PERCENTAGE: 1, // 20% of devices get transcode-opus=yes
     AGENTS_PER_QUEUE_PERCENTAGE: 0.15, // 10% of domain users per queue
     MIN_AGENTS_PER_QUEUE: 6,
     LARGE_DOMAIN_THRESHOLD: 100,
