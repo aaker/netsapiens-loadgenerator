@@ -587,7 +587,8 @@ async function updateUser(data) {
 
 async function updateDevice(data) {
     const path = `domains/` + data.domain + '/users/' + data.user + '/devices/' + data.device;
-    apiClient.apiUpdate(path, data);
+    const successCallback = () => utils.addToCsv(data, selectedServer.id);
+    apiClient.apiUpdate(path, data, successCallback);
 }
 
 async function createPhonenumber(data) {
