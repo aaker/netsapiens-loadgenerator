@@ -112,6 +112,7 @@
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Content-Type: application/sdp
+      User-Agent: sipp Simulated Agent
       Content-Length: [len]
 
       v=0

@@ -53,6 +53,7 @@
       Call-ID: [call_id]
       CSeq: 1 INVITE
       Contact: sip:sipp@[local_ip]:[local_port]
+      User-Agent: netsapiens-loadgenerator
       Max-Forwards: 70
       Content-Type: application/sdp
       Content-Length: [len]
