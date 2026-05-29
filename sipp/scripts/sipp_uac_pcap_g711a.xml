@@ -95,6 +95,7 @@
       Call-ID: [call_id]
       CSeq: 1 ACK
       Contact: sip:[field1 file="random_caller_ids.csv"]@[local_ip]:[local_port]
+      User-Agent: netsapiens-loadgenerator
       Max-Forwards: 70
       Subject: Performance Test
       Content-Length: 0
@@ -134,6 +135,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator
       Content-Type: application/sdp
       Content-Length: [len]
 
@@ -173,6 +175,7 @@
       Call-ID: [call_id]
       CSeq: 2 BYE
       Contact: sip:[field1 file="random_caller_ids.csv"]@[local_ip]:[local_port]
+      User-Agent: netsapiens-loadgenerator
       Max-Forwards: 70
       Content-Length: 0
 

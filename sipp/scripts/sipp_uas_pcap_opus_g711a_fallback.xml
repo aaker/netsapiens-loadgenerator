@@ -58,6 +58,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: sipp Simulated Agent
       Content-Length: 0
 
     ]]>
@@ -73,6 +74,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: sipp Simulated Agent
 
     ]]>
   </send>
@@ -111,8 +113,8 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      Content-Type: application/sdp
       User-Agent: sipp Simulated Agent
+      Content-Type: application/sdp
       Content-Length: [len]
 
       v=0
@@ -144,6 +146,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: sipp Simulated Agent
       Content-Type: application/sdp
       Content-Length: [len]
 
@@ -198,6 +201,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: sipp Simulated Agent
       Content-Length: 0
 
     ]]>
@@ -215,6 +219,7 @@
     Call-ID: [call_id]
     Cseq: 2 BYE
     Contact: sip:[local_ip]:[local_port]
+    User-Agent: sipp Simulated Agent
     Content-Length: 0
     ]]>
   </send>
