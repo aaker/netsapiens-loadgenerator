@@ -37,12 +37,15 @@
       <!-- Capture the call queue this call was served from, e.g.            -->
       <!-- "P-Served-Queue: 4004@adams_inc" -> xfer_queue=4004,             -->
       <!-- queue_domain=adams_inc.  Used by the transfer path (do_transfer)  -->
-      <!-- if the orig side never sends a BYE.  checkIt=false so direct      -->
-      <!-- (non-queue) calls without this header still succeed.  The whole   -->
-      <!-- match (index 0) is assigned to xfer_queue then immediately        -->
-      <!-- overwritten by group 1, so there is no unused throwaway variable   -->
-      <!-- (SIPp errors on a variable referenced only once).                 -->
-      <ereg regexp="([0-9]+)@([a-zA-Z0-9._-]+)" search_in="hdr" header="P-Served-Queue" assign_to="xfer_queue,xfer_queue,queue_domain" checkIt="false"/>
+      <!-- if the orig side never sends a BYE.  We scan the whole message    -->
+      <!-- (search_in="msg") with the header name in the regexp rather than   -->
+      <!-- search_in="hdr", because SIPp's per-header extraction is           -->
+      <!-- unreliable for non-standard headers like P-Served-Queue.           -->
+      <!-- checkIt=false so direct (non-queue) calls without this header      -->
+      <!-- still succeed.  The whole match (index 0) is assigned to           -->
+      <!-- xfer_queue then immediately overwritten by group 1, so there is    -->
+      <!-- no unused throwaway variable (SIPp errors on a var used once).     -->
+      <ereg regexp="P-Served-Queue:[^0-9]*([0-9]+)@([a-zA-Z0-9._-]+)" search_in="msg" assign_to="xfer_queue,xfer_queue,queue_domain" checkIt="false"/>
     </action>
   </recv>
 
