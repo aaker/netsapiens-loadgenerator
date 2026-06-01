@@ -119,13 +119,43 @@
   </nop>
 
 
-  <!-- this is the reinvite for when it goes to the agent -->
-   <recv request="INVITE" timeout="45000" ontimeout="send_bye"   crlf="true" next="accept_reinvite">
+  <!-- Initialise the leg counter that bounds how many re-INVITEs we follow.  -->
+  <nop>
+    <action><assign assign_to="reinvite_legs" value="0"/></action>
+  </nop>
+
+  <!-- ====================================================================== -->
+  <!-- Follow the call through agent delivery AND queue transfers.            -->
+  <!-- The platform sends an in-dialog re-INVITE whenever the call is          -->
+  <!-- (re)connected to an agent: once for the initial queue->agent delivery,  -->
+  <!-- and again ~90s later for each transfer our UAS performs.  We answer     -->
+  <!-- every one of them (so the call follows the transfer) using a recv-based -->
+  <!-- wait - NOT a blocking <pause> - because a re-INVITE that lands during a -->
+  <!-- pause is treated as "unexpected" and SIPp's default behaviour auto-BYEs -->
+  <!-- it (the CSeq-103 / 481 failure seen in the trace).                      -->
+  <!--                                                                         -->
+  <!-- Each leg: play media, talk a random slice (kept under the ~90s transfer -->
+  <!-- cadence so it never overlaps the next re-INVITE), then watch for the    -->
+  <!-- next transfer re-INVITE.  If it arrives we follow it; if the watch      -->
+  <!-- window elapses we hang up.  reinvite_legs caps the chain so the call    -->
+  <!-- can't bounce forever (the transfer target oscillates 4000<->4001).      -->
+  <!--                                                                         -->
+  <!-- Tunables: pause min/max = per-leg talk; the BYE recv timeout below =    -->
+  <!-- how long after talking we wait for a transfer before hanging up (raise  -->
+  <!-- it to follow more transfers, lower it for shorter calls); cap value="8".-->
+  <!-- ====================================================================== -->
+  <recv request="INVITE" timeout="45000" ontimeout="send_bye" crlf="true" next="answer_reinvite">
   </recv>
 
-
-  <label id="accept_reinvite"/>
-  <send retrans="500" next="handle_ack">
+  <!-- Answer a re-INVITE (agent connect or a transfer) with our media. -->
+  <label id="answer_reinvite"/>
+  <nop>
+    <action>
+      <add assign_to="reinvite_legs" value="1"/>
+      <test assign_to="reinvite_cap" variable="reinvite_legs" compare="greater_than_equal" value="8"/>
+    </action>
+  </nop>
+  <send retrans="500" next="reinvite_ack">
     <![CDATA[
 
       SIP/2.0 200 OK
@@ -151,26 +181,46 @@
       a=ptime:20
     ]]>
   </send>
-  <label id="handle_ack"/>
-  <recv  request="ACK"  crlf="true" next="playpcap"/>
+  <label id="reinvite_ack"/>
+  <recv request="ACK" crlf="true">
+  </recv>
+  <!-- Stop following once we've handled enough legs; hang up ourselves. -->
+  <nop test="reinvite_cap" next="send_bye"/>
 
-  <label id="playpcap"/>
-  <nop next="pause_talking">
+  <!-- talk on this leg -->
+  <label id="talk_leg"/>
+  <nop>
     <action>
       <exec play_pcap_audio="g711a.pcap"/>
     </action>
   </nop>
+  <pause distribution="uniform" min="5000" max="80000"/>
+  <recv request="INVITE" optional="true" crlf="true" next="answer_reinvite">
+  </recv>
+  <recv request="BYE" timeout="30000" ontimeout="send_bye" crlf="true" next="peer_bye">
+  </recv>
 
-  <!-- Talk for a random business-like duration, then the UAC hangs up.        -->
-  <!-- If our UAS transfers the call at the ~90s mark, the platform sends a     -->
-  <!-- SECOND in-dialog re-INVITE.  We do not re-negotiate it; the global       -->
-  <!-- optional handler at the end of the scenario catches it and hangs up,     -->
-  <!-- so calls whose talk time runs past ~90s end cleanly instead of failing.  -->
-  <label id="pause_talking"/>
-  <pause distribution="uniform" min="5000" max="480000"/>
+  <!-- Far end hung up: acknowledge the BYE and finish. -->
+  <label id="peer_bye"/>
+  <send next="call_done">
+    <![CDATA[
 
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- The UAC initiates the hangup (talk window elapsed or leg cap reached). -->
   <label id="send_bye"/>
-  <send retrans="500" next="reply_bye_200" >
+  <send retrans="500" next="our_bye_200" >
     <![CDATA[
 
       BYE sip:[field0]@[remote_ip]:[remote_port] SIP/2.0
@@ -187,23 +237,11 @@
     ]]>
   </send>
 
-  <label id="reply_bye_200"/>
-  <recv response="200" crlf="true">
+  <label id="our_bye_200"/>
+  <recv response="200" crlf="true" next="call_done">
   </recv>
 
-  <!-- ==================================================================== -->
-  <!-- Out-of-band handler: a second (or later) in-dialog re-INVITE - sent    -->
-  <!-- by the platform when our UAS transfers the call to another queue at    -->
-  <!-- the ~90s mark - can arrive at any time, including during the talk      -->
-  <!-- pause above.  optional="global" matches it whenever it shows up; we    -->
-  <!-- simply hang up (jump to send_bye) rather than re-negotiate media.      -->
-  <!-- This lets the UAC end the call cleanly at the second re-INVITE instead -->
-  <!-- of aborting on an "unexpected message".  The first (agent-connect)     -->
-  <!-- re-INVITE is still answered by the mandatory recv above (current-      -->
-  <!-- position match wins), so this only ever catches later ones.            -->
-  <!-- ==================================================================== -->
-  <recv request="INVITE" optional="global" crlf="true" next="send_bye">
-  </recv>
+  <label id="call_done"/>
 
 
 
