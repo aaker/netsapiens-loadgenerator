@@ -26,7 +26,7 @@
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
-	User-Agent: SIPp Load Tester [ua_version]
+	User-Agent: netsapiens-loadgenerator ([ua_version])
 	Content-Type: application/sdp
 	Content-Length: [len]
 
@@ -121,7 +121,7 @@
 	CSeq: [cseq] INVITE
 	Contact: <sip:[field1]@[local_ip]:[local_port]>
 	Max-Forwards: 70
-	User-Agent: SIPp Load Tester [ua_version]
+	User-Agent: netsapiens-loadgenerator ([ua_version])
 	[field3]
 	Content-Type: application/sdp
 	Content-Length: [len]

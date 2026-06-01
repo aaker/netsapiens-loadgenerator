@@ -7,7 +7,7 @@
 #   UA_VERSION=$(get_ua_version "$BASE_DIR")
 #   ... sipp ... -key ua_version "$UA_VERSION" ...
 # and reference [ua_version] in the scenario's User-Agent header, e.g.
-#   User-Agent: netsapiens-loadgenerator [ua_version]
+#   User-Agent: netsapiens-loadgenerator ([ua_version])
 
 # Resolve the running version dynamically, per run.  Order of preference:
 #   1. git describe  (when deployed as a git checkout - the normal case)
@@ -21,7 +21,13 @@ get_ua_version() {
     local v=""
 
     if command -v git >/dev/null 2>&1; then
-        v=$(git -C "$dir" describe --tags --always --dirty 2>/dev/null)
+        v=$(git -C "$dir" describe --tags --always 2>/dev/null)
+        # When there are no tags, describe returns a bare commit hash (e.g.
+        # cfe3b9e).  Prefix it with 'g' to match git's conventional gHASH form
+        # (gcfe3b9e).  Tagged output (v1.2 / v1.2-3-gcfe3b9e) is left as-is.
+        if [[ "$v" =~ ^[0-9a-f]{7,40}$ ]]; then
+            v="g$v"
+        fi
     fi
 
     if [ -z "$v" ] && [ -f "$dir/VERSION" ]; then

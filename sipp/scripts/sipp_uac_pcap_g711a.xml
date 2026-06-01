@@ -53,7 +53,7 @@
       Call-ID: [call_id]
       CSeq: 1 INVITE
       Contact: sip:sipp@[local_ip]:[local_port]
-      User-Agent: netsapiens-loadgenerator [ua_version]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Type: application/sdp
       Content-Length: [len]
@@ -95,7 +95,7 @@
       Call-ID: [call_id]
       CSeq: 1 ACK
       Contact: sip:[field1 file="random_caller_ids.csv"]@[local_ip]:[local_port]
-      User-Agent: netsapiens-loadgenerator [ua_version]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Subject: Performance Test
       Content-Length: 0
@@ -165,7 +165,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: netsapiens-loadgenerator [ua_version]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Type: application/sdp
       Content-Length: [len]
 
@@ -194,7 +194,11 @@
   <!-- so it is never treated as "unexpected" (the CSeq-103/481 failure).       -->
   <!-- Once it has been quiet briefly we move on to the talk pause.             -->
   <label id="settle"/>
-  <recv request="INVITE" optional="true" crlf="true" next="answer_reinvite">
+  <!-- Both recvs carry an explicit timeout so the per-recv timer fires        -->
+  <!-- instead of the global -recv_timeout (which, with -default_behaviors,     -->
+  <!-- emits a malformed auto-BYE that the proxy 481s).  SIPp blocks on the     -->
+  <!-- first recv, so the optional one needs its own timeout too.               -->
+  <recv request="INVITE" optional="true" timeout="8000" ontimeout="talk_leg" crlf="true" next="answer_reinvite">
   </recv>
   <recv request="BYE" timeout="8000" ontimeout="talk_leg" crlf="true" next="peer_bye">
   </recv>
@@ -207,7 +211,10 @@
     </action>
   </nop>
   <pause distribution="uniform" min="5000" max="80000"/>
-  <recv request="INVITE" optional="true" crlf="true" next="answer_reinvite">
+  <!-- Explicit per-recv timeout on BOTH (SIPp blocks on the first/optional    -->
+  <!-- recv) so a quiet leg hangs up via our clean send_bye instead of the     -->
+  <!-- global -recv_timeout auto-BYE (which the proxy answers 481).            -->
+  <recv request="INVITE" optional="true" timeout="30000" ontimeout="send_bye" crlf="true" next="answer_reinvite">
   </recv>
   <recv request="BYE" timeout="30000" ontimeout="send_bye" crlf="true" next="peer_bye">
   </recv>
@@ -224,7 +231,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: netsapiens-loadgenerator [ua_version]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Length: 0
 
     ]]>
@@ -242,7 +249,7 @@
       Call-ID: [call_id]
       CSeq: 2 BYE
       Contact: sip:[field1 file="random_caller_ids.csv"]@[local_ip]:[local_port]
-      User-Agent: netsapiens-loadgenerator [ua_version]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Length: 0
 
