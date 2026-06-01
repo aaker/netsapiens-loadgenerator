@@ -409,6 +409,10 @@ fi
 
 MEDIAPORT_LOGIC=" -mp $MEDIA_PORT "
 
+# Resolve the running version to stamp into the SIP User-Agent ([ua_version]).
+source "$BASE_DIR/sipp/scripts/version-utils.sh"
+UA_VERSION=$(get_ua_version "$BASE_DIR")
+
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $NUMCALLS \
 -sf $BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml \
 -inf $INPUTFILE \
@@ -422,6 +426,7 @@ $TLS_OPTIONS \
 -inf $BASE_DIR/sipp/csv/random_caller_ids.csv \
 -recv_timeout 60000 \
 -key media_ip $PUBLICIP \
+-key ua_version $UA_VERSION \
 -trace_stat -stf $STATS_FILE -fd 15 -bg "
 
 # Log command to syslog

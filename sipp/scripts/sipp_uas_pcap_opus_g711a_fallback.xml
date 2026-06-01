@@ -70,7 +70,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -86,7 +86,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
 
     ]]>
   </send>
@@ -125,7 +125,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Type: application/sdp
       Content-Length: [len]
 
@@ -158,7 +158,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Type: application/sdp
       Content-Length: [len]
 
@@ -216,7 +216,7 @@
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -292,7 +292,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4000@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -315,7 +315,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4001@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -338,7 +338,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4002@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -361,7 +361,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4003@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -384,7 +384,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4004@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -407,7 +407,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4005@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -430,7 +430,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4006@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -453,7 +453,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4007@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -476,7 +476,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4008@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -499,7 +499,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4009@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -522,7 +522,7 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4010@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -545,16 +545,16 @@
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
       Refer-To: <sip:4011@[$queue_domain]>
       Referred-By: <sip:sipp@[local_ip]:[local_port]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
   </send>
   <nop next="after_refer"/>
 
-  <!-- Accept the proxy's 200 OK to our REFER, then ACK and wind down.        -->
+  <!-- Accept the proxy's 202 Accepted to our REFER, then ACK and wind down.   -->
   <label id="after_refer"/>
-  <recv response="200" timeout="2000" ontimeout="refer_ack"></recv>
+  <recv response="202" timeout="2000" ontimeout="refer_ack"></recv>
 
   <!-- ACK the REFER response (in-dialog), then let the call wind down.        -->
   <!-- The subsequent implicit-subscription NOTIFY(s) and BYE from the proxy   -->
@@ -573,7 +573,7 @@
       Call-ID: [call_id]
       CSeq: 2 ACK
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
-      User-Agent: sipp Simulated Agent
+      User-Agent: Simulated Agent [ua_version]
       Content-Length: 0
 
     ]]>
@@ -591,7 +591,7 @@
     Call-ID: [call_id]
     Cseq: 2 BYE
     Contact: sip:[local_ip]:[local_port]
-    User-Agent: sipp Simulated Agent
+    User-Agent: Simulated Agent [ua_version]
     Content-Length: 0
     ]]>
   </send>

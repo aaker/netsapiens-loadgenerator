@@ -102,8 +102,12 @@ for i in $(seq 1 1000); do
 done
 echo "Generated random target extensions file: $TARGET_EXT_CSV"
 
+# Resolve the running version to stamp into the SIP User-Agent ([ua_version]).
+source "$BASE_DIR/sipp/scripts/version-utils.sh"
+UA_VERSION=$(get_ua_version "$BASE_DIR")
+
 SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -r $CALLRATE -m $MAX_USERS \
--t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo \
+-t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -rtp_echo -key ua_version $UA_VERSION \
 -sf $BASE_DIR/sipp/scripts/sipp_uac_onnect.xml \
 -inf $INPUTFILE \
 -inf $TARGET_EXT_CSV \

@@ -139,7 +139,11 @@ _UAS_SCENARIO=$(make_uas_scenario \
     "$BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml" \
     "$_OPUS_REGEX" "${OPUS_PCT:-99}")
 
-SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
+# Resolve the running version to stamp into the SIP User-Agent ([ua_version]).
+source "$BASE_DIR/sipp/scripts/version-utils.sh"
+UA_VERSION=$(get_ua_version "$BASE_DIR")
+
+SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT  \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
 -oocsf $_UAS_SCENARIO \
