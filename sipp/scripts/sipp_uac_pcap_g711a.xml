@@ -131,7 +131,7 @@
       SIP/2.0 200 OK
       [last_Via:]
       [last_From:]
-      [last_To:];tag=[call_number]
+      [last_To:]
       [last_Call-ID:]
       [last_CSeq:]
       Contact: <sip:[local_ip]:[local_port];transport=[transport]>
@@ -143,8 +143,8 @@
       o=sipp 87308505 2 IN IP[local_ip_type] [local_ip]
       s=-
       t=0 0
-      m=audio [media_port] RTP/AVP 8 101
       c=IN IP[media_ip_type] [media_ip]
+      m=audio [media_port] RTP/AVP 8 101
       a=rtpmap:8 PCMA/8000
       a=rtpmap:101 telephone-event/8000
       a=fmtp:101 0-15

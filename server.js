@@ -296,6 +296,10 @@ async function processSingleDomain(description, i) {
                 site: sites[u % sites.length],
                 //use 6 departements if domain size is < 100, otherwise use 12 departments. Randomize start in the list by domain and user index.
                 department: randomdata.departmentNames[((u%(domainSize>CONFIG.LARGE_DOMAIN_THRESHOLD?12:6))+i) % randomdata.departmentNames.length],
+                'simultaneous_ring': 'yes',
+                'forward': 'yes',
+                
+
             }
 
             let deviceArgs = {
