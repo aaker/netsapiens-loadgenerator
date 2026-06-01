@@ -503,14 +503,8 @@
   </send>
   <nop next="after_refer"/>
 
-  <!-- Accept the proxy's response to our REFER: either 202 Accepted or       -->
-  <!-- 200 OK.  SIPp can't OR response codes, so the 202 is matched by an      -->
-  <!-- optional recv and the 200 by a mandatory one; lookahead lets whichever  -->
-  <!-- arrives through (a 200 skips the optional 202, a 202 is consumed and     -->
-  <!-- the mandatory 200 then times out into the ACK).  SIPp also requires at  -->
-  <!-- least one mandatory recv before a send, so the 200 recv stays mandatory.-->
+  <!-- Accept the proxy's 200 OK to our REFER, then ACK and wind down.        -->
   <label id="after_refer"/>
-  <recv response="202" optional="true"></recv>
   <recv response="200" timeout="2000" ontimeout="refer_ack"></recv>
 
   <!-- ACK the REFER response (in-dialog), then let the call wind down.        -->
