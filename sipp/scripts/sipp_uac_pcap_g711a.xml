@@ -187,6 +187,18 @@
   <!-- Stop following once we've handled enough legs; hang up ourselves. -->
   <nop test="reinvite_cap" next="send_bye"/>
 
+  <!-- Settle: after answering a re-INVITE, a second one often follows within  -->
+  <!-- a couple of seconds (at a transfer the platform sends the media re-point -->
+  <!-- and then the new-agent connect back to back).  Absorb any such quickly-  -->
+  <!-- following re-INVITE here BEFORE dropping into the blocking talk pause,   -->
+  <!-- so it is never treated as "unexpected" (the CSeq-103/481 failure).       -->
+  <!-- Once it has been quiet briefly we move on to the talk pause.             -->
+  <label id="settle"/>
+  <recv request="INVITE" optional="true" crlf="true" next="answer_reinvite">
+  </recv>
+  <recv request="BYE" timeout="8000" ontimeout="talk_leg" crlf="true" next="peer_bye">
+  </recv>
+
   <!-- talk on this leg -->
   <label id="talk_leg"/>
   <nop>
