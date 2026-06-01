@@ -236,20 +236,24 @@
   <label id="do_transfer"/>
   <nop>
     <action>
-      <log message="TRANSFER: no BYE after 90s, served_queue=[$xfer_queue]@[$queue_domain]"/>
-      <test assign_to="q4000" variable="xfer_queue" compare="equal" value="4000"/>
-      <test assign_to="q4001" variable="xfer_queue" compare="equal" value="4001"/>
-      <test assign_to="q4002" variable="xfer_queue" compare="equal" value="4002"/>
-      <test assign_to="q4003" variable="xfer_queue" compare="equal" value="4003"/>
-      <test assign_to="q4004" variable="xfer_queue" compare="equal" value="4004"/>
-      <test assign_to="q4005" variable="xfer_queue" compare="equal" value="4005"/>
-      <test assign_to="q4006" variable="xfer_queue" compare="equal" value="4006"/>
-      <test assign_to="q4007" variable="xfer_queue" compare="equal" value="4007"/>
-      <test assign_to="q4008" variable="xfer_queue" compare="equal" value="4008"/>
-      <test assign_to="q4009" variable="xfer_queue" compare="equal" value="4009"/>
-      <test assign_to="q4010" variable="xfer_queue" compare="equal" value="4010"/>
-      <test assign_to="q4011" variable="xfer_queue" compare="equal" value="4011"/>
-      <test assign_to="q4012" variable="xfer_queue" compare="equal" value="4012"/>
+      <log message="TRANSFER: no BYE after 90s, callid=[call_id] served_queue=[$xfer_queue]@[$queue_domain]"/>
+      <!-- Set a per-queue boolean via STRING match on xfer_queue.  We use   -->
+      <!-- <ereg search_in="var"> rather than <test compare="equal">         -->
+      <!-- because <test> compares via getDouble(), which returns 0 for a    -->
+      <!-- regexp-assigned variable - so numeric compares never matched.     -->
+      <ereg regexp="^4000$" search_in="var" variable="xfer_queue" assign_to="q4000" checkIt="false"/>
+      <ereg regexp="^4001$" search_in="var" variable="xfer_queue" assign_to="q4001" checkIt="false"/>
+      <ereg regexp="^4002$" search_in="var" variable="xfer_queue" assign_to="q4002" checkIt="false"/>
+      <ereg regexp="^4003$" search_in="var" variable="xfer_queue" assign_to="q4003" checkIt="false"/>
+      <ereg regexp="^4004$" search_in="var" variable="xfer_queue" assign_to="q4004" checkIt="false"/>
+      <ereg regexp="^4005$" search_in="var" variable="xfer_queue" assign_to="q4005" checkIt="false"/>
+      <ereg regexp="^4006$" search_in="var" variable="xfer_queue" assign_to="q4006" checkIt="false"/>
+      <ereg regexp="^4007$" search_in="var" variable="xfer_queue" assign_to="q4007" checkIt="false"/>
+      <ereg regexp="^4008$" search_in="var" variable="xfer_queue" assign_to="q4008" checkIt="false"/>
+      <ereg regexp="^4009$" search_in="var" variable="xfer_queue" assign_to="q4009" checkIt="false"/>
+      <ereg regexp="^4010$" search_in="var" variable="xfer_queue" assign_to="q4010" checkIt="false"/>
+      <ereg regexp="^4011$" search_in="var" variable="xfer_queue" assign_to="q4011" checkIt="false"/>
+      <ereg regexp="^4012$" search_in="var" variable="xfer_queue" assign_to="q4012" checkIt="false"/>
     </action>
   </nop>
   <!-- Route source queue -> (queue - 1) REFER target.  4000 is special. -->
@@ -267,9 +271,15 @@
   <nop test="q4011" next="refer_4010"/>
   <nop test="q4012" next="refer_4011"/>
   <!-- P-Served-Queue absent or out of range -> just hang up normally. -->
+  <nop>
+    <action><log message="TRANSFER: no queue matched (xfer_queue=[$xfer_queue]), callid=[call_id] -> sending BYE"/></action>
+  </nop>
   <nop next="send_bye"/>
 
   <label id="refer_4000"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4000@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -290,6 +300,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4001"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4001@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -310,6 +323,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4002"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4002@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -330,6 +346,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4003"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4003@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -350,6 +369,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4004"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4004@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -370,6 +392,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4005"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4005@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -390,6 +415,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4006"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4006@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -410,6 +438,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4007"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4007@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -430,6 +461,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4008"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4008@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -450,6 +484,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4009"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4009@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -470,6 +507,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4010"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4010@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -490,6 +530,9 @@
   <nop next="after_refer"/>
 
   <label id="refer_4011"/>
+  <nop>
+    <action><log message="TRANSFER: sending REFER -> 4011@[$queue_domain] callid=[call_id]"/></action>
+  </nop>
   <send retrans="500">
     <![CDATA[
 
@@ -517,6 +560,9 @@
   <!-- The subsequent implicit-subscription NOTIFY(s) and BYE from the proxy   -->
   <!-- arrive during the closing timewait and are harmlessly ignored.         -->
   <label id="refer_ack"/>
+  <nop>
+    <action><log message="TRANSFER: REFER answered, sending ACK callid=[call_id]"/></action>
+  </nop>
   <send>
     <![CDATA[
 
