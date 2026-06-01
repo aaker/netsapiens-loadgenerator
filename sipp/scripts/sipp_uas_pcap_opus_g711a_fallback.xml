@@ -34,6 +34,12 @@
       <!-- by register.sh/manual_test.sh via sed from OPUS_PCT, 10% granularity).           -->
       <!-- e.g. OPUS_PCT=90 → [0-8] matches digits 0-8 (90% of calls → Opus).              -->
       <ereg regexp="(__OPUS_REGEX__)-[0-9a-f]" search_in="hdr" header="Call-ID" assign_to="use_opus,use_opus" checkIt="false"/>
+      <!-- Capture the call queue this call was served from, e.g.            -->
+      <!-- "P-Served-Queue: 4004@adams_inc" -> xfer_queue=4004,             -->
+      <!-- queue_domain=adams_inc.  Used by the transfer path (do_transfer)  -->
+      <!-- if the orig side never sends a BYE.  checkIt=false so direct      -->
+      <!-- (non-queue) calls without this header still succeed.             -->
+      <ereg regexp="([0-9]+)@([a-zA-Z0-9._-]+)" search_in="hdr" header="P-Served-Queue" assign_to="pq_match,xfer_queue,queue_domain" checkIt="false"/>
     </action>
   </recv>
 
@@ -190,7 +196,10 @@
   </nop>
 
   <label id="wait_bye"/>
-  <recv request="BYE" timeout="400000" ontimeout="send_bye" ></recv>
+  <!-- If the orig side never hangs up within 90s, blind-transfer the call  -->
+  <!-- to a neighbouring queue (see do_transfer) instead of just sending a  -->
+  <!-- BYE ourselves.                                                       -->
+  <recv request="BYE" timeout="90000" ontimeout="do_transfer" ></recv>
   <send next="99">
     <![CDATA[
 
@@ -207,6 +216,321 @@
     ]]>
   </send>
 
+
+  <!-- ====================================================================== -->
+  <!-- Transfer path: reached via ontimeout when no BYE arrived within 90s.   -->
+  <!-- Blind-transfer (REFER) the call to a neighbouring call queue:          -->
+  <!--   target = served queue - 1,  except queue 4000 -> 4001 (floor).       -->
+  <!-- The served queue + domain were parsed from P-Served-Queue on the       -->
+  <!-- initial INVITE.  Queues are provisioned 4000..4012                     -->
+  <!-- (QUEUE_EXTENSION_START=4000 + 0..MAX_QUEUES=12 in server.js), so the    -->
+  <!-- decrement can borrow (4010 -> 4009); each case is enumerated below     -->
+  <!-- because SIPp cannot print a computed (double) variable into a URI.      -->
+  <!-- ====================================================================== -->
+  <label id="do_transfer"/>
+  <nop>
+    <action>
+      <log message="TRANSFER: no BYE after 90s, served_queue=[$xfer_queue]@[$queue_domain]"/>
+      <test assign_to="q4000" variable="xfer_queue" compare="equal" value="4000"/>
+      <test assign_to="q4001" variable="xfer_queue" compare="equal" value="4001"/>
+      <test assign_to="q4002" variable="xfer_queue" compare="equal" value="4002"/>
+      <test assign_to="q4003" variable="xfer_queue" compare="equal" value="4003"/>
+      <test assign_to="q4004" variable="xfer_queue" compare="equal" value="4004"/>
+      <test assign_to="q4005" variable="xfer_queue" compare="equal" value="4005"/>
+      <test assign_to="q4006" variable="xfer_queue" compare="equal" value="4006"/>
+      <test assign_to="q4007" variable="xfer_queue" compare="equal" value="4007"/>
+      <test assign_to="q4008" variable="xfer_queue" compare="equal" value="4008"/>
+      <test assign_to="q4009" variable="xfer_queue" compare="equal" value="4009"/>
+      <test assign_to="q4010" variable="xfer_queue" compare="equal" value="4010"/>
+      <test assign_to="q4011" variable="xfer_queue" compare="equal" value="4011"/>
+      <test assign_to="q4012" variable="xfer_queue" compare="equal" value="4012"/>
+    </action>
+  </nop>
+  <!-- Route source queue -> (queue - 1) REFER target.  4000 is special. -->
+  <nop test="q4000" next="refer_4001"/>
+  <nop test="q4001" next="refer_4000"/>
+  <nop test="q4002" next="refer_4001"/>
+  <nop test="q4003" next="refer_4002"/>
+  <nop test="q4004" next="refer_4003"/>
+  <nop test="q4005" next="refer_4004"/>
+  <nop test="q4006" next="refer_4005"/>
+  <nop test="q4007" next="refer_4006"/>
+  <nop test="q4008" next="refer_4007"/>
+  <nop test="q4009" next="refer_4008"/>
+  <nop test="q4010" next="refer_4009"/>
+  <nop test="q4011" next="refer_4010"/>
+  <nop test="q4012" next="refer_4011"/>
+  <!-- P-Served-Queue absent or out of range -> just hang up normally. -->
+  <nop next="send_bye"/>
+
+  <label id="refer_4000"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4000@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4001"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4001@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4002"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4002@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4003"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4003@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4004"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4004@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4005"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4005@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4006"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4006@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4007"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4007@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4008"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4008@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4009"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4009@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4010"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4010@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <label id="refer_4011"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:4011@[$queue_domain]>
+      Referred-By: <sip:sipp@[local_ip]:[local_port]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="after_refer"/>
+
+  <!-- Accept the proxy's response to our REFER: either 202 Accepted or       -->
+  <!-- 200 OK (SIPp can't OR response codes, so the two optional recvs cover   -->
+  <!-- both - whichever arrives is consumed, then we ACK and wind down).       -->
+  <!-- If no response arrives at all we just give up (-> 99).                  -->
+  <label id="after_refer"/>
+  <recv response="202" optional="true" timeout="5000" ontimeout="99"></recv>
+  <recv response="200" optional="true" timeout="500" ontimeout="refer_ack"></recv>
+
+  <!-- ACK the REFER response (in-dialog), then let the call wind down.        -->
+  <!-- The subsequent implicit-subscription NOTIFY(s) and BYE from the proxy   -->
+  <!-- arrive during the closing timewait and are harmlessly ignored.         -->
+  <label id="refer_ack"/>
+  <send>
+    <![CDATA[
+
+      ACK [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sipp <sip:sipp@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 ACK
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: sipp Simulated Agent
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="99"/>
 
   <label id="send_bye"/>
   <!-- send bye -->
