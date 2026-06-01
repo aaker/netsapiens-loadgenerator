@@ -122,7 +122,7 @@
   <!-- this is the reinvite for when it goes to the agent -->
    <recv request="INVITE" timeout="45000" ontimeout="send_bye"   crlf="true" next="accept_reinvite">
   </recv>
-  	
+
 
   <label id="accept_reinvite"/>
   <send retrans="500" next="handle_ack">
@@ -151,20 +151,25 @@
       a=ptime:20
     ]]>
   </send>
-  <label id="handle_ack"/>	
+  <label id="handle_ack"/>
   <recv  request="ACK"  crlf="true" next="playpcap"/>
 
-<label id="playpcap"/>
-<nop next="pause_talking">
+  <label id="playpcap"/>
+  <nop next="pause_talking">
     <action>
       <exec play_pcap_audio="g711a.pcap"/>
     </action>
   </nop>
 
-<label id="pause_talking"/>
-<pause distribution="uniform" min="5000" max="480000"/> 
+  <!-- Talk for a random business-like duration, then the UAC hangs up.        -->
+  <!-- If our UAS transfers the call at the ~90s mark, the platform sends a     -->
+  <!-- SECOND in-dialog re-INVITE.  We do not re-negotiate it; the global       -->
+  <!-- optional handler at the end of the scenario catches it and hangs up,     -->
+  <!-- so calls whose talk time runs past ~90s end cleanly instead of failing.  -->
+  <label id="pause_talking"/>
+  <pause distribution="uniform" min="5000" max="480000"/>
 
-<label id="send_bye"/>
+  <label id="send_bye"/>
   <send retrans="500" next="reply_bye_200" >
     <![CDATA[
 
@@ -184,6 +189,20 @@
 
   <label id="reply_bye_200"/>
   <recv response="200" crlf="true">
+  </recv>
+
+  <!-- ==================================================================== -->
+  <!-- Out-of-band handler: a second (or later) in-dialog re-INVITE - sent    -->
+  <!-- by the platform when our UAS transfers the call to another queue at    -->
+  <!-- the ~90s mark - can arrive at any time, including during the talk      -->
+  <!-- pause above.  optional="global" matches it whenever it shows up; we    -->
+  <!-- simply hang up (jump to send_bye) rather than re-negotiate media.      -->
+  <!-- This lets the UAC end the call cleanly at the second re-INVITE instead -->
+  <!-- of aborting on an "unexpected message".  The first (agent-connect)     -->
+  <!-- re-INVITE is still answered by the mandatory recv above (current-      -->
+  <!-- position match wins), so this only ever catches later ones.            -->
+  <!-- ==================================================================== -->
+  <recv request="INVITE" optional="global" crlf="true" next="send_bye">
   </recv>
 
 
