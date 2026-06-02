@@ -26,8 +26,15 @@
 
   <recv request="INVITE" crlf="true" rrs="true">
     <action>
-      <ereg regexp=".*" search_in="hdr" header="From" assign_to="remote_from"/>
-      <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
+      <!-- Capture the caller's From for our in-dialog To headers.  Strip any   -->
+      <!-- leading ": "/spaces SIPp leaves on the extracted header value, and    -->
+      <!-- use group 1 (whole match -> remote_from, then group 1 overwrites, so  -->
+      <!-- no unused variable).  Without this the REFER/BYE/ACK emit "To: : ...". -->
+      <ereg regexp="[: ]*(.*)" search_in="hdr" header="From" assign_to="remote_from,remote_from"/>
+      <!-- Capture the caller's Contact URI WITHOUT the angle brackets for our   -->
+      <!-- in-dialog Request-URIs.  "sip:[^>]*" stops before the closing '>', so  -->
+      <!-- we no longer emit "REFER sip:...> SIP/2.0".                            -->
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
       <!-- Non-empty if caller offered OPUS (PT 121) -->
       <ereg regexp="a=rtpmap:121" search_in="body" assign_to="opus_offered" checkIt="false"/>
       <!-- Match last digit of Call-ID numeric prefix against __OPUS_REGEX__ (injected        -->
@@ -556,9 +563,7 @@
   <label id="after_refer"/>
   <recv response="202" timeout="2000" ontimeout="refer_ack"></recv>
 
-  <!-- ACK the REFER response (in-dialog), then let the call wind down.        -->
-  <!-- The subsequent implicit-subscription NOTIFY(s) and BYE from the proxy   -->
-  <!-- arrive during the closing timewait and are harmlessly ignored.         -->
+  <!-- ACK the REFER response (in-dialog), then answer the proxy's teardown.   -->
   <label id="refer_ack"/>
   <nop>
     <action><log message="TRANSFER: REFER answered, sending ACK callid=[call_id]"/></action>
@@ -578,7 +583,26 @@
 
     ]]>
   </send>
-  <nop next="99"/>
+
+  <!-- Once the transfer is accepted the proxy BYEs THIS (now transferred-away) -->
+  <!-- leg.  Answer it with a 200 so it is not retransmitted (the repeated-BYE  -->
+  <!-- noise seen in traces).  If it does not arrive, wind down anyway.         -->
+  <recv request="BYE" timeout="10000" ontimeout="99"></recv>
+  <send next="99">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
 
   <label id="send_bye"/>
   <!-- send bye -->
