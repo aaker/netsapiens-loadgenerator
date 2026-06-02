@@ -62,6 +62,7 @@ const CONFIG = {
     LARGE_DOMAIN_THRESHOLD: 100,
     USERS_PER_SITE: 30,
     QUEUES_PER_USERS_RATIO: 10, // 1 queue per 10 users
+    MIN_QUEUES: 2,
     MAX_QUEUES: 12,
     AREA_CODE_MIN: 200,
     AREA_CODE_MAX: 900,
@@ -298,7 +299,7 @@ async function processSingleDomain(description, i) {
                 department: randomdata.departmentNames[((u%(domainSize>CONFIG.LARGE_DOMAIN_THRESHOLD?12:6))+i) % randomdata.departmentNames.length],
                 'simultaneous_ring': 'yes',
                 'forward': 'yes',
-                
+
 
             }
 
@@ -402,7 +403,7 @@ async function processSingleDomain(description, i) {
       
         if (!resi)
         {
-            for (let h = 0; h * CONFIG.QUEUES_PER_USERS_RATIO < domainSize; h++) {
+            for (let h = 0; h * CONFIG.QUEUES_PER_USERS_RATIO < domainSize || h < CONFIG.MIN_QUEUES; h++) {
                 if (h > CONFIG.MAX_QUEUES) continue;
                 const queueName = randomdata.queueNames[(domainSize + h) % randomdata.queueNames.length];
                 const queue_index = h;
