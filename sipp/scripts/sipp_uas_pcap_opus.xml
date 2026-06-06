@@ -113,7 +113,7 @@
   <!-- NOTE: You'll need an Opus PCAP file for this to work             -->
   <!-- <nop>
     <action>
-      <exec play_pcap_audio="opus.pcap"/>
+      <exec play_pcap_audio="opus-term.pcap"/>
     </action>
   </nop> -->
 

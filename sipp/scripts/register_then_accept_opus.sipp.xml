@@ -140,7 +140,7 @@
   <nop test="codec_opus" next="play_opus"/>
   <nop>
     <action>
-      <exec play_pcap_audio="g711a.pcap"/>
+      <exec play_pcap_audio="g711a-term.pcap"/>
     </action>
   </nop>
   <nop next="wait_bye"/>
@@ -148,7 +148,7 @@
   <label id="play_opus"/>
   <nop>
     <action>
-      <exec play_pcap_audio="opus.pcap"/>
+      <exec play_pcap_audio="opus-term.pcap"/>
     </action>
   </nop>
 

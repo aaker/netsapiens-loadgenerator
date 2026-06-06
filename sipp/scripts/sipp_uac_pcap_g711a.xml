@@ -104,9 +104,10 @@
   </send>
 
   <!-- Play a pre-recorded PCAP file (RTP stream)                       -->
+  <!-- Caller speech, segment 1 (talking to the first agent, 90s)       -->
   <nop>
     <action>
-      <exec play_pcap_audio="g711a.pcap"/>
+      <exec play_pcap_audio="g711a-orig.pcap"/>
     </action>
   </nop>
 
@@ -204,12 +205,28 @@
   </recv>
 
   <!-- talk on this leg -->
+  <!-- Leg 1 is the initial queue->agent delivery: restart the segment-1     -->
+  <!-- caller audio (conversation with agent 1). Legs 2+ follow a transfer:  -->
+  <!-- play the post-transfer caller audio (conversation with agent 2).      -->
   <label id="talk_leg"/>
   <nop>
     <action>
-      <exec play_pcap_audio="g711a.pcap"/>
+      <test assign_to="xfer_leg" variable="reinvite_legs" compare="greater_than_equal" value="2"/>
     </action>
   </nop>
+  <nop test="xfer_leg" next="talk_post_transfer"/>
+  <nop next="talk_pause">
+    <action>
+      <exec play_pcap_audio="g711a-orig.pcap"/>
+    </action>
+  </nop>
+  <label id="talk_post_transfer"/>
+  <nop>
+    <action>
+      <exec play_pcap_audio="g711a-orig2.pcap"/>
+    </action>
+  </nop>
+  <label id="talk_pause"/>
   <pause distribution="uniform" min="5000" max="80000"/>
   <!-- Explicit per-recv timeout on BOTH (SIPp blocks on the first/optional    -->
   <!-- recv) so a quiet leg hangs up via our clean send_bye instead of the     -->

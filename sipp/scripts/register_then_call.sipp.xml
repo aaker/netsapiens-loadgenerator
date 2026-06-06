@@ -217,7 +217,7 @@
 <label id="playpcap"/>
 <!-- <nop next="pause_talking">
     <action>
-      <exec play_pcap_audio="g711a.pcap"/>
+      <exec play_pcap_audio="g711a-orig.pcap"/>
     </action>
   </nop> -->
 
