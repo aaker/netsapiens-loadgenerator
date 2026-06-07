@@ -583,6 +583,21 @@
 
     ]]>
   </send>
+  <!-- RTP playback driven by codec_opus (what we actually negotiated, not just what was offered) -->
+  <nop test="codec_opus" next="play_opus"/>
+  <nop>
+    <action>
+      <exec play_pcap_audio="g711a-term2.pcap"/>
+    </action>
+  </nop>
+  <nop next="wait_bye"/>
+
+  <label id="play_opus"/>
+  <nop>
+    <action>
+      <exec play_pcap_audio="opus-term2.pcap"/>
+    </action>
+  </nop>
 
   <!-- Once the transfer is accepted the proxy BYEs THIS (now transferred-away) -->
   <!-- leg.  Answer it with a 200 so it is not retransmitted (the repeated-BYE  -->
