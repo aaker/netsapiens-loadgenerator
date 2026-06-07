@@ -20,3 +20,7 @@ avatar/.DS_Store
 .env
 
 sipp/csv/servers/
+
+# sipp/csv/manual/ is intentionally tracked (committed manual-test data
+# used by manual_test.sh) - keep it out of any future sipp/csv ignores
+!sipp/csv/manual/
