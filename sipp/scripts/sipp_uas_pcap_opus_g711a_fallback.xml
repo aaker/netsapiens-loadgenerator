@@ -584,15 +584,17 @@
     ]]>
   </send>
   <!-- RTP playback driven by codec_opus (what we actually negotiated, not just what was offered) -->
-  <nop test="codec_opus" next="play_opus"/>
+  <!-- Labels are scenario-unique, so this post-REFER branch needs its own     -->
+  <!-- names (play_opus already exists in the answer path above).              -->
+  <nop test="codec_opus" next="play_opus_xfer"/>
   <nop>
     <action>
       <exec play_pcap_audio="g711a-term2.pcap"/>
     </action>
   </nop>
-  <nop next="wait_bye"/>
+  <nop next="xfer_wind_down"/>
 
-  <label id="play_opus"/>
+  <label id="play_opus_xfer"/>
   <nop>
     <action>
       <exec play_pcap_audio="opus-term2.pcap"/>
@@ -602,6 +604,7 @@
   <!-- Once the transfer is accepted the proxy BYEs THIS (now transferred-away) -->
   <!-- leg.  Answer it with a 200 so it is not retransmitted (the repeated-BYE  -->
   <!-- noise seen in traces).  If it does not arrive, wind down anyway.         -->
+  <label id="xfer_wind_down"/>
   <recv request="BYE" timeout="10000" ontimeout="99"></recv>
   <send next="99">
     <![CDATA[
