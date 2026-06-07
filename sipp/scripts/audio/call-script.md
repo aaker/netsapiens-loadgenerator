@@ -11,8 +11,9 @@ starting at its own t=0:
 
 | File | Speaker | Length | Played by |
 |---|---|---|---|
-| `g711a-orig.pcap`  | Tom (caller), segment 1  | exactly 90s | UAC: initial play + first agent leg |
-| `g711a-orig2.pcap` | Tom (caller), segment 2  | ~3.5 min    | UAC: legs after a transfer (`reinvite_legs` ≥ 2) |
+| `g711a-silence.pcap` | silence (A-law 0xD5)   | 90s         | UAC: pre-agent stage (AA/MOH) - RTP must flow but no agent is listening yet |
+| `g711a-orig.pcap`  | Tom (caller), segment 1  | exactly 90s | UAC: first agent leg (talk_leg, `reinvite_legs` = 1) |
+| `g711a-orig2.pcap` | Tom (caller), segment 2  | ~3.5 min    | UAC: legs after a transfer (`reinvite_legs` >= 2) |
 | `g711a-term.pcap`  | Priya (tier-1 agent)     | exactly 90s | UAS: answers the initial call, REFERs at 90s |
 | `g711a-term2.pcap` | Marcus (provisioning)    | ~3.5 min    | UAS: the leg answering the transferred call |
 | `opus-term.pcap`   | Priya (OPUS PT 121)      | exactly 90s | UAS scenarios that negotiate OPUS |

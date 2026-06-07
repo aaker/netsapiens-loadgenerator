@@ -344,12 +344,12 @@ fi
 if [ "$SEND_RTP_FINAL" != "1" ]; then
     echo "Disabling RTP playback in XML scenario (commenting out play_pcap_audio)"
     # Comment out play_pcap_audio lines - only if not already commented
-    sed -i -e 's/^[[:space:]]*<exec play_pcap_audio="\(g711a-orig2\{0,1\}\)\.pcap"\/>/      <!-- RTP_DISABLED: <exec play_pcap_audio="\1.pcap"\/> -->/g' \
+    sed -i -e 's/^[[:space:]]*<exec play_pcap_audio="\(g711a-[a-z0-9]*\)\.pcap"\/>/      <!-- RTP_DISABLED: <exec play_pcap_audio="\1.pcap"\/> -->/g' \
            /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
 else
     echo "Enabling RTP playback in XML scenario (uncommenting play_pcap_audio if needed)"
     # Restore any previously commented RTP lines - only if currently commented
-    sed -i -e 's/^[[:space:]]*<!-- RTP_DISABLED: <exec play_pcap_audio="\(g711a-orig2\{0,1\}\)\.pcap"\/> -->/<exec play_pcap_audio="\1.pcap"\/>/g' \
+    sed -i -e 's/^[[:space:]]*<!-- RTP_DISABLED: <exec play_pcap_audio="\(g711a-[a-z0-9]*\)\.pcap"\/> -->/<exec play_pcap_audio="\1.pcap"\/>/g' \
            /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/sipp_uac_pcap_g711a.xml
 fi
 

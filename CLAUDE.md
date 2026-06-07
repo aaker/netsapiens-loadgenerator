@@ -86,7 +86,7 @@ The system supports two configuration modes controlled by `lib/config.js`:
 - `sipp_uac_pcap_g711a.xml` / `sipp_uac_big_sdp.xml` - UAC (caller) scenarios with PCAP audio
 - `sipp_uas_pcap_*.xml` - UAS (callee) scenarios: G.711a, OPUS, OPUS with G.711 fallback
 
-**Audio files**: `g711a-{orig,orig2,term,term2}.pcap` + `opus-{term,term2}.pcap` (PT 121) - real-speech RTP audio, one file per call leg of a support call with a transfer at 90s (orig = caller, term = agents; `2` = post-transfer segment). Regenerate with `sipp/scripts/audio/generate-call-pcaps.sh` (Deepgram TTS, see `audio/call-script.md`). Legacy: `g711a.pcap`, `opus.pcap`, `sip-rtp-opus-121.pcap` (continuous music), `2024-conversation-02-side-a/b.wav`, `mr.telephone.man.wav`
+**Audio files**: `g711a-{orig,orig2,term,term2}.pcap` + `opus-{term,term2}.pcap` (PT 121) - real-speech RTP audio, one file per call leg of a support call with a transfer at 90s (orig = caller, term = agents; `2` = post-transfer segment). `g711a-silence.pcap` - 90s of A-law silence, streamed by the UAC during the pre-agent (AA/MOH) stage. Regenerate with `sipp/scripts/audio/generate-call-pcaps.sh` (Deepgram TTS, see `audio/call-script.md`). Legacy: `g711a.pcap`, `opus.pcap`, `sip-rtp-opus-121.pcap` (continuous music), `2024-conversation-02-side-a/b.wav`, `mr.telephone.man.wav`
 
 ### Cron Scheduling
 

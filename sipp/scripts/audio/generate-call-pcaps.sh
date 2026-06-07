@@ -203,7 +203,12 @@ for leg in term term2; do
     -ac 1 -ar 48000 -c:a libopus -b:a 32k -application voip -frame_duration 20 "$work/$leg.ogg"
 done
 
+# Silence pcap for the pre-agent (AA/MOH) stage of the UAC scenario: keeps
+# RTP flowing toward the platform without putting real audio on the wire.
+python3 -c "open('$work/silence.alaw','wb').write(bytes([0xD5])*8000*$TRANSFER_AT)"
+
 # Packetize into SIPp-compatible RTP pcaps (distinct SSRC per leg).
+python3 "$script_dir/wav2rtp-pcap.py"  "$work/silence.alaw" "$out_dir/g711a-silence.pcap" 0A11CA00
 python3 "$script_dir/wav2rtp-pcap.py"  "$work/orig.alaw"  "$out_dir/g711a-orig.pcap"  0A11CA11
 python3 "$script_dir/wav2rtp-pcap.py"  "$work/orig2.alaw" "$out_dir/g711a-orig2.pcap" 0A11CA12
 python3 "$script_dir/wav2rtp-pcap.py"  "$work/term.alaw"  "$out_dir/g711a-term.pcap"  0A11CA22

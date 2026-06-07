@@ -103,19 +103,33 @@
     ]]>
   </send>
 
-  <!-- Play a pre-recorded PCAP file (RTP stream)                       -->
-  <!-- Caller speech, segment 1 (talking to the first agent, 90s)       -->
+  <!-- Pre-agent stage (AA/MOH): the platform expects media from us, but   -->
+  <!-- no agent is listening yet, so stream SILENCE rather than real       -->
+  <!-- speech.  Caller speech starts at talk_leg when an agent connects.   -->
   <nop>
     <action>
-      <exec play_pcap_audio="g711a-orig.pcap"/>
+      <exec play_pcap_audio="g711a-silence.pcap"/>
     </action>
   </nop>
 
-  <!-- send rfc2833 DTMF -->
+  <!-- send rfc2833 DTMF.  NOTE: rtp_send_dtmf shares the pcap-audio media -->
+  <!-- thread, so it KILLS the running playback - which is why silence is  -->
+  <!-- restarted right after the digit below.                              -->
   <nop>
-    <pause distribution="uniform" min="100" max="3000"/> 
+    <pause distribution="uniform" min="100" max="1000"/>
     <action>
-      <exec rtp_send_dtmf="1" /> 
+      <exec rtp_send_dtmf="1" />
+    </action>
+  </nop>
+
+  <!-- Let the DTMF digit finish, then resume the silence stream so RTP    -->
+  <!-- keeps flowing until the agent-connect re-INVITE starts real speech. -->
+  <!-- Kept short: a re-INVITE landing during a blocking pause would be    -->
+  <!-- auto-BYEd (see below), and the agent can connect from ~1s onward.   -->
+  <pause milliseconds="300"/>
+  <nop>
+    <action>
+      <exec play_pcap_audio="g711a-silence.pcap"/>
     </action>
   </nop>
 
