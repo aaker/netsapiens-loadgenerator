@@ -108,6 +108,8 @@
   <!-- speech.  Caller speech starts at talk_leg when an agent connects.   -->
   <nop>
     <action>
+      <!-- log lines only emit under -trace_logs (manual_test.sh); cron is unaffected -->
+      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=g711a-silence.pcap stage=pre-agent"/>
       <exec play_pcap_audio="g711a-silence.pcap"/>
     </action>
   </nop>
@@ -129,6 +131,7 @@
   <pause milliseconds="300"/>
   <nop>
     <action>
+      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=g711a-silence.pcap stage=post-dtmf"/>
       <exec play_pcap_audio="g711a-silence.pcap"/>
     </action>
   </nop>
@@ -231,12 +234,14 @@
   <nop test="xfer_leg" next="talk_post_transfer"/>
   <nop next="talk_pause">
     <action>
+      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=g711a-orig.pcap leg=[$reinvite_legs] stage=agent1"/>
       <exec play_pcap_audio="g711a-orig.pcap"/>
     </action>
   </nop>
   <label id="talk_post_transfer"/>
   <nop>
     <action>
+      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=g711a-orig2.pcap leg=[$reinvite_legs] stage=post-transfer"/>
       <exec play_pcap_audio="g711a-orig2.pcap"/>
     </action>
   </nop>

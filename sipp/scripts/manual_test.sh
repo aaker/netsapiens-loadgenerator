@@ -21,6 +21,13 @@
 #   -w, --wait <sec>      Auto-place the first call after N seconds (default:
 #                         wait for registrations, then prompt)
 #   -k, --keep            Leave the registration instance running on exit
+#   --no-capture          Skip the per-packet tcpdump capture of the media port
+#
+# Manual mode always enables verbose SIPp tracing: -trace_logs (the [PCAP]
+# log lines marking the start of each pcap, with a clock_tick ms timestamp),
+# -trace_msg (full SIP messages) and -trace_err. Unless --no-capture, a
+# tcpdump of the UAC media port is written per call to the work dir, and a
+# per-packet timing summary (tcpdump -ttt) is printed after the call.
 #
 # Examples:
 #   ./manual_test.sh                                   # committed manual CSVs
@@ -47,6 +54,7 @@ SERVER_ID=""
 CALL_COUNT=1
 AUTO_WAIT=""
 KEEP=0
+CAPTURE=1
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -57,7 +65,8 @@ while [ $# -gt 0 ]; do
         -c|--count)     CALL_COUNT="$2"; shift 2 ;;
         -w|--wait)      AUTO_WAIT="$2"; shift 2 ;;
         -k|--keep)      KEEP=1; shift ;;
-        -h|--help)      grep '^#' "$0" | head -30; exit 0 ;;
+        --no-capture)   CAPTURE=0; shift ;;
+        -h|--help)      grep '^#' "$0" | head -35; exit 0 ;;
         *) echo "Unknown option: $1 (try -h)"; exit 1 ;;
     esac
 done
@@ -206,6 +215,11 @@ echo "   Opus pct:    ${OPUS_PCT:-99}% (regex: $_OPUS_REGEX)"
 echo "   Reg ports:   sip=$REG_SIP_PORT media=$REG_MEDIA_PORT ctrl=$REG_CONTROL_PORT"
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
 echo "   Work dir:    $WORK_DIR"
+if [ "$CAPTURE" == "1" ]; then
+    echo "   Tracing:     -trace_logs -trace_msg + tcpdump media capture per call"
+else
+    echo "   Tracing:     -trace_logs -trace_msg (media capture disabled)"
+fi
 echo "========================================================"
 
 # ------------------------------------------- 1) registration (cron path)
@@ -222,7 +236,7 @@ SIPP_REG_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_
 -watchdog_interval 0 -watchdog_minor_threshold 920000 -watchdog_major_threshold 9200000 \
 -aa -default_behaviors -abortunexp \
 -mp $REG_MEDIA_PORT -i $PRIVATEIP -mi $PRIVATEIP \
--trace_stat -stf $REG_STATS -fd 5 -trace_err -bg"
+-trace_stat -stf $REG_STATS -fd 5 -trace_err -trace_logs -trace_msg -bg"
 
 echo ""
 echo "[register] $SIPP_REG_CMD"
@@ -253,9 +267,29 @@ done
 # --------------------------------------------- 2) inbound call (cron path)
 # Mirrors inbound.sh's sipp invocation; -r/-m pinned for single targeted calls.
 place_call() {
-    local stats="$STATS_PATH/manual_inbound_${TRANSPORT}_$$_$(date +%s).csv"
+    local ts=$(date +%s)
+    local stats="$STATS_PATH/manual_inbound_${TRANSPORT}_$$_${ts}.csv"
+    local cap="$WORK_DIR/media_${ts}.pcap"
+    local tcpdump_pid=""
     echo ""
     echo "[call] placing $CALL_COUNT call(s) to $NUMBER via $SUT ..."
+
+    # Per-packet timing: capture the UAC media port (RTP) + its RTCP companion.
+    if [ "$CAPTURE" == "1" ] && command -v tcpdump >/dev/null; then
+        tcpdump -i any -n -s 0 -w "$cap" \
+            "udp and (port $UAC_MEDIA_PORT or port $((UAC_MEDIA_PORT + 1)))" \
+            >/dev/null 2>&1 &
+        tcpdump_pid=$!
+        # Give tcpdump a moment to bind before the first RTP packet.
+        sleep 0.3
+        echo "[call] media capture -> $cap (pid $tcpdump_pid)"
+    elif [ "$CAPTURE" == "1" ]; then
+        echo "[call] (tcpdump not found - skipping media capture)"
+    fi
+
+    # -trace_logs writes the [PCAP] play markers; -trace_msg the full SIP
+    # exchange.  Both land in $BASE_DIR/sipp/scripts as
+    # sipp_uac_pcap_g711a_<pid>_{logs,messages,errors}.log
     sipp ${SUT}${SIP_PORT_ADD_ON} -r 1 -m "$CALL_COUNT" -l "$CALL_COUNT" \
         -sf "$BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml" \
         -inf "$NUM_CSV" \
@@ -266,8 +300,28 @@ place_call() {
         -recv_timeout 60000 \
         -key media_ip "$MEDIA_IP" \
         -key ua_version "$UA_VERSION" \
-        -trace_stat -stf "$stats" -fd 5 -trace_err
-    echo "[call] sipp exited with status $? (stats: $stats)"
+        -trace_stat -stf "$stats" -fd 5 -trace_err -trace_logs -trace_msg
+    local rc=$?
+    echo "[call] sipp exited with status $rc (stats: $stats)"
+
+    if [ -n "$tcpdump_pid" ]; then
+        # Let trailing RTP flush, then stop the capture.
+        sleep 0.5
+        kill "$tcpdump_pid" 2>/dev/null; wait "$tcpdump_pid" 2>/dev/null
+        local npkts=$(tcpdump -r "$cap" 2>/dev/null | wc -l | tr -d ' ')
+        echo "[call] captured $npkts media packets. Per-packet inter-arrival timing:"
+        echo "       (cols: delta-from-prev  src > dst  len)"
+        # -ttt prints delta from the previous packet; head keeps it readable.
+        tcpdump -ttt -n -r "$cap" 2>/dev/null | head -40
+        echo "       ... full capture: tcpdump -ttt -n -r $cap | less"
+    fi
+
+    # Surface where the SIPp [PCAP] play markers landed for this run.
+    local logf=$(ls -t "$BASE_DIR/sipp/scripts/"sipp_uac_pcap_g711a_*_logs.log 2>/dev/null | head -1)
+    if [ -n "$logf" ]; then
+        echo "[call] pcap-play markers (clock_tick ms) from $logf:"
+        grep -h '\[PCAP\]' "$logf" 2>/dev/null | tail -20 | sed 's/^/       /'
+    fi
 }
 
 if [ -n "$AUTO_WAIT" ]; then
