@@ -205,26 +205,13 @@
   <!-- Stop following once we've handled enough legs; hang up ourselves. -->
   <nop test="reinvite_cap" next="send_bye"/>
 
-  <!-- Settle: after answering a re-INVITE, a second one often follows within  -->
-  <!-- a couple of seconds (at a transfer the platform sends the media re-point -->
-  <!-- and then the new-agent connect back to back).  Absorb any such quickly-  -->
-  <!-- following re-INVITE here BEFORE dropping into the blocking talk pause,   -->
-  <!-- so it is never treated as "unexpected" (the CSeq-103/481 failure).       -->
-  <!-- Once it has been quiet briefly we move on to the talk pause.             -->
-  <label id="settle"/>
-  <!-- Both recvs carry an explicit timeout so the per-recv timer fires        -->
-  <!-- instead of the global -recv_timeout (which, with -default_behaviors,     -->
-  <!-- emits a malformed auto-BYE that the proxy 481s).  SIPp blocks on the     -->
-  <!-- first recv, so the optional one needs its own timeout too.               -->
-  <recv request="INVITE" optional="true" timeout="8000" ontimeout="talk_leg" crlf="true" next="answer_reinvite">
-  </recv>
-  <recv request="BYE" timeout="8000" ontimeout="talk_leg" crlf="true" next="peer_bye">
-  </recv>
-
-  <!-- talk on this leg -->
-  <!-- Leg 1 is the initial queue->agent delivery: restart the segment-1     -->
-  <!-- caller audio (conversation with agent 1). Legs 2+ follow a transfer:  -->
-  <!-- play the post-transfer caller audio (conversation with agent 2).      -->
+  <!-- Start caller media IMMEDIATELY on this leg.  Do NOT gate playback on a  -->
+  <!-- settle timeout: the old design only reached the audio via an 8s         -->
+  <!-- ontimeout, so the orig side sat silent for ~8s after every agent        -->
+  <!-- connect while the term side streamed right away.  play_pcap_audio is    -->
+  <!-- non-blocking, so RTP starts now and streams while we wait below.        -->
+  <!-- Leg 1 = initial queue->agent delivery (orig segment 1); legs 2+ follow  -->
+  <!-- a transfer (orig segment 2).                                            -->
   <label id="talk_leg"/>
   <nop>
     <action>
@@ -232,7 +219,7 @@
     </action>
   </nop>
   <nop test="xfer_leg" next="talk_post_transfer"/>
-  <nop next="talk_pause">
+  <nop next="talk_wait">
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-orig.pcap leg=[$reinvite_legs] stage=agent1"/>
       <exec play_pcap_audio="g711a-orig.pcap"/>
@@ -245,14 +232,21 @@
       <exec play_pcap_audio="g711a-orig2.pcap"/>
     </action>
   </nop>
-  <label id="talk_pause"/>
-  <pause distribution="uniform" min="5000" max="80000"/>
-  <!-- Explicit per-recv timeout on BOTH (SIPp blocks on the first/optional    -->
-  <!-- recv) so a quiet leg hangs up via our clean send_bye instead of the     -->
-  <!-- global -recv_timeout auto-BYE (which the proxy answers 481).            -->
-  <recv request="INVITE" optional="true" timeout="30000" ontimeout="send_bye" crlf="true" next="answer_reinvite">
+
+  <!-- Watch this dialog for the next event WITHOUT a blocking <pause>: a       -->
+  <!-- re-INVITE (transfer media re-point / new-agent connect) re-enters        -->
+  <!-- answer_reinvite and restarts media; a BYE ends the call.  Using recv     -->
+  <!-- (not pause) keeps an arriving re-INVITE "expected", so it is never       -->
+  <!-- auto-BYEd - which also lets the leg survive past the ~90s transfer       -->
+  <!-- cadence (the old blocking talk pause routinely hung up first, so         -->
+  <!-- transfers / orig2 never ran).  Both recvs carry an explicit timeout so   -->
+  <!-- the per-recv timer fires instead of the global -recv_timeout auto-BYE    -->
+  <!-- (which the proxy 481s).  Timeout is set just past the 90s transfer mark  -->
+  <!-- so a quiet leg follows the transfer if it comes, else hangs up cleanly.  -->
+  <label id="talk_wait"/>
+  <recv request="INVITE" optional="true" timeout="95000" ontimeout="send_bye" crlf="true" next="answer_reinvite">
   </recv>
-  <recv request="BYE" timeout="30000" ontimeout="send_bye" crlf="true" next="peer_bye">
+  <recv request="BYE" timeout="95000" ontimeout="send_bye" crlf="true" next="peer_bye">
   </recv>
 
   <!-- Far end hung up: acknowledge the BYE and finish. -->
