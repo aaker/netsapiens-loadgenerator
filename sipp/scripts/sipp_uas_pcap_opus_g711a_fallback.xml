@@ -53,6 +53,16 @@
       <!-- xfer_queue then immediately overwritten by group 1, so there is    -->
       <!-- no unused throwaway variable (SIPp errors on a var used once).     -->
       <ereg regexp="P-Served-Queue:[^0-9]*([0-9]+)@([a-zA-Z0-9._-]+)" search_in="msg" assign_to="xfer_queue,xfer_queue,queue_domain" checkIt="false"/>
+      <!-- Transfer detection: a call that reached this agent via our REFER     -->
+      <!-- (do_transfer below) carries a Referred-By header; an initial         -->
+      <!-- queue->agent delivery does not.  is_transfer non-empty => play the   -->
+      <!-- second-leg audio (term2 / Marcus) instead of the first (term/Priya). -->
+      <!-- Diversion / History-Info are captured too so a -trace_logs run       -->
+      <!-- reveals the actual marker if this platform doesn't propagate         -->
+      <!-- Referred-By (switch the test below to whichever is present).         -->
+      <ereg regexp="Referred-By:[^\r\n]*" search_in="msg" assign_to="is_transfer" checkIt="false"/>
+      <ereg regexp="Diversion:[^\r\n]*" search_in="msg" assign_to="diversion_hdr" checkIt="false"/>
+      <ereg regexp="History-Info:[^\r\n]*" search_in="msg" assign_to="history_hdr" checkIt="false"/>
     </action>
   </recv>
 
@@ -104,6 +114,7 @@
   <nop>
     <action>
       <log message="CODEC opus_offered=[$opus_offered] use_opus=[$use_opus]"/>
+      <log message="XFER-DETECT is_transfer(Referred-By)=[$is_transfer] diversion=[$diversion_hdr] history=[$history_hdr] served_queue=[$xfer_queue]"/>
     </action>
   </nop>
 
@@ -192,22 +203,44 @@
         crlf="true">
   </recv>
 
-  <!-- RTP playback driven by codec_opus (what we actually negotiated, not just what was offered) -->
+  <!-- Pick the audio: transferred leg (term2/Marcus) vs initial leg          -->
+  <!-- (term/Priya), then the negotiated codec.  log lines only emit under     -->
+  <!-- -trace_logs (manual_test.sh); cron is unaffected.                       -->
+  <nop test="is_transfer" next="play_transferred"/>
+
+  <!-- Initial queue->agent delivery: first-leg audio (Priya). -->
   <nop test="codec_opus" next="play_opus"/>
   <nop>
     <action>
-      <!-- log lines only emit under -trace_logs (manual_test.sh); cron is unaffected -->
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term.pcap stage=agent-answer"/>
       <exec play_pcap_audio="g711a-term.pcap"/>
     </action>
   </nop>
   <nop next="wait_bye"/>
-
   <label id="play_opus"/>
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=opus-term.pcap stage=agent-answer"/>
       <exec play_pcap_audio="opus-term.pcap"/>
+    </action>
+  </nop>
+  <nop next="wait_bye"/>
+
+  <!-- Transferred call (arrived via our REFER): second-leg audio (Marcus). -->
+  <label id="play_transferred"/>
+  <nop test="codec_opus" next="play_opus_term2"/>
+  <nop>
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term2.pcap stage=agent-transferred"/>
+      <exec play_pcap_audio="g711a-term2.pcap"/>
+    </action>
+  </nop>
+  <nop next="wait_bye"/>
+  <label id="play_opus_term2"/>
+  <nop>
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=opus-term2.pcap stage=agent-transferred"/>
+      <exec play_pcap_audio="opus-term2.pcap"/>
     </action>
   </nop>
 
