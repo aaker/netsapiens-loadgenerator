@@ -53,16 +53,17 @@
       <!-- xfer_queue then immediately overwritten by group 1, so there is    -->
       <!-- no unused throwaway variable (SIPp errors on a var used once).     -->
       <ereg regexp="P-Served-Queue:[^0-9]*([0-9]+)@([a-zA-Z0-9._-]+)" search_in="msg" assign_to="xfer_queue,xfer_queue,queue_domain" checkIt="false"/>
-      <!-- Transfer detection: a call that reached this agent via our REFER     -->
-      <!-- (do_transfer below) carries a Referred-By header; an initial         -->
-      <!-- queue->agent delivery does not.  is_transfer non-empty => play the   -->
-      <!-- second-leg audio (term2 / Marcus) instead of the first (term/Priya). -->
-      <!-- Diversion / History-Info are captured too so a -trace_logs run       -->
-      <!-- reveals the actual marker if this platform doesn't propagate         -->
-      <!-- Referred-By (switch the test below to whichever is present).         -->
-      <ereg regexp="Referred-By:[^\r\n]*" search_in="msg" assign_to="is_transfer" checkIt="false"/>
-      <ereg regexp="Diversion:[^\r\n]*" search_in="msg" assign_to="diversion_hdr" checkIt="false"/>
-      <ereg regexp="History-Info:[^\r\n]*" search_in="msg" assign_to="history_hdr" checkIt="false"/>
+      <!-- Transfer detection.  The transferred INVITE carries NO Referred-By /  -->
+      <!-- Diversion / History-Info - confirmed by trace, the platform consumes  -->
+      <!-- the REFER and does not propagate it.  The ONLY distinguishing signal  -->
+      <!-- is the served queue: inbound DIDs enter the primary queue 4000        -->
+      <!-- (Support); do_transfer REFERs to a neighbouring queue (4000->4001,    -->
+      <!-- Provisioning), so a call served from any queue OTHER than 4000 is the -->
+      <!-- transferred leg and gets the second-leg audio (Marcus/term2).         -->
+      <!--   is_queued  = P-Served-Queue present at all (a queued call)          -->
+      <!--   is_primary = served from the entry queue 4000                       -->
+      <ereg regexp="P-Served-Queue:" search_in="msg" assign_to="is_queued" checkIt="false"/>
+      <ereg regexp="P-Served-Queue:[^0-9]*4000@" search_in="msg" assign_to="is_primary" checkIt="false"/>
     </action>
   </recv>
 
@@ -114,7 +115,7 @@
   <nop>
     <action>
       <log message="CODEC opus_offered=[$opus_offered] use_opus=[$use_opus]"/>
-      <log message="XFER-DETECT is_transfer(Referred-By)=[$is_transfer] diversion=[$diversion_hdr] history=[$history_hdr] served_queue=[$xfer_queue]"/>
+      <log message="XFER-DETECT served_queue=[$xfer_queue] is_primary(4000)=[$is_primary] is_queued=[$is_queued]"/>
     </action>
   </nop>
 
@@ -203,12 +204,16 @@
         crlf="true">
   </recv>
 
-  <!-- Pick the audio: transferred leg (term2/Marcus) vs initial leg          -->
-  <!-- (term/Priya), then the negotiated codec.  log lines only emit under     -->
-  <!-- -trace_logs (manual_test.sh); cron is unaffected.                       -->
-  <nop test="is_transfer" next="play_transferred"/>
+  <!-- Pick the audio by served queue (see capture above), then the negotiated -->
+  <!-- codec.  Served from entry queue 4000 (or a direct, non-queued call)      -->
+  <!-- => first-leg audio (Priya/term).  Served from any other queue           -->
+  <!-- => transferred leg (Marcus/term2).  log lines only emit under            -->
+  <!-- -trace_logs (manual_test.sh); cron is unaffected.                        -->
+  <nop test="is_primary" next="play_first_leg"/>
+  <nop test="is_queued" next="play_transferred"/>
 
-  <!-- Initial queue->agent delivery: first-leg audio (Priya). -->
+  <!-- First-leg audio (Priya): entry queue 4000, or a non-queued direct call. -->
+  <label id="play_first_leg"/>
   <nop test="codec_opus" next="play_opus"/>
   <nop>
     <action>
