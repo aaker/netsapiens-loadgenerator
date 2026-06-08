@@ -197,7 +197,7 @@
   <nop>
     <action>
       <!-- log lines only emit under -trace_logs (manual_test.sh); cron is unaffected -->
-      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=g711a-term.pcap stage=agent-answer"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term.pcap stage=agent-answer"/>
       <exec play_pcap_audio="g711a-term.pcap"/>
     </action>
   </nop>
@@ -206,7 +206,7 @@
   <label id="play_opus"/>
   <nop>
     <action>
-      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=opus-term.pcap stage=agent-answer"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=opus-term.pcap stage=agent-answer"/>
       <exec play_pcap_audio="opus-term.pcap"/>
     </action>
   </nop>
@@ -592,7 +592,7 @@
   <nop test="codec_opus" next="play_opus_xfer"/>
   <nop>
     <action>
-      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=g711a-term2.pcap stage=transferred-leg"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term2.pcap stage=transferred-leg"/>
       <exec play_pcap_audio="g711a-term2.pcap"/>
     </action>
   </nop>
@@ -601,7 +601,7 @@
   <label id="play_opus_xfer"/>
   <nop>
     <action>
-      <log message="[PCAP] call=[call_number] tick=[clock_tick]ms play=opus-term2.pcap stage=transferred-leg"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=opus-term2.pcap stage=transferred-leg"/>
       <exec play_pcap_audio="opus-term2.pcap"/>
     </action>
   </nop>

@@ -23,7 +23,7 @@
 #   -k, --keep            Leave the registration instance running on exit
 #   --no-capture          Skip the per-packet tcpdump capture of the media port
 #
-# Manual mode always enables verbose SIPp tracing: -trace_logs (the [PCAP]
+# Manual mode always enables verbose SIPp tracing: -trace_logs (the __PCAP__
 # log lines marking the start of each pcap, with a clock_tick ms timestamp),
 # -trace_msg (full SIP messages) and -trace_err. Unless --no-capture, a
 # tcpdump of the UAC media port is written per call to the work dir, and a
@@ -287,7 +287,7 @@ place_call() {
         echo "[call] (tcpdump not found - skipping media capture)"
     fi
 
-    # -trace_logs writes the [PCAP] play markers; -trace_msg the full SIP
+    # -trace_logs writes the __PCAP__ play markers; -trace_msg the full SIP
     # exchange.  Both land in $BASE_DIR/sipp/scripts as
     # sipp_uac_pcap_g711a_<pid>_{logs,messages,errors}.log
     sipp ${SUT}${SIP_PORT_ADD_ON} -r 1 -m "$CALL_COUNT" -l "$CALL_COUNT" \
@@ -316,11 +316,11 @@ place_call() {
         echo "       ... full capture: tcpdump -ttt -n -r $cap | less"
     fi
 
-    # Surface where the SIPp [PCAP] play markers landed for this run.
+    # Surface where the SIPp __PCAP__ play markers landed for this run.
     local logf=$(ls -t "$BASE_DIR/sipp/scripts/"sipp_uac_pcap_g711a_*_logs.log 2>/dev/null | head -1)
     if [ -n "$logf" ]; then
         echo "[call] pcap-play markers (clock_tick ms) from $logf:"
-        grep -h '\[PCAP\]' "$logf" 2>/dev/null | tail -20 | sed 's/^/       /'
+        grep -h '__PCAP__' "$logf" 2>/dev/null | tail -20 | sed 's/^/       /'
     fi
 }
 
