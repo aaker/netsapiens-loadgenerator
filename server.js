@@ -329,7 +329,7 @@ async function processSingleDomain(description, i) {
                 
             }
 
-            if (domain.startsWith("a") || domain.startsWith("b") || maxDomain < 301)
+            if (domain.startsWith("a") || domain.startsWith("b") || MAX_DOMAIN < 301)
             {
                 let avatarArgs = {
                 domain: domain,
