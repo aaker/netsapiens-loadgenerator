@@ -89,6 +89,8 @@ const MAX_RESELLERS = selectedServer.maxResellers;
 const NDP_SERVERNAME = process.env.NDP_SERVERNAME || "core1";
 const RESELLER = process.env.RESELLER || "NetSapiens";
 const RECORDING_DIVISER = process.env.RECORDING_DIVISER || 4;
+// Domain (scope) the inbound-carrier connection is created under.
+const CARRIER_CONNECTION_DOMAIN = process.env.CARRIER_CONNECTION_DOMAIN || "*";
 
 // Whether a 409 (duplicate) response triggers an update (PUT). Defaults to yes
 // when MAX_DOMAIN <= 1000, no above that to avoid hammering large deployments.
@@ -190,6 +192,10 @@ async function buildDomains() {
             description: resellers_list_descriptions[i],
         });
     }
+
+    // Inbound carrier connection: routes sip*@inbound-carrier traffic into the
+    // "Inbound DID" dial plan with "Permit All" permission, IP checking disabled.
+    await createConnection();
 
 
     for (let batchIndex = 0; batchIndex < domainBatches.length; batchIndex++) {
@@ -505,6 +511,30 @@ async function createReseller(data) {
 function updateReseller(data) {
     const path = `resellers/` + data.reseller;
     apiClient.apiUpdate(path, data);
+}
+
+// Creates the inbound-carrier connection (not domain-scoped endpoint).
+// Inbound traffic matching sip*@inbound-carrier is routed to the "Inbound DID"
+// dial plan with the "Permit All" dial policy. Source IP checking is disabled
+// so calls are accepted regardless of originating IP.
+async function createConnection() {
+    const data = {
+        synchronous: 'yes',
+        domain: CARRIER_CONNECTION_DOMAIN,
+        'connection-orig-match-pattern': 'sip*@inbound-carrier',
+        'connection-term-match-pattern': 'sip*@inbound-carrier',
+        'dial-plan': 'Inbound DID',
+        'dial-policy': 'Permit All',
+        'connection-source-ip-checking-enabled': 'no',
+        'connection-orig-enabled': 'yes',
+        'connection-term-enabled': 'no',
+    };
+
+    const path = `connections`;
+    await apiClient.apiCreateSync(path, data,
+        () => { console.log("Created inbound-carrier connection (sip*@inbound-carrier -> Inbound DID / Permit All, IP checking off)"); },
+        () => { console.log("Inbound-carrier connection already exists"); }
+    );
 }
 
 
