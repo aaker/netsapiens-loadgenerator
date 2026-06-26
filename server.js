@@ -76,7 +76,9 @@ const CONFIG = {
     AGENT_DELAY_MS: 500, // Reduced from 3000ms
     BATCH_DELAY_MS: 100, // Reduced from 200ms
     DEVICE_DELAY_MS: 25, // Reduced from 100ms
-    AVATAR_MAX_CONCURRENT: parseInt(process.env.AVATAR_MAX_CONCURRENT) || 3 // Max concurrent avatar uploads
+    AVATAR_MAX_CONCURRENT: parseInt(process.env.AVATAR_MAX_CONCURRENT) || 3, // Max concurrent avatar uploads
+    EVEN_RESELLER_DISTRIBUTION: selectedServer.evenResellerDistribution == undefined ? process.env.EVEN_RESELLER_DISTRIBUTION === '1' : selectedServer.evenResellerDistribution, // If set, distribute domains evenly across resellers
+    DOMAIN_SIZE_HARD_LIMIT: selectedServer.domainSizeHardLimit || null // Optional hard limit for domain size
 };
 
 // Use server-specific configuration values
@@ -91,6 +93,7 @@ const RESELLER = process.env.RESELLER || "NetSapiens";
 const RECORDING_DIVISER = process.env.RECORDING_DIVISER || 4;
 // Domain (scope) the inbound-carrier connection is created under.
 const CARRIER_CONNECTION_DOMAIN = process.env.CARRIER_CONNECTION_DOMAIN || "*";
+const domain_hardlimit_size = CONFIG.DOMAIN_SIZE_HARD_LIMIT;
 
 // Whether a 409 (duplicate) response triggers an update (PUT). Defaults to yes
 // when MAX_DOMAIN <= 1000, no above that to avoid hammering large deployments.
@@ -236,7 +239,7 @@ async function processSingleDomain(description, i) {
         //replace an non asci characters like É with their ascii equivalent
         domain = domain.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-        const domainSize = utils.getDomainSize(domain, i);
+        const domainSize = utils.getDomainSize(domain, i, domain_hardlimit_size);
 
         const resi = domainSize > 9000;
         if (resi) description = "Residential - " + description;
@@ -254,7 +257,9 @@ async function processSingleDomain(description, i) {
         
         //we need some random logic for picking reseller for a domain. I would like to have 1 reseller that gets about 30% of the domains, then one getting about 15%, then the reset are random. 
         let reseller;
-        if (i % 10 < 3)
+        if (CONFIG.EVEN_RESELLER_DISTRIBUTION) {
+            reseller = resellers_list[i % resellers_list.length];
+        } else if (i % 10 < 3)
             reseller = resellers_list[0];
         else if (i % 10 == 3 || i % 10 == 4)
             reseller = resellers_list[1];
