@@ -19,6 +19,9 @@ const randomDomains = randomDomainsFile.split('\n').filter(line => line.trim() !
 const randomResellersFile = fs.readFileSync(path.join(__dirname, 'lib/fake_resellers.txt'), 'utf8');
 const randomResellers = randomResellersFile.split('\n').filter(line => line.trim() !== '');
 
+// Pool of realistic SIP User-Agent strings, assigned per-device into the device CSV.
+const userAgents = randomdata.loadUserAgents();
+
 dotenv.config();
 
 // Load multi-server or single-server configuration
@@ -328,6 +331,9 @@ async function processSingleDomain(description, i) {
 
             deviceArgs['device-transcode-opus'] = (seedrandom(SEED + domain + u + "opus")() < CONFIG.TRANSCODE_OPUS_PERCENTAGE) ? "yes" : "no";
             deviceArgs['device-sip-nat-traversal'] = 'automatic';
+
+            // Assign a User-Agent from the pool (seeded for reproducibility) to write into the device CSV.
+            deviceArgs.userAgent = userAgents[Math.floor(seedrandom(SEED + domain + u + "ua")() * userAgents.length)];
             
             let macArgs = {
                 domain: domain,

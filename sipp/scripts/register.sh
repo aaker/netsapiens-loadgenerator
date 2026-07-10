@@ -148,7 +148,6 @@ SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERS
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
 -oocsf $_UAS_SCENARIO \
 -inf $INPUTFILE \
--inf $BASE_DIR/sipp/csv/random_user_agents.csv \
 -recv_timeout 60000 \
 -watchdog_interval 0 -watchdog_minor_threshold 920000 -watchdog_major_threshold 9200000 \
 -aa -default_behaviors -abortunexp \
