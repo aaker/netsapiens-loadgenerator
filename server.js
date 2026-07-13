@@ -507,7 +507,28 @@ async function processSingleDomain(description, i) {
 }
 
 randomdata.buildRandomCallerData();
-buildDomains();
+buildDomains()
+    .then(() => waitForAvatarUploads())
+    .then(() => {
+        console.log("All work complete.");
+    })
+    .catch((error) => {
+        console.error("Fatal error during domain generation:", error.message);
+        process.exitCode = 1;
+    });
+
+// Resolves once no avatar uploads are active or queued, so the process can
+// exit naturally when the event loop drains.
+function waitForAvatarUploads() {
+    return new Promise((resolve) => {
+        const check = setInterval(() => {
+            if (avatarConcurrency.current === 0 && avatarConcurrency.queue.length === 0) {
+                clearInterval(check);
+                resolve();
+            }
+        }, 500);
+    });
+}
 
 
 
@@ -682,12 +703,13 @@ const avatarConcurrency = {
     queue: []
 };
 
-// Debug: log avatar concurrency state every 30s
+// Debug: log avatar concurrency state every 30s. unref() so this timer never
+// keeps the process alive once all real work is done.
 setInterval(() => {
     if (avatarConcurrency.current > 0 || avatarConcurrency.queue.length > 0) {
         console.log(`[Avatar Concurrency] active: ${avatarConcurrency.current}/${avatarConcurrency.max}, queued: ${avatarConcurrency.queue.length}`);
     }
-}, 30000);
+}, 30000).unref();
 
 async function acquireAvatarSlot() {
     if (avatarConcurrency.current < avatarConcurrency.max) {
