@@ -106,6 +106,10 @@ function createDomain(payload) {
   return request('post', 'domains', Object.assign({ synchronous: 'yes' }, payload));
 }
 
+function updateDomain(domain, payload) {
+  return request('put', `domains/${encodeURIComponent(domain)}`, Object.assign({ synchronous: 'yes' }, payload));
+}
+
 async function listUsers(domain) {
   const data = await request('get', `domains/${encodeURIComponent(domain)}/users`);
   return Array.isArray(data) ? data : (data && data.items) || [];
@@ -124,12 +128,37 @@ function sendWelcomeEmail(domain, user) {
   });
 }
 
+// Trigger the platform "password recovery" email — the same call the Horizon
+// forgot-password page makes (POST .../email with action:create), but
+// authenticated with our API key (Bearer) instead of the portal's
+// client_id/secret Basic auth. The server generates the auth_code and
+// substitutes <AUTH_CODE>/<USERNAME> into app_uri to build a working reset
+// link. Non-fatal in the provisioner.
+function sendPasswordReset(domain, user) {
+  const fqdn = process.env.PORTAL_FQDN || process.env.TARGET_SERVER;
+  const appUri = process.env.RESET_APP_URI
+    || `https://${fqdn}/auth/password-reset?auth_code=<AUTH_CODE>&username=<USERNAME>&r=horizon`;
+  const body = {
+    action: 'create',
+    subject: process.env.RESET_SUBJECT || 'Your password recovery',
+    template: process.env.RESET_TEMPLATE || 'password_reset_email.php',
+    username: `${user}@${domain}`,
+    app_uri: appUri,
+    from_auth_app: true
+  };
+  // We authenticate with the API key, so no client_id/secret. Some servers
+  // scope the reset auth_code to a specific OAuth client — include one only if
+  // explicitly configured.
+  if (process.env.RESET_CLIENT_ID) body.client_id = process.env.RESET_CLIENT_ID;
+  return request('post', `domains/${encodeURIComponent(domain)}/users/${encodeURIComponent(user)}/email`, body);
+}
+
 function addPhonenumber(domain, payload) {
   return request('post', `domains/${encodeURIComponent(domain)}/phonenumbers`, Object.assign({ synchronous: 'yes' }, payload));
 }
 
 module.exports = {
   NsError, isConflict, isNotFound,
-  getDomain, listResellers, updateReseller, createDomain,
-  listUsers, createUser, sendWelcomeEmail, addPhonenumber
+  getDomain, listResellers, updateReseller, createDomain, updateDomain,
+  listUsers, createUser, sendWelcomeEmail, sendPasswordReset, addPhonenumber
 };

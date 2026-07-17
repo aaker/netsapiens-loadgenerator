@@ -599,6 +599,25 @@ async function createDomain(args) {
 function updateDomain(data) {
     const path = `domains/` + data.domain;
     apiClient.apiUpdate(path, data);    
+    addDialRuleChaintoDefaultDialPlan(data);
+
+
+}
+
+async function addDialRuleChaintoDefaultDialPlan(args) {
+    const path = `domains/` + args.domain + `/dialplans/` + args.domain + `/dialrules`;
+    const data = {
+        "dial-rule-matching-to-uri": "*",
+        "dial-rule-matching-from-uri": "*",
+        "dial-rule-translation-source-name": "[*]",
+        "dial-rule-translation-source-user": "[*]",
+        "dial-rule-translation-source-host": "[*]",
+        "dial-rule-description": "Chain to "+ args.domain + " dial plan",
+        "dial-rule-application": "<Cloud PBX Features>",
+        "dial-rule-translation-destination-user": "[*]",
+        "dial-rule-translation-destination-host": "[*]",
+    }
+    apiClient.apiCreate(path, data, () => { }, () => { });
 }
 
 async function createNdpUiConfig(args) {

@@ -12,7 +12,10 @@
   },
   "dependencies": {
     "axios": "^1.7.2",
+    "disposable-email-domains": "^1.0.62",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "free-email-domains": "^1.9.64",
+    "nodemailer": "^6.9.14"
   }
 }

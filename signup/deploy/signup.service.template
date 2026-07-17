@@ -1,0 +1,18 @@
+# NetSapiens Beta Signup — systemd unit.
+# Rendered and installed by deploy-signup.sh (tokens __REMOTE_BASE__ / __NODE_BIN__
+# are substituted with the deploy paths). Env is loaded from signup/.env by
+# dotenv at startup — do not duplicate secrets here.
+[Unit]
+Description=NetSapiens Beta Signup
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REMOTE_BASE__
+ExecStart=__NODE_BIN__ server/index.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

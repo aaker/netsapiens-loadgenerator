@@ -19,6 +19,14 @@ export default function Success({ result }) {
         )}
       </dl>
 
+      {result.domainExisted && (
+        <p className="note">
+          The domain <strong>{result.domain}</strong> already existed, so we
+          added your user to it and skipped creating a new domain and phone
+          number.
+        </p>
+      )}
+
       {result.emailSent ? (
         <p className="note">
           <strong>Check your email</strong> for a welcome message with a link to

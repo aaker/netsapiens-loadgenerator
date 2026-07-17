@@ -1,12 +1,9 @@
 const { isValidNpa } = require('./npa-data');
+const { isFreeMail } = require('./freemail');
 
-// Free-mail hosts are rejected because the email hostname becomes the tenant
-// domain — a second gmail.com signup would land inside the first tester's domain.
-const FREE_MAIL_HOSTS = new Set([
-  'gmail.com', 'googlemail.com', 'yahoo.com', 'ymail.com', 'yahoo.co.uk',
-  'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'icloud.com', 'me.com',
-  'aol.com', 'proton.me', 'protonmail.com', 'mail.com', 'gmx.com', 'zoho.com'
-]);
+// Public/free/disposable-mail hosts are rejected because the email hostname
+// becomes the tenant domain — a second gmail.com signup would land inside the
+// first tester's domain. See server/freemail.js for the blocklist sources.
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const HOSTNAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
@@ -47,7 +44,7 @@ function validateSignup(body) {
   if (!HOSTNAME_RE.test(hostname) || hostname.length > 64) {
     return { error: { field: 'email', message: 'Email domain is not a valid hostname' } };
   }
-  if (FREE_MAIL_HOSTS.has(hostname)) {
+  if (isFreeMail(hostname)) {
     return { error: { field: 'email', message: 'Please use your company email address (personal email providers are not supported)' } };
   }
 

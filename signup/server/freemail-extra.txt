@@ -1,0 +1,25 @@
+# Supplemental public/free/disposable email domains to block, beyond the
+# free-email-domains and disposable-email-domains packages.
+# One hostname per line; lines starting with # are comments. Case-insensitive.
+# Matching also covers subdomains (mail.example.com is blocked if example.com
+# is listed). To force-allow a domain a list flags by mistake, use the
+# FREEMAIL_ALLOW env var instead of editing this file.
+
+# --- original hardcoded seed list (kept explicit) ---
+gmail.com
+googlemail.com
+yahoo.com
+ymail.com
+yahoo.co.uk
+outlook.com
+hotmail.com
+live.com
+msn.com
+icloud.com
+me.com
+aol.com
+proton.me
+protonmail.com
+mail.com
+gmx.com
+zoho.com

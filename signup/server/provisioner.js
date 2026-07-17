@@ -6,6 +6,7 @@
 // a single PUT; a purchased TN has no automatic refund.
 
 const ns = require('./nsclient');
+const mailer = require('./mailer');
 const iq = require('./inteliquent');
 const { tzOf } = require('./npa-data');
 const { setStep, logEvent, finishJob, failJob } = require('./jobs');
@@ -24,6 +25,32 @@ function descriptionFromName(name) {
 
 function formatTn(tn) {
   return `+1 (${tn.slice(0, 3)}) ${tn.slice(3, 6)}-${tn.slice(6)}`;
+}
+
+// User Email Security flags, matching the desired domain configuration.
+// Confirmed field names + boolean format against the live domain object.
+const EMAIL_SECURITY = {
+  allow_user_primary_email_edit: true,
+  account_recovery_user_primary_email: true,
+  require_unique_primary_user_email: true,
+  allow_sso_with_additional_emails: false
+};
+
+// Read the domain back and PUT any flags that didn't take on create. Non-fatal.
+async function ensureEmailSecurity(job, domain) {
+  try {
+    const d = await ns.getDomain(domain);
+    if (!d) return;
+    const drift = {};
+    for (const [k, want] of Object.entries(EMAIL_SECURITY)) {
+      if (Boolean(d[k]) !== want) drift[k] = want;
+    }
+    if (!Object.keys(drift).length) return; // create honored them
+    await ns.updateDomain(domain, drift);
+    logEvent(job, 'email_security_corrected', { domain, fields: drift });
+  } catch (err) {
+    logEvent(job, 'warn', { note: 'email-security verify/fix failed', domain, error: err.message });
+  }
 }
 
 let queueTail = Promise.resolve();
@@ -125,7 +152,14 @@ async function runJob(job) {
           'domain-type': 'Standard',
           'dial-policy': 'US and Canada',
           'language-token': 'en_US',
-          'recording-configuration': 'no'
+          'recording-configuration': 'no',
+          // User Email Security (see EMAIL_SECURITY). Field names + boolean
+          // format confirmed against the live domain object; not in the
+          // published create-domain swagger. Recovery-by-primary-email ON is
+          // what makes the welcome email's "Forgot password" instructions work.
+          // auth_requirement is left unset — null already means "Login name and
+          // password" (its default on every domain).
+          ...EMAIL_SECURITY
         });
       } catch (err) {
         if (!ns.isConflict(err)) {
@@ -138,6 +172,11 @@ async function runJob(job) {
         }
       }
       setStep(job, 'create-domain', 'done', { domain, reseller });
+
+      // Verify the User Email Security flags actually took (they're not in the
+      // published create-domain swagger). If create silently ignored them,
+      // correct with a PUT. Non-fatal — a login still works without them.
+      await ensureEmailSecurity(job, domain);
     }
 
     // 5. create-user
@@ -179,16 +218,40 @@ async function runJob(job) {
     const user = String(extension - 1);
     setStep(job, 'create-user', 'done', { user, domain });
 
-    // 6. send-welcome (non-fatal)
+    // 6. send-welcome (non-fatal) — sent directly via SMTP (see mailer.js),
+    // no longer through the NetSapiens platform email.
     setStep(job, 'send-welcome', 'running');
     let emailSent = false;
     try {
-      await ns.sendWelcomeEmail(domain, user);
+      await mailer.sendWelcomeEmail({
+        email: input.email,
+        domain,
+        user,
+        login: `${user}@${domain}`,
+        userName: `${input.firstName} ${input.lastName}`.trim(),
+        company: input.companyName,
+        reseller,
+        phoneNumber: tn ? formatTn(tn) : null
+      });
       emailSent = true;
       setStep(job, 'send-welcome', 'done');
     } catch (err) {
       setStep(job, 'send-welcome', 'failed', { error: err.message, data: err.data || null });
       logEvent(job, 'warn', { note: 'welcome email failed', domain, user });
+    }
+
+    // 6b. send-reset (non-fatal) — trigger the platform password-recovery email
+    // so the tester gets a working "set your password" link (NS generates the
+    // auth_code). We authenticate with the API key, not the portal client.
+    setStep(job, 'send-reset', 'running');
+    let resetSent = false;
+    try {
+      await ns.sendPasswordReset(domain, user);
+      resetSent = true;
+      setStep(job, 'send-reset', 'done');
+    } catch (err) {
+      setStep(job, 'send-reset', 'failed', { error: err.message, data: err.data || null });
+      logEvent(job, 'warn', { note: 'password reset email failed', domain, user });
     }
 
     // 7. add-phonenumber (fresh domains only, non-fatal)
@@ -218,7 +281,9 @@ async function runJob(job) {
       user,
       login: `${user}@${domain}`,
       phoneNumber: tn ? formatTn(tn) : null,
-      emailSent
+      emailSent,
+      resetSent,
+      domainExisted: domainExists
     });
   } catch (err) {
     // Unexpected escape hatch — compensate what we know about

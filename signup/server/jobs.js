@@ -13,6 +13,7 @@ const STEP_DEFS = [
   { id: 'create-domain', label: 'Creating domain' },
   { id: 'create-user', label: 'Creating user' },
   { id: 'send-welcome', label: 'Sending welcome email' },
+  { id: 'send-reset', label: 'Sending password setup email' },
   { id: 'add-phonenumber', label: 'Adding number to inventory' }
 ];
 

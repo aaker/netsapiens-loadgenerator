@@ -1,0 +1,15 @@
+# NetSapiens Beta Signup — Apache reverse proxy for __BASE_PATH__.
+# Rendered and installed into /etc/apache2/conf-enabled/ by deploy-signup.sh
+# (tokens __BASE_PATH__ / __PORT__ are substituted). Requires modules:
+#   a2enmod proxy proxy_http headers   (deploy-signup.sh enables these)
+#
+# The app owns the __BASE_PATH__ prefix (see server/index.js), so we proxy the
+# prefix through unchanged — no path rewrite.
+ProxyPreserveHost On
+
+# mod_proxy_http auto-adds X-Forwarded-For / X-Forwarded-Host. Set proto so the
+# app (with TRUST_PROXY=1) builds correct https links.
+RequestHeader set X-Forwarded-Proto "https"
+
+ProxyPass        __BASE_PATH__ http://127.0.0.1:__PORT____BASE_PATH__
+ProxyPassReverse __BASE_PATH__ http://127.0.0.1:__PORT____BASE_PATH__

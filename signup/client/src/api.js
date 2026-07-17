@@ -1,5 +1,8 @@
+// BASE_URL is Vite's `base` ('/signup/'), so API_BASE resolves to '/signup/api'.
+const API_BASE = import.meta.env.BASE_URL + 'api';
+
 export async function postSignup(form) {
-  const res = await fetch('/api/signup', {
+  const res = await fetch(`${API_BASE}/signup`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(form)
@@ -15,7 +18,7 @@ export async function postSignup(form) {
 }
 
 export async function getJob(jobId) {
-  const res = await fetch(`/api/signup/${jobId}`);
+  const res = await fetch(`${API_BASE}/signup/${jobId}`);
   if (!res.ok) throw new Error('Job not found');
   return res.json();
 }
