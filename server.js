@@ -616,8 +616,22 @@ async function addDialRuleChaintoDefaultDialPlan(args) {
         "dial-rule-application": "<Cloud PBX Features>",
         "dial-rule-translation-destination-user": "[*]",
         "dial-rule-translation-destination-host": "[*]",
+        "dial-rule-translation-destination-scheme": "[*]",
+        "dial-rule-translation-source-scheme": "[*]"
+
     }
-    apiClient.apiCreate(path, data, () => { }, () => { });
+    
+    apiClient.apiCreate(path, data, () => { }, (data) => { 
+
+        //if withen 2 days of july 17 2026 run this code. 
+        const now = new Date();
+        if (now.getTime() < new Date('2026-07-19').getTime())
+        {
+            const updatePath = `domains/` + data.domain + `/dialplans/` + data.domain + `/dialrules/` + "Knx8Knx8Knx8Knx8Knx8Knx8Kg";
+            apiClient.apiUpdate(updatePath, data);
+        }
+
+    });
 }
 
 async function createNdpUiConfig(args) {
