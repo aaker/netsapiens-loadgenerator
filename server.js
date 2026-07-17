@@ -621,17 +621,16 @@ async function addDialRuleChaintoDefaultDialPlan(args) {
 
     }
     
-    apiClient.apiCreate(path, data, () => { }, (data) => { 
+    apiClient.apiCreate(path, data, () => { }, () => updateDialRuleChain(args,data));
+}
 
-        //if withen 2 days of july 17 2026 run this code. 
-        const now = new Date();
-        if (now.getTime() < new Date('2026-07-19').getTime())
-        {
-            const updatePath = `domains/` + data.domain + `/dialplans/` + data.domain + `/dialrules/` + "Knx8Knx8Knx8Knx8Knx8Knx8Kg";
-            apiClient.apiUpdate(updatePath, data);
-        }
-
-    });
+async function updateDialRuleChain(args, data) {
+    const path = `domains/` + args.domain + `/dialplans/` + args.domain + `/dialrules/` + "Knx8Knx8Knx8Knx8Knx8Knx8Kg";
+    const now = new Date();
+    if (now.getTime() < new Date('2026-07-19').getTime())
+    {
+        apiClient.apiUpdate(path, data);
+    }
 }
 
 async function createNdpUiConfig(args) {
