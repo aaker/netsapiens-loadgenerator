@@ -110,6 +110,11 @@ if [ -n "$SERVER_ID" ]; then
     fi
     SIP_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipPort // empty" "$BASE_DIR/servers.json")
     SIP_TLS_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipTlsPort // empty" "$BASE_DIR/servers.json")
+    # Per-server opusPct overrides OPUS_PCT from .env
+    SERVER_OPUS_PCT=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .opusPct // empty" "$BASE_DIR/servers.json")
+    if [ -n "$SERVER_OPUS_PCT" ]; then
+        OPUS_PCT="$SERVER_OPUS_PCT"
+    fi
 else
     SUT=${SAS_SERVER:-$TARGET_SERVER}
 fi
@@ -168,10 +173,10 @@ NUM_CSV="$WORK_DIR/number.csv"
 printf 'SEQUENTIAL\r\n%s;manual;manual-test\r\n' "$NUMBER" > "$NUM_CSV"
 
 # Same UAS scenario preparation as register.sh (OPUS_PCT bucket regex)
-_OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-99}")
+_OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-50}")
 _UAS_SCENARIO=$(make_uas_scenario \
     "$BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml" \
-    "$_OPUS_REGEX" "${OPUS_PCT:-99}")
+    "$_OPUS_REGEX" "${OPUS_PCT:-50}")
 
 UA_VERSION=$(get_ua_version "$BASE_DIR")
 
@@ -211,7 +216,7 @@ echo "   Target:      $SUT$SIP_PORT_ADD_ON ($TRANSPORT)"
 echo "   Devices:     $NUM_DEVICES from $DEVICE_CSV"
 echo "   Number:      $NUMBER  (x$CALL_COUNT per trigger)"
 echo "   Local IP:    $PRIVATEIP   Media IP: $MEDIA_IP"
-echo "   Opus pct:    ${OPUS_PCT:-99}% (regex: $_OPUS_REGEX)"
+echo "   Opus pct:    ${OPUS_PCT:-50}% (regex: $_OPUS_REGEX)"
 echo "   Reg ports:   sip=$REG_SIP_PORT media=$REG_MEDIA_PORT ctrl=$REG_CONTROL_PORT"
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
 echo "   Work dir:    $WORK_DIR"

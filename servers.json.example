@@ -10,7 +10,8 @@
       "registrationPct": 0.8,
       "sendRtp": 1,
       "seed": 12345,
-      "description": "Production Server 1 - Primary load testing environment. Optional sendRtp: 0=disabled (SDP only), 1=enabled. Overrides SEND_RTP from .env"
+      "opusPct": 90,
+      "description": "Production Server 1 - Primary load testing environment. Optional sendRtp: 0=disabled (SDP only), 1=enabled. Overrides SEND_RTP from .env. Optional opusPct: 0-100, percent of answered calls using Opus (10% granularity, rounds down). Overrides OPUS_PCT from .env; falls back to OPUS_PCT (default 50) when omitted."
     },
     {
       "id": "prod2",

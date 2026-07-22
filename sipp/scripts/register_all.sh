@@ -74,6 +74,13 @@ if [ -n "$SERVER_ID" ]; then
             fi
             SIP_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipPort // empty" "$BASE_DIR/servers.json")
             SIP_TLS_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipTlsPort // empty" "$BASE_DIR/servers.json")
+            # Per-server opusPct overrides OPUS_PCT from .env. Exported as a
+            # separate variable because register.sh re-sources .env, which
+            # would clobber a plain OPUS_PCT export.
+            SERVER_OPUS_PCT=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .opusPct // empty" "$BASE_DIR/servers.json")
+            if [ -n "$SERVER_OPUS_PCT" ]; then
+                export OPUS_PCT_OVERRIDE="$SERVER_OPUS_PCT"
+            fi
         else
             echo "Error: jq is required for multi-server mode but not installed"
             echo "Install with: sudo apt-get install jq (Ubuntu) or brew install jq (macOS)"
@@ -109,6 +116,9 @@ SIP_PORT_NUM=${SIP_PORT_NUM:-${SIP_PORT:-5060}}
 SIP_TLS_PORT_NUM=${SIP_TLS_PORT_NUM:-${SIP_TLS_PORT:-5061}}
 
 echo "Target server: $SUT (SIP udp/tcp: $SIP_PORT_NUM, TLS: $SIP_TLS_PORT_NUM)"
+if [ -n "$OPUS_PCT_OVERRIDE" ]; then
+    echo "Opus pct: $OPUS_PCT_OVERRIDE% (per-server opusPct from servers.json)"
+fi
 echo "CSV path: $CSV_PATH"
 
 COUNTER=0;

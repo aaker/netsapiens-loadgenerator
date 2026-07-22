@@ -134,10 +134,13 @@ if [ "$DEBUG" = "1" ]; then
 fi
 
 source "$BASE_DIR/sipp/scripts/opus-utils.sh"
-_OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-99}")
+# Per-server opusPct from servers.json (exported by register_all.sh as
+# OPUS_PCT_OVERRIDE) wins over OPUS_PCT from .env, which we re-sourced above.
+OPUS_PCT="${OPUS_PCT_OVERRIDE:-$OPUS_PCT}"
+_OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-50}")
 _UAS_SCENARIO=$(make_uas_scenario \
     "$BASE_DIR/sipp/scripts/sipp_uas_pcap_opus_g711a_fallback.xml" \
-    "$_OPUS_REGEX" "${OPUS_PCT:-99}")
+    "$_OPUS_REGEX" "${OPUS_PCT:-50}")
 
 # Resolve the running version to stamp into the SIP User-Agent ([ua_version]).
 source "$BASE_DIR/sipp/scripts/version-utils.sh"

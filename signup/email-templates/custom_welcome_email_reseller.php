@@ -161,7 +161,21 @@
                                 <tr>
                                     <td style="padding: 14px 22px 12px 22px;">
                                         <p style="font-size: 14px; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.5; color: #1c1e21; font-weight: bold; margin: 0 0 2px; padding: 0;">Horizon <span style="font-weight: normal; color: #8a8f98;">&mdash; the new web experience</span></p>
+                                        <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0 0 2px; padding: 0;"><a href="https://<? GetFQDN(); ?>/horizon" style="color: #2374e1; text-decoration: none;">https://<? GetFQDN(); ?>/horizon</a></p>
                                         <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0; padding: 0;"><a href="https://<? GetFQDN(); ?>/auth/?r=horizon" style="color: #2374e1; text-decoration: none;">https://<? GetFQDN(); ?>/auth/?r=horizon</a></p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- SDK SAMPLE APPS -->
+                            <table border="0" cellspacing="0" cellpadding="0" width="100%" style="margin: 0 0 10px 0; background: #f8f9fb; border: 1px solid #e7e9ee; border-radius: 8px;">
+                                <tr>
+                                    <td style="padding: 14px 22px 12px 22px;">
+                                        <p style="font-size: 14px; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.5; color: #1c1e21; font-weight: bold; margin: 0 0 2px; padding: 0;">SDK Sample Apps <span style="font-weight: normal; color: #8a8f98;">&mdash; starting points for your own build</span></p>
+                                        <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0 0 2px; padding: 0;">Horizon SDK demo: <a href="https://github.com/netsapiens/horizon-sdk-demo" style="color: #2374e1; text-decoration: none;">github.com/netsapiens/horizon-sdk-demo</a></p>
+                                        <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0 0 2px; padding: 0;">SDK README: <a href="https://github.com/netsapiens/horizon-sdk-demo/blob/main/README.md" style="color: #2374e1; text-decoration: none;">github.com/netsapiens/horizon-sdk-demo/blob/main/README.md</a></p>
+                                        <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0 0 2px; padding: 0;">NPM package: <a href="https://www.npmjs.com/package/@netsapiens/horizon-sdk" style="color: #2374e1; text-decoration: none;">npmjs.com/package/@netsapiens/horizon-sdk</a></p>
+                                        <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0; padding: 0;">Demo app with auth: <a href="https://github.com/aaker/demoAppWithAuth" style="color: #2374e1; text-decoration: none;">github.com/aaker/demoAppWithAuth</a></p>
                                     </td>
                                 </tr>
                             </table>
@@ -177,23 +191,12 @@
                             </table>
 
                             <!-- API -->
-                            <table border="0" cellspacing="0" cellpadding="0" width="100%" style="margin: 0 0 10px 0; background: #f8f9fb; border: 1px solid #e7e9ee; border-radius: 8px;">
+                            <table border="0" cellspacing="0" cellpadding="0" width="100%" style="margin: 0 0 24px 0; background: #f8f9fb; border: 1px solid #e7e9ee; border-radius: 8px;">
                                 <tr>
                                     <td style="padding: 14px 22px 12px 22px;">
                                         <p style="font-size: 14px; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.5; color: #1c1e21; font-weight: bold; margin: 0 0 2px; padding: 0;">API <span style="font-weight: normal; color: #8a8f98;">&mdash; build and automate</span></p>
                                         <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0 0 2px; padding: 0;">Base URL: <a href="https://<? GetFQDN(); ?>/ns-api/v2/" style="color: #2374e1; text-decoration: none;">https://<? GetFQDN(); ?>/ns-api/v2/</a></p>
                                         <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0; padding: 0;">Docs: <a href="https://<? GetFQDN(); ?>/ns-api/docs" style="color: #2374e1; text-decoration: none;">https://<? GetFQDN(); ?>/ns-api/docs</a></p>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <!-- SDK SAMPLE APPS -->
-                            <table border="0" cellspacing="0" cellpadding="0" width="100%" style="margin: 0 0 24px 0; background: #f8f9fb; border: 1px solid #e7e9ee; border-radius: 8px;">
-                                <tr>
-                                    <td style="padding: 14px 22px 12px 22px;">
-                                        <p style="font-size: 14px; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.5; color: #1c1e21; font-weight: bold; margin: 0 0 2px; padding: 0;">SDK Sample Apps <span style="font-weight: normal; color: #8a8f98;">&mdash; starting points for your own build</span></p>
-                                        <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0 0 2px; padding: 0;">Horizon SDK demo: <a href="https://github.com/netsapiens/horizon-sdk-demo" style="color: #2374e1; text-decoration: none;">github.com/netsapiens/horizon-sdk-demo</a></p>
-                                        <p style="font-size: 13px; font-family: 'Courier New', Courier, monospace; line-height: 1.5; word-break: break-all; margin: 0; padding: 0;">Demo app with auth: <a href="https://github.com/aaker/demoAppWithAuth" style="color: #2374e1; text-decoration: none;">github.com/aaker/demoAppWithAuth</a></p>
                                     </td>
                                 </tr>
                             </table>

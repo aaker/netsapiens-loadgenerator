@@ -44,7 +44,7 @@ node test-parse-sample.js                        # Debug SIPp CSV parsing
 The system supports two configuration modes controlled by `lib/config.js`:
 
 1. **Legacy single-server** (`.env` only) - Used when `servers.json` does not exist. Reads `TARGET_SERVER`, `APIKEY`, `SEED`, etc. from `.env`.
-2. **Multi-server** (`servers.json` + `.env`) - Used when `servers.json` exists. Each server entry has its own `hostname`, `apikey`, `seed`, `maxDomains`, `peakCps`, `registrationPct`. Requires `--server <id>` flag. Global settings still come from `.env`.
+2. **Multi-server** (`servers.json` + `.env`) - Used when `servers.json` exists. Each server entry has its own `hostname`, `apikey`, `seed`, `maxDomains`, `peakCps`, `registrationPct`, and optional `opusPct` (overrides `OPUS_PCT` from `.env`; default 50). Requires `--server <id>` flag. Global settings still come from `.env`.
 
 ### Core Files
 
