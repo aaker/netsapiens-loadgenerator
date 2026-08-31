@@ -45,6 +45,7 @@ try {
     console.log(`Peak CPS: ${selectedServer.peakCps}`);
     console.log(`Registration %: ${selectedServer.registrationPct}`);
     console.log(`SEED: ${selectedServer.seed}`);
+    console.log(`NDP Server: ${selectedServer.ndpServerName || process.env.NDP_SERVERNAME || "core1"}`);
     console.log(`======================================\n`);
     if (!selectedServer.maxResellers)
         throw new Error('maxResellers must be defined and greater than 0 in server configuration');
@@ -91,7 +92,8 @@ fakerator.seed(SEED);
 const TARGET_SERVER = selectedServer.hostname;
 const MAX_DOMAIN = selectedServer.maxDomains;
 const MAX_RESELLERS = selectedServer.maxResellers;
-const NDP_SERVERNAME = process.env.NDP_SERVERNAME || "core1";
+// Per-server ndpServerName in servers.json overrides NDP_SERVERNAME from .env
+const NDP_SERVERNAME = selectedServer.ndpServerName || process.env.NDP_SERVERNAME || "core1";
 const RESELLER = process.env.RESELLER || "NetSapiens";
 const RECORDING_DIVISER = process.env.RECORDING_DIVISER || 4;
 // Domain (scope) the inbound-carrier connection is created under.

@@ -17,6 +17,9 @@ DEBUG=${DEBUG:-0}
 source "$BASE_DIR/sipp/scripts/port-allocator.sh"
 
 SUT=$1
+# Force the SIP destination onto IPv4 (no-op when already a literal)
+source "$BASE_DIR/sipp/scripts/net-utils.sh"
+SUT=$(resolve_ipv4 "$SUT")
 
 INPUTFILE=$2
 TRANSPORT=$3

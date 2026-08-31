@@ -44,7 +44,7 @@ node test-parse-sample.js                        # Debug SIPp CSV parsing
 The system supports two configuration modes controlled by `lib/config.js`:
 
 1. **Legacy single-server** (`.env` only) - Used when `servers.json` does not exist. Reads `TARGET_SERVER`, `APIKEY`, `SEED`, etc. from `.env`.
-2. **Multi-server** (`servers.json` + `.env`) - Used when `servers.json` exists. Each server entry has its own `hostname`, `apikey`, `seed`, `maxDomains`, `peakCps`, `registrationPct`, and optional `opusPct` (overrides `OPUS_PCT` from `.env`; default 50). Requires `--server <id>` flag. Global settings still come from `.env`.
+2. **Multi-server** (`servers.json` + `.env`) - Used when `servers.json` exists. Each server entry has its own `hostname`, `apikey`, `seed`, `maxDomains`, `peakCps`, `registrationPct`, and optional `opusPct` (overrides `OPUS_PCT` from `.env`; default 50) and optional `sasHostname` (SIP destination for inbound INVITEs only; the API and registrations still use `hostname`), and optional `ndpServerName` (overrides `NDP_SERVERNAME` from `.env`; default "core1"). Requires `--server <id>` flag. Global settings still come from `.env`.
 
 ### Core Files
 
@@ -75,9 +75,10 @@ The system supports two configuration modes controlled by `lib/config.js`:
 **Shell scripts** (`sipp/scripts/`):
 - `register_all.sh` - Iterates device CSVs, allocates ports, launches `register.sh` for each with rotating transport (UDP/TCP/TLS). Only processes a subset per minute (modulo scheduling).
 - `register.sh` - Launches a single SIPp registration instance. Configures TLS certs, stats tracking, media ports. Runs in background (`-bg`).
-- `inbound.sh` - Launches inbound call generation for a timezone. Calculates call rate from `PEAK_CPS / 7` (one per timezone), runs ~275 seconds (5min batch).
+- `inbound.sh` - Launches inbound call generation for a timezone. Calculates call rate from `PEAK_CPS / 7` (one per timezone), runs ~275 seconds (5min batch). Sends to the server's `sasHostname` when set in `servers.json`, otherwise `hostname` (legacy mode: `SAS_SERVER`, falling back to `TARGET_SERVER`).
 - `port-allocator.sh` - Lock-based port allocation using `/tmp/sipp-ports/`. Manages SIP (20000-22000), control (22001-24000), and media (24001-60000) port ranges.
 - `generate_tls_certs.sh` - Generates self-signed TLS certificates for SIPp.
+- `net-utils.sh` - Shared `resolve_ipv4 <host>`: resolves the SIP destination to an A record before handing it to SIPp, so an AAAA answer can't trigger "Network family mismatch for local/remote IP" (SIPp binds IPv4 via `-i`). IPv4 literals pass through; on resolution failure the hostname is used as-is with a warning. Sourced by `inbound.sh`, `register_all.sh`, `register.sh`, `call_all.sh`, `call.sh`, `manual_test.sh`.
 
 **SIPp XML scenarios** (`sipp/scripts/`):
 - `register.and.subscribe.sipp.xml` - Main registration + SUBSCRIBE scenario (used by `register.sh`)
@@ -116,7 +117,7 @@ The system supports two configuration modes controlled by `lib/config.js`:
 
 ### Global Settings
 - `RESELLER` - Reseller name for API calls (default: "NetSapiens")
-- `NDP_SERVERNAME` - NDP core server name (default: "core1")
+- `NDP_SERVERNAME` - NDP core server name (default: "core1"). Per-server override: `ndpServerName` in `servers.json`.
 - `RECORDING_DIVISER` - Recording frequency divisor: 4 = 25% of users (default: 4)
 - `SAS_SERVER` - SAS server hostname (falls back to TARGET_SERVER)
 - `API_DEBUG` - Enable verbose API logging: 0/1 (default: 0)

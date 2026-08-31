@@ -115,6 +115,10 @@ fi
 SIP_PORT_NUM=${SIP_PORT_NUM:-${SIP_PORT:-5060}}
 SIP_TLS_PORT_NUM=${SIP_TLS_PORT_NUM:-${SIP_TLS_PORT:-5061}}
 
+# Force the SIP destination onto IPv4 (SIPp binds an IPv4 local socket)
+source "$BASE_DIR/sipp/scripts/net-utils.sh"
+SUT=$(resolve_ipv4 "$SUT")
+
 echo "Target server: $SUT (SIP udp/tcp: $SIP_PORT_NUM, TLS: $SIP_TLS_PORT_NUM)"
 if [ -n "$OPUS_PCT_OVERRIDE" ]; then
     echo "Opus pct: $OPUS_PCT_OVERRIDE% (per-server opusPct from servers.json)"
