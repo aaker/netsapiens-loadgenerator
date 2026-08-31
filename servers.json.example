@@ -13,7 +13,8 @@
       "sendRtp": 1,
       "seed": 12345,
       "opusPct": 90,
-      "description": "Production Server 1 - Primary load testing environment. Optional sendRtp: 0=disabled (SDP only), 1=enabled. Overrides SEND_RTP from .env. Optional opusPct: 0-100, percent of answered calls using Opus (10% granularity, rounds down). Overrides OPUS_PCT from .env; falls back to OPUS_PCT (default 50) when omitted. Optional sasHostname: SIP destination for inbound INVITEs only (inbound.sh); the API and registrations still use hostname. Falls back to hostname when omitted. Optional ndpServerName: NDP core server name written to device MAC provisioning and the PORTAL_DEVICE_NDP_SERVER config. Overrides NDP_SERVERNAME from .env (default core1)."
+      "extCallCpsPct": 0.1,
+      "description": "Production Server 1 - Primary load testing environment. Optional sendRtp: 0=disabled (SDP only), 1=enabled. Overrides SEND_RTP from .env. Optional opusPct: 0-100, percent of answered calls using Opus (10% granularity, rounds down). Overrides OPUS_PCT from .env; falls back to OPUS_PCT (default 50) when omitted. Optional extCallCpsPct: fraction of peakCps targeted by extension-to-extension calls placed by registered devices after their re-registration loop (0 disables). Overrides EXT_CALL_CPS_PCT from .env (default 0.1). Optional sasHostname: SIP destination for inbound INVITEs only (inbound.sh); the API and registrations still use hostname. Falls back to hostname when omitted. Optional ndpServerName: NDP core server name written to device MAC provisioning and the PORTAL_DEVICE_NDP_SERVER config. Overrides NDP_SERVERNAME from .env (default core1)."
     },
     {
       "id": "prod2",

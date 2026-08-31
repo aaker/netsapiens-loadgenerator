@@ -78,10 +78,13 @@ The system supports two configuration modes controlled by `lib/config.js`:
 - `inbound.sh` - Launches inbound call generation for a timezone. Calculates call rate from `PEAK_CPS / 7` (one per timezone), runs ~275 seconds (5min batch). Sends to the server's `sasHostname` when set in `servers.json`, otherwise `hostname` (legacy mode: `SAS_SERVER`, falling back to `TARGET_SERVER`).
 - `port-allocator.sh` - Lock-based port allocation using `/tmp/sipp-ports/`. Manages SIP (20000-22000), control (22001-24000), and media (24001-60000) port ranges.
 - `generate_tls_certs.sh` - Generates self-signed TLS certificates for SIPp.
+- `cps-utils.sh` - Shared `cps_multiplier [minute_offset]` business-day curve (sourced by `inbound.sh` and `register.sh`).
+- `csv-utils.sh` - Shared `normalize_device_csv` (6-column device CSV layout incl. `calleeExt` for extension-to-extension calls).
+- `opus-utils.sh` - Shared Opus/G.711a percentage-regex helpers for UAS scenarios.
 - `net-utils.sh` - Shared `resolve_ipv4 <host>`: resolves the SIP destination to an A record before handing it to SIPp, so an AAAA answer can't trigger "Network family mismatch for local/remote IP" (SIPp binds IPv4 via `-i`). IPv4 literals pass through; on resolution failure the hostname is used as-is with a warning. Sourced by `inbound.sh`, `register_all.sh`, `register.sh`, `call_all.sh`, `call.sh`, `manual_test.sh`.
 
 **SIPp XML scenarios** (`sipp/scripts/`):
-- `register.and.subscribe.sipp.xml` - Main registration + SUBSCRIBE scenario (used by `register.sh`)
+- `register.and.subscribe.sipp.xml` - Main registration + SUBSCRIBE scenario (used by `register.sh`). After the re-registration loop, a `-key extcall_pct`-gated fraction of devices wait 5-60s then place one authenticated extension-to-extension call to `[field5]` (own extension - 1; ext 1000 wraps to 1001). Requires `-key extcall_pct` and `-key reg_loops` from the launcher.
 - `register.sipp.xml` / `register_once.sipp.xml` - Simple registration scenarios
 - `register_then_accept.sipp.xml` / `register_then_call.sipp.xml` - Register then handle calls
 - `sipp_uac_pcap_g711a.xml` / `sipp_uac_big_sdp.xml` - UAC (caller) scenarios with PCAP audio
@@ -123,6 +126,7 @@ The system supports two configuration modes controlled by `lib/config.js`:
 - `API_DEBUG` - Enable verbose API logging: 0/1 (default: 0)
 - `IP_USE_PUBLIC` - Use public IP in SDP: 0/1 (default: 1)
 - `USE_OPUS` - Enable OPUS codec for UAS tests: 0/1 (default: 1)
+- `EXT_CALL_CPS_PCT` - Fraction of PEAK_CPS targeted by extension-to-extension calls placed by registered devices after their re-registration loop: 0 disables (default: 0.1). Per-server override: `extCallCpsPct` in `servers.json`. Calls are gated by the shared business-day CPS curve (`sipp/scripts/cps-utils.sh`), so they only fire during the active call window.
 
 ### Metrics Server
 - `METRICS_PORT` - Prometheus endpoint port (default: 9090)

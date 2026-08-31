@@ -31,11 +31,10 @@ SERVER_ID=$8  # Optional: for multi-server stats tracking
 SUT_PORT=$9   # Optional: SIP destination port on the SUT (defaults to 5060 udp/tcp, 5061 tls)
 PRIVATEIP=$(ip a s|sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}')
 
-# replace SEQUENTIAL with  RANDOM  in the input file to randomize user selection
-TEMP_CSV="/tmp/register_$$.csv"
-cat $INPUTFILE | sed 's/SEQUENTIAL/RANDOM/g' > $TEMP_CSV	
-cat $TEMP_CSV > $INPUTFILE
-rm -f $TEMP_CSV
+# Rewrite the input file: RANDOM header to randomize user selection, and
+# append the calleeExt column ([field5]) used by the extension-to-extension call
+source "$BASE_DIR/sipp/scripts/csv-utils.sh"
+normalize_device_csv "$INPUTFILE"
 
 head -n 2 $INPUTFILE 
 
@@ -66,6 +65,23 @@ if [ $CALLRATE -lt 1 ]; then
 	CALLRATE=1
 fi
 
+# ---- Extension-to-extension call gating ----
+# After its re-registration loop (~58.5-67.5 min from now) each device may
+# place one call to its calleeExt ([field5]). Target rate is
+# EXT_CALL_CPS_PCT x PEAK_CPS, scaled by the shared business-day CPS curve
+# evaluated for when the calls actually fire (~63 min from launch) so calls
+# only happen during the active call window. Devices exit the loop at
+# ~CALLRATE/sec, so the per-device probability is target_cps / CALLRATE.
+# Per-server servers.json overrides (extCallCpsPct, peakCps) are exported by
+# register_all.sh; .env values are the fallback. EXT_CALL_CPS_PCT=0 disables.
+source "$BASE_DIR/sipp/scripts/cps-utils.sh"
+EXT_CALL_CPS_PCT="${EXT_CALL_CPS_PCT_OVERRIDE:-${EXT_CALL_CPS_PCT:-0.1}}"
+EXTCALL_PEAK_CPS="${PEAK_CPS_OVERRIDE:-${PEAK_CPS:-7}}"
+EXTCALL_MULT=$(cps_multiplier 63)
+EXTCALL_PCT=$(awk -v f="$EXT_CALL_CPS_PCT" -v cps="$EXTCALL_PEAK_CPS" -v mult="$EXTCALL_MULT" -v rate="$CALLRATE" \
+    'BEGIN { p = 100 * f * cps * mult / rate; if (p < 0) p = 0; if (p > 100) p = 100; printf "%.2f", p }')
+echo "EXTCALL_PCT: $EXTCALL_PCT (fraction: $EXT_CALL_CPS_PCT, peak_cps: $EXTCALL_PEAK_CPS, cps_multiplier: $EXTCALL_MULT, callrate: $CALLRATE)"
+
 
 echo "Registering $INPUTFILE"
 ulimit -n 65536
@@ -91,7 +107,8 @@ RANDOM_15=$(( ( RANDOM % 590000 )  + 10000 ))
 # Duration limit: 80 minutes (4800 seconds) allows for:
 # - 9 min ramp-up to register all users
 # - 58.5 min main registration loop (78 iterations × 45s)
-# - 12.5 min buffer for incoming calls via -oocsf
+# - 12.5 min buffer for incoming calls via -oocsf and the post-loop
+#   extension-to-extension call (<=60s wait + <=45s answer + <=30s talk)
 DURATION_SECONDS=4800
 
 
@@ -149,7 +166,7 @@ _UAS_SCENARIO=$(make_uas_scenario \
 source "$BASE_DIR/sipp/scripts/version-utils.sh"
 UA_VERSION=$(get_ua_version "$BASE_DIR")
 
-SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
+SIPP_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -key extcall_pct $EXTCALL_PCT -key reg_loops 78 -r $[CALLRATE] -m $MAX_USERS -l $MAX_USERS \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT  \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
 -oocsf $_UAS_SCENARIO \

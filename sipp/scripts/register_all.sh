@@ -81,6 +81,16 @@ if [ -n "$SERVER_ID" ]; then
             if [ -n "$SERVER_OPUS_PCT" ]; then
                 export OPUS_PCT_OVERRIDE="$SERVER_OPUS_PCT"
             fi
+            # Per-server peakCps and extCallCpsPct feed register.sh's
+            # extension-to-extension call gating (same override pattern)
+            SERVER_PEAK_CPS=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .peakCps // empty" "$BASE_DIR/servers.json")
+            if [ -n "$SERVER_PEAK_CPS" ]; then
+                export PEAK_CPS_OVERRIDE="$SERVER_PEAK_CPS"
+            fi
+            SERVER_EXT_CALL_CPS_PCT=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .extCallCpsPct // empty" "$BASE_DIR/servers.json")
+            if [ -n "$SERVER_EXT_CALL_CPS_PCT" ]; then
+                export EXT_CALL_CPS_PCT_OVERRIDE="$SERVER_EXT_CALL_CPS_PCT"
+            fi
         else
             echo "Error: jq is required for multi-server mode but not installed"
             echo "Install with: sudo apt-get install jq (Ubuntu) or brew install jq (macOS)"
