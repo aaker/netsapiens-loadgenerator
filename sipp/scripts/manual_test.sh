@@ -37,6 +37,10 @@
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
 # registration instance is stopped (unless -k) and ports are released.
+#
+# Extension-to-extension call debugging: EXTCALL_PCT=100 REG_LOOPS=1 ./manual_test.sh
+# makes every registered device exit its re-register loop after one iteration
+# (~45s) and place the post-loop call to its extension - 1 ([field5]).
 
 BASE_DIR="/usr/local/NetSapiens/netsapiens-loadgenerator"
 source "$BASE_DIR/.env"
@@ -165,7 +169,11 @@ STATS_PATH="$BASE_DIR/sipp/stats"
 # deterministically (the cron path randomizes + applies REGISTRATION_PCT; for
 # debugging we want exactly the devices you listed).
 REG_CSV="$WORK_DIR/devices.csv"
-sed 's/^RANDOM/SEQUENTIAL/' "$DEVICE_CSV" > "$REG_CSV"
+cp "$DEVICE_CSV" "$REG_CSV"
+# Normalize to the 6-column layout (appends calleeExt [field5] for the
+# extension-to-extension call block), keeping SEQUENTIAL ordering.
+source "$BASE_DIR/sipp/scripts/csv-utils.sh"
+normalize_device_csv "$REG_CSV" SEQUENTIAL
 NUM_DEVICES=$(grep -cv -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$REG_CSV")
 
 # Single-number CSV for the UAC, same shape as phonenumbers/<tz>.csv
@@ -230,7 +238,7 @@ echo "========================================================"
 # ------------------------------------------- 1) registration (cron path)
 # Mirrors register.sh's sipp invocation: same scenarios, keys and behavior
 # flags; only -r/-m are pinned to register every listed device promptly.
-SIPP_REG_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION \
+SIPP_REG_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -key extcall_pct ${EXTCALL_PCT:-0} -key reg_loops ${REG_LOOPS:-78} \
 -r 5 -m $NUM_DEVICES -l $NUM_DEVICES \
 -t $TRANSPORT $TLS_OPTIONS -p $REG_SIP_PORT -cp $REG_CONTROL_PORT \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
