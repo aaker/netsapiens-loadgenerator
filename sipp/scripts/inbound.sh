@@ -120,6 +120,12 @@ if [ -n "$SERVER_ID" ]; then
                 echo "Error: Server '$SERVER_ID' not found in servers.json"
                 exit 1
             fi
+            # Optional per-server SAS hostname overrides the INVITE destination only
+            SAS_HOST=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sasHostname // empty" "$BASE_DIR/servers.json")
+            if [ -n "$SAS_HOST" ]; then
+                echo "Using server-specific SAS hostname for INVITEs: $SAS_HOST (API host: $SUT)"
+                SUT="$SAS_HOST"
+            fi
             SIP_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipPort // empty" "$BASE_DIR/servers.json")
             SIP_TLS_PORT_NUM=$(jq -r ".servers[] | select(.id==\"$SERVER_ID\") | .sipTlsPort // empty" "$BASE_DIR/servers.json")
         else
@@ -201,110 +207,16 @@ fi
 
 echo "RTP Playback: $([ "$SEND_RTP_FINAL" == "1" ] && echo "ENABLED" || echo "DISABLED (signaling only)")"
 
-# Time-based CPS multiplier
-# Curve expressed in local time via CPS_TZ_OFFSET (default -7 for PDT)
-# Day-of-week scaling: Mon-Fri=100%, Sat=40%, Sun=20%
-#
-# All markers are configurable via .env. Defaults match observed traffic shape:
-#
-# Local Time | Multiplier             | Variable
-# -----------|------------------------|-----------------------------
-# 6am        | 0.05 (overnight edge)  | CPS_RAMP_START_HOUR / CPS_OVERNIGHT
-# 9am        | 1.00 (peak)            | CPS_PEAK_HOUR / CPS_PEAK
-# 10am       | 0.97 (derived)         | -
-# 11am       | 0.93 (plateau)         | CPS_LUNCH_START_HOUR / CPS_PLATEAU
-# 12pm       | 0.78 (trough)          | CPS_LUNCH_TROUGH
-# 1pm        | 0.93 (plateau)         | CPS_LUNCH_END_HOUR / CPS_PLATEAU
-# 3pm        | 0.67 (derived)         | -
-# 5pm        | 0.40 (cliff)           | CPS_CLIFF_START_HOUR / CPS_CLIFF_LEVEL
-# 6pm        | 0.23 (derived)         | -
-# 7pm        | 0.05 (overnight edge)  | CPS_CLIFF_END_HOUR / CPS_OVERNIGHT
-# 12:30am    | 0.005 (overnight deep) | CPS_DEEP_OVERNIGHT
-# 6am        | 0.05 (overnight edge)  | CPS_RAMP_START_HOUR / CPS_OVERNIGHT
-#
-# Overnight (cliff_end -> ramp_start) is a cosine dip:
-#   starts at CPS_OVERNIGHT, reaches CPS_DEEP_OVERNIGHT at the midpoint,
-#   returns to CPS_OVERNIGHT before the morning ramp begins.
-
-# Hour markers (local time)
+# Time-based CPS multiplier: business-day curve shared with register.sh's
+# extension-call gating. Curve shape, markers and .env overrides are documented
+# in cps-utils.sh.
+source "$BASE_DIR/sipp/scripts/cps-utils.sh"
 CPS_TZ_OFFSET=${CPS_TZ_OFFSET:--7}
-CPS_RAMP_START_HOUR=${CPS_RAMP_START_HOUR:-6}    # overnight ends, ramp begins
-CPS_PEAK_HOUR=${CPS_PEAK_HOUR:-9}                # morning peak
-CPS_LUNCH_START_HOUR=${CPS_LUNCH_START_HOUR:-11} # plateau ends, lunch dip begins
-CPS_LUNCH_END_HOUR=${CPS_LUNCH_END_HOUR:-13}     # lunch dip ends, afternoon decline begins
-CPS_CLIFF_START_HOUR=${CPS_CLIFF_START_HOUR:-17} # afternoon ends, evening cliff begins
-CPS_CLIFF_END_HOUR=${CPS_CLIFF_END_HOUR:-19}     # cliff ends, overnight resumes
-
-# Level markers (multiplier 0.0-1.0)
-CPS_OVERNIGHT=${CPS_OVERNIGHT:-0.05}             # overnight edge (at 7pm and 6am)
-CPS_DEEP_OVERNIGHT=${CPS_DEEP_OVERNIGHT:-0.005}  # overnight deep floor (midpoint of overnight)
-CPS_PEAK=${CPS_PEAK:-1.00}                       # morning peak level
-CPS_PLATEAU=${CPS_PLATEAU:-0.93}                 # level at 11am and 1pm (lunch dip endpoints)
-CPS_LUNCH_TROUGH=${CPS_LUNCH_TROUGH:-0.78}       # lunch trough at noon
-CPS_CLIFF_LEVEL=${CPS_CLIFF_LEVEL:-0.40}         # level at start of evening cliff
 
 CURRENT_HOUR_UTC=$(date -u +%H)
 CURRENT_MIN_UTC=$(date -u +%M)
 CURRENT_DOW_UTC=$(date -u +%u)  # 1=Monday ... 6=Saturday, 7=Sunday (UTC)
-CPS_MULTIPLIER=$(awk \
-    -v hour="$CURRENT_HOUR_UTC" -v min="$CURRENT_MIN_UTC" \
-    -v offset="$CPS_TZ_OFFSET" -v dow_utc="$CURRENT_DOW_UTC" \
-    -v ramp_start="$CPS_RAMP_START_HOUR" -v peak_hour="$CPS_PEAK_HOUR" \
-    -v lunch_start="$CPS_LUNCH_START_HOUR" -v lunch_end="$CPS_LUNCH_END_HOUR" \
-    -v cliff_start="$CPS_CLIFF_START_HOUR" -v cliff_end="$CPS_CLIFF_END_HOUR" \
-    -v overnight="$CPS_OVERNIGHT" -v deep_overnight="$CPS_DEEP_OVERNIGHT" \
-    -v peak="$CPS_PEAK" \
-    -v plateau="$CPS_PLATEAU" -v trough="$CPS_LUNCH_TROUGH" \
-    -v cliff_level="$CPS_CLIFF_LEVEL" \
-    'BEGIN {
-    pi = 3.14159265358979
-    utc_frac = hour + min/60
-    # Convert to local fractional hour, wrap to [0,24)
-    local_sum = utc_frac + offset
-    local_frac = (local_sum + 48) % 24
-    # Derive local day-of-week from the same offset (avoids Sunday-night
-    # spikes when UTC has already rolled into Monday but local is still Sun).
-    day_shift = 0
-    if (local_sum < 0) day_shift = -1
-    else if (local_sum >= 24) day_shift = 1
-    dow = dow_utc + day_shift
-    if (dow < 1) dow += 7apt 
-    if (dow > 7) dow -= 7
-    # Overnight cosine dip spans cliff_end -> ramp_start (wrapping midnight)
-    overnight_duration = (24 - cliff_end) + ramp_start
-    overnight_A = (overnight + deep_overnight) / 2
-    overnight_B = (overnight - deep_overnight) / 2
-    if (local_frac < ramp_start) {
-        # Early-morning overnight (post-midnight side of the dip)
-        t = (24 - cliff_end) + local_frac
-        mult = overnight_A + overnight_B * cos(2 * pi * t / overnight_duration)
-    } else if (local_frac < peak_hour) {
-        # Steep morning ramp
-        mult = overnight + (peak - overnight) * (local_frac - ramp_start) / (peak_hour - ramp_start)
-    } else if (local_frac < lunch_start) {
-        # Morning plateau taper: peak -> plateau
-        mult = peak - (peak - plateau) * (local_frac - peak_hour) / (lunch_start - peak_hour)
-    } else if (local_frac < lunch_end) {
-        # Lunch dip: cosine from plateau at lunch_start, trough at midpoint, plateau at lunch_end
-        A = (plateau + trough) / 2
-        B = (plateau - trough) / 2
-        mult = A + B * cos(2 * pi * (local_frac - lunch_start) / (lunch_end - lunch_start))
-    } else if (local_frac < cliff_start) {
-        # Gradual afternoon decline: plateau -> cliff_level
-        mult = plateau - (plateau - cliff_level) * (local_frac - lunch_end) / (cliff_start - lunch_end)
-    } else if (local_frac < cliff_end) {
-        # Steep evening cliff: cliff_level -> overnight
-        mult = cliff_level - (cliff_level - overnight) * (local_frac - cliff_start) / (cliff_end - cliff_start)
-    } else {
-        # Late-evening overnight (pre-midnight side of the dip)
-        t = local_frac - cliff_end
-        mult = overnight_A + overnight_B * cos(2 * pi * t / overnight_duration)
-    }
-    # Day-of-week scaling (dow: 1=Mon...6=Sat, 7=Sun)
-    if (dow == 6) mult = mult * 0.4
-    else if (dow == 7) mult = mult * 0.2
-    printf "%.4f", mult
-}')
+CPS_MULTIPLIER=$(cps_multiplier)
 
 # Apply multiplier and ±2% random noise to PEAK_CPS
 PEAK_CPS=$(awk -v cps="$PEAK_CPS" -v mult="$CPS_MULTIPLIER" -v seed="$RANDOM" \
