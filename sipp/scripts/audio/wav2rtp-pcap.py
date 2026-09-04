@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 #
-# wav2rtp-pcap.py - packetize raw G.711 A-law audio into a SIPp-compatible
-# RTP pcap (classic libpcap format, Ethernet/IPv4/UDP/RTP, PT 8, 20ms ptime).
+# wav2rtp-pcap.py - packetize raw G.711 audio into a SIPp-compatible RTP pcap
+# (classic libpcap format, Ethernet/IPv4/UDP/RTP, 20ms ptime).  A-law (PT 8)
+# by default, mu-law (PT 0) with --codec ulaw.
 #
 # The output matches the framing of the original g711a.pcap byte-for-byte in
 # structure (214-byte frames: 14 eth + 20 ip + 8 udp + 12 rtp + 160 payload),
@@ -12,19 +13,23 @@
 #   ffmpeg -i in.wav -ac 1 -ar 8000 -f alaw out.alaw
 #   python3 wav2rtp-pcap.py out.alaw out.pcap [ssrc-hex]
 #
+#   ffmpeg -i in.wav -ac 1 -ar 8000 -f mulaw out.ulaw
+#   python3 wav2rtp-pcap.py --codec ulaw out.ulaw out.pcap [ssrc-hex]
+#
 import struct
 import sys
 
-ALAW_SILENCE = 0xD5          # A-law encoded 0
+# codec -> (RTP payload type, encoded silence byte)
+CODECS = {'alaw': (8, 0xD5), 'ulaw': (0, 0xFF)}
 SAMPLES_PER_PKT = 160        # 20 ms @ 8 kHz
 PTIME_US = 20000
 BASE_TS_SEC = 1715000000     # fixed epoch base -> deterministic output
 
 
-def build_packet(seq, rtp_ts, ssrc, marker, payload):
+def build_packet(seq, rtp_ts, ssrc, marker, payload, pt):
     rtp = struct.pack('>BBHII',
                       0x80,                          # V=2, no P/X/CC
-                      (0x80 if marker else 0) | 8,   # M + PT 8 (PCMA)
+                      (0x80 if marker else 0) | pt,   # M + payload type
                       seq & 0xFFFF,
                       rtp_ts & 0xFFFFFFFF,
                       ssrc) + payload
@@ -50,18 +55,25 @@ def build_packet(seq, rtp_ts, ssrc, marker, payload):
 
 
 def main():
-    if len(sys.argv) < 3:
-        sys.exit('usage: wav2rtp-pcap.py <in.alaw> <out.pcap> [ssrc-hex]')
-    in_path, out_path = sys.argv[1], sys.argv[2]
-    ssrc = int(sys.argv[3], 16) if len(sys.argv) > 3 else 0x0E330AF3
+    argv = sys.argv[1:]
+    codec = 'alaw'
+    if argv and argv[0] == '--codec':
+        if len(argv) < 2 or argv[1] not in CODECS:
+            sys.exit('error: --codec takes one of: ' + ', '.join(CODECS))
+        codec, argv = argv[1], argv[2:]
+    if len(argv) < 2:
+        sys.exit('usage: wav2rtp-pcap.py [--codec alaw|ulaw] <in.g711> <out.pcap> [ssrc-hex]')
+    in_path, out_path = argv[0], argv[1]
+    ssrc = int(argv[2], 16) if len(argv) > 2 else 0x0E330AF3
+    pt, silence = CODECS[codec]
 
     audio = open(in_path, 'rb').read()
     if not audio:
         sys.exit(f'error: {in_path} is empty')
-    # Pad final partial frame with A-law silence
+    # Pad final partial frame with encoded silence
     rem = len(audio) % SAMPLES_PER_PKT
     if rem:
-        audio += bytes([ALAW_SILENCE]) * (SAMPLES_PER_PKT - rem)
+        audio += bytes([silence]) * (SAMPLES_PER_PKT - rem)
 
     npkts = len(audio) // SAMPLES_PER_PKT
     with open(out_path, 'wb') as out:
@@ -73,7 +85,8 @@ def main():
                                rtp_ts=160 + i * SAMPLES_PER_PKT,
                                ssrc=ssrc,
                                marker=(i == 0),
-                               payload=payload)
+                               payload=payload,
+                               pt=pt)
             ts_us = i * PTIME_US
             out.write(struct.pack('<IIII',
                                   BASE_TS_SEC + ts_us // 1000000,
@@ -81,7 +94,8 @@ def main():
                                   len(pkt), len(pkt)))
             out.write(pkt)
 
-    print(f'{out_path}: {npkts} packets, {npkts * 0.02:.1f}s, ssrc=0x{ssrc:08X}')
+    print(f'{out_path}: {npkts} packets, {npkts * 0.02:.1f}s, '
+          f'{codec} pt={pt}, ssrc=0x{ssrc:08X}')
 
 
 if __name__ == '__main__':
