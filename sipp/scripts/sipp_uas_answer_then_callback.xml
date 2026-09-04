@@ -52,14 +52,18 @@
   <!-- ================================================================== -->
   <recv request="INVITE" crlf="true" rrs="true">
     <action>
-      <!-- First assign_to var holds the whole match, second the group.    -->
+      <!-- ereg's first assign_to slot always takes the WHOLE match, which  -->
+      <!-- we never use.  All four share the name ereg_discard on purpose:  -->
+      <!-- SIPp aborts at load time on any variable referenced exactly once -->
+      <!-- ("Variable $x is referenced 1 times!"), and four assignments to  -->
+      <!-- one name clear that check.  The second slot is the group we want.-->
       <!-- caller_user = who called us (the callback target).              -->
       <ereg regexp="sip:([^@]*)@" search_in="hdr" header="From"
-            assign_to="from_match,caller_user"/>
+            assign_to="ereg_discard,caller_user"/>
       <!-- callee_user = the number that was dialed (our identity on the   -->
       <!-- callback leg).                                                  -->
       <ereg regexp="sip:([^@]*)@" search_in="hdr" header="To"
-            assign_to="to_match,callee_user"/>
+            assign_to="ereg_discard,callee_user"/>
       <!-- Contact/From of the orig side, used if we have to BYE first.    -->
       <ereg regexp=".*" search_in="hdr" header="From" assign_to="remote_from"/>
       <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact"
@@ -70,11 +74,11 @@
       <!-- on this call's peer association anyway, so no command-line remote   -->
       <!-- host is involved.                                                   -->
       <ereg regexp="sip:[^@>]*@([^;>]*)" search_in="hdr" header="Contact"
-            assign_to="contact_match,peer_host"/>
+            assign_to="ereg_discard,peer_host"/>
       <!-- to_host = the domain the call was addressed to; used as the From    -->
       <!-- domain on the callback so it looks like it comes from that tenant.  -->
       <ereg regexp="sip:[^@>]*@([^;>]*)" search_in="hdr" header="To"
-            assign_to="to_host_match,to_host"/>
+            assign_to="ereg_discard,to_host"/>
       <assign assign_to="in_reinvites" value="0"/>
     </action>
   </recv>
