@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!-- ====================================================================== -->
+<!-- Answer-then-callback scenario (standalone UAS, launched with -sf).      -->
+<!--                                                                        -->
+<!-- Leg 1 (inbound, we are the callee):                                     -->
+<!--   INVITE -> 100/180 -> 200 OK (PCMA) -> ACK -> play g711a-term.pcap     -->
+<!--   Follow any in-dialog re-INVITE (media re-point / agent connect /      -->
+<!--   transfer), then wait for the orig side's BYE and 200 it.              -->
+<!--                                                                        -->
+<!-- Leg 2 (callback, we are the caller):                                    -->
+<!--   Wait 65s, then INVITE the number that called us ([$caller_user],      -->
+<!--   taken from leg 1's From URI) at the SUT, play g711a-orig.pcap,        -->
+<!--   answer an optional re-INVITE, and wait for the remote BYE.            -->
+<!--                                                                        -->
+<!-- Launched by callback_uas.sh (fixed SIP port 5050, 6h -timeout cap) and  -->
+<!-- kept alive by callback_uas_monitor.sh from cron every minute.           -->
+<!--                                                                        -->
+<!-- SERVER-AGNOSTIC: there is no command-line remote host.  The callback    -->
+<!-- is addressed to [$peer_host] - the host:port from the inbound INVITE's  -->
+<!-- Contact - and SIPp transmits it on the call's peer association, i.e.    -->
+<!-- straight back to whoever called us.  One instance therefore serves      -->
+<!-- every server that sends it a call.  Equivalent hand-run command:        -->
+<!--                                                                        -->
+<!--   sipp -sf sipp_uas_answer_then_callback.xml \                          -->
+<!--        -i <local-ip> -p 5050 -cp 5051 -mp 60002 \                       -->
+<!--        -key ua_version "$(get_ua_version $BASE_DIR)" \                  -->
+<!--        -t u1 -timeout 21600s -trace_stat -fd 15 -bg                     -->
+<!--                                                                        -->
+<!-- Transport note: with UDP the peer association survives the 65s gap.  On -->
+<!-- TCP/TLS the far end may close the connection after leg 1's BYE, in      -->
+<!-- which case the callback INVITE has no socket to go out on - run this    -->
+<!-- listener on UDP (u1) unless you have verified the SUT keeps the         -->
+<!-- connection open.                                                        -->
+<!--                                                                        -->
+<!-- No authentication is performed on the callback: a 407/401 is treated    -->
+<!-- as a failed call (ACKed, scenario ends).  If the SUT starts challenging -->
+<!-- this leg, add a `[authentication ...]` line to the second INVITE the    -->
+<!-- way register.and.subscribe.sipp.xml does for its ext-to-ext call.       -->
+<!--                                                                        -->
+<!-- Both legs share [call_id] (distinguished by From tag) because SIPp      -->
+<!-- matches incoming messages to a call by Call-ID; a hand-built Call-ID    -->
+<!-- for leg 2 would make its responses look like a new inbound call.  Same  -->
+<!-- pattern as the post-registration ext-to-ext call.                       -->
+<!-- ====================================================================== -->
+
+<scenario name="UAS answer then 65s callback">
+
+  <!-- ================================================================== -->
+  <!-- Leg 1: answer the inbound call                                      -->
+  <!-- ================================================================== -->
+  <recv request="INVITE" crlf="true" rrs="true">
+    <action>
+      <!-- First assign_to var holds the whole match, second the group.    -->
+      <!-- caller_user = who called us (the callback target).              -->
+      <ereg regexp="sip:([^@]*)@" search_in="hdr" header="From"
+            assign_to="from_match,caller_user"/>
+      <!-- callee_user = the number that was dialed (our identity on the   -->
+      <!-- callback leg).                                                  -->
+      <ereg regexp="sip:([^@]*)@" search_in="hdr" header="To"
+            assign_to="to_match,callee_user"/>
+      <!-- Contact/From of the orig side, used if we have to BYE first.    -->
+      <ereg regexp=".*" search_in="hdr" header="From" assign_to="remote_from"/>
+      <ereg regexp="sip:(.*)>.*" search_in="hdr" header="Contact"
+            assign_to="remote_contact"/>
+      <!-- peer_host = host[:port] from the inbound Contact (mandatory in an   -->
+      <!-- INVITE).  This is what makes ONE instance serve every server: the   -->
+      <!-- callback is addressed back to whoever called us, and SIPp sends it  -->
+      <!-- on this call's peer association anyway, so no command-line remote   -->
+      <!-- host is involved.                                                   -->
+      <ereg regexp="sip:[^@>]*@([^;>]*)" search_in="hdr" header="Contact"
+            assign_to="contact_match,peer_host"/>
+      <!-- to_host = the domain the call was addressed to; used as the From    -->
+      <!-- domain on the callback so it looks like it comes from that tenant.  -->
+      <ereg regexp="sip:[^@>]*@([^;>]*)" search_in="hdr" header="To"
+            assign_to="to_host_match,to_host"/>
+      <assign assign_to="in_reinvites" value="0"/>
+    </action>
+  </recv>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 100 Trying
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 180 Ringing
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <pause distribution="uniform" min="1000" max="4000"/>
+
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+      a=ptime:20
+
+    ]]>
+  </send>
+
+  <recv request="ACK" rtd="true" crlf="true"/>
+
+  <!-- Answered: start callee-side speech (non-blocking). -->
+  <nop>
+    <action>
+      <!-- log lines only emit under -trace_logs; cron runs are unaffected -->
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term.pcap leg=inbound"/>
+      <exec play_pcap_audio="g711a-term.pcap"/>
+    </action>
+  </nop>
+
+  <!-- Wait for either an in-dialog re-INVITE or the orig side's BYE.       -->
+  <!-- A recv-based wait (not a blocking <pause>) is required: a re-INVITE  -->
+  <!-- landing during a pause is "unexpected" and SIPp auto-BYEs the call.  -->
+  <label id="in_wait"/>
+  <recv request="INVITE" optional="true" timeout="300000" ontimeout="in_send_bye"
+        crlf="true" next="in_answer_reinvite"/>
+  <recv request="BYE" timeout="300000" ontimeout="in_send_bye"
+        crlf="true" next="in_peer_bye"/>
+
+  <label id="in_answer_reinvite"/>
+  <nop>
+    <action>
+      <add assign_to="in_reinvites" value="1"/>
+      <test assign_to="in_reinvite_cap" variable="in_reinvites"
+            compare="greater_than_equal" value="8"/>
+    </action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 53655765 2353687638 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+      a=ptime:20
+
+    ]]>
+  </send>
+  <recv request="ACK" crlf="true"/>
+  <!-- Runaway re-INVITE chain: hang up ourselves rather than loop forever. -->
+  <nop test="in_reinvite_cap" next="in_send_bye"/>
+  <!-- Media is re-pointed by the re-INVITE, so restart the stream. -->
+  <nop next="in_wait">
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term2.pcap leg=inbound reinvite=[$in_reinvites]"/>
+      <exec play_pcap_audio="g711a-term2.pcap"/>
+    </action>
+  </nop>
+
+  <!-- Expected ending for leg 1: the orig side hangs up. -->
+  <label id="in_peer_bye"/>
+  <send next="callback_wait">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Safety net: no BYE within the watch window (or the re-INVITE cap was  -->
+  <!-- hit) - tear the call down ourselves, then still place the callback.   -->
+  <label id="in_send_bye"/>
+  <send retrans="500">
+    <![CDATA[
+
+      BYE [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[$callee_user]@[local_ip]:[local_port]>;tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 BYE
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="200" timeout="5000" ontimeout="callback_wait"
+        crlf="true" next="callback_wait"/>
+
+  <!-- ================================================================== -->
+  <!-- Leg 2: 65s later, call the number that called us                    -->
+  <!-- ================================================================== -->
+  <label id="callback_wait"/>
+  <pause milliseconds="65000"/>
+
+  <nop>
+    <action>
+      <assign assign_to="cb_reinvites" value="0"/>
+    </action>
+  </nop>
+
+  <send retrans="500" start_rtd="callback">
+    <![CDATA[
+
+      INVITE sip:[$caller_user]@[$peer_host] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[$callee_user]@[$to_host]>;tag=[call_number]cb
+      To: <sip:[$caller_user]@[$peer_host]>
+      Call-ID: [call_id]
+      CSeq: 1 INVITE
+      Contact: <sip:[$callee_user]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 53655765 2353687639 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-11,16
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true" rtd="callback"/>
+  <recv response="180" optional="true"/>
+  <recv response="183" optional="true"/>
+
+  <!-- Any expected non-2xx final must be ACKed explicitly, or the SUT      -->
+  <!-- retransmits it and the retransmission trips -abortunexp.             -->
+  <recv response="401" optional="true" next="callback_reject"/>
+  <recv response="403" optional="true" next="callback_reject"/>
+  <recv response="404" optional="true" next="callback_reject"/>
+  <recv response="407" optional="true" next="callback_reject"/>
+  <recv response="408" optional="true" next="callback_reject"/>
+  <recv response="480" optional="true" next="callback_reject"/>
+  <recv response="486" optional="true" next="callback_reject"/>
+  <recv response="487" optional="true" next="callback_reject"/>
+  <recv response="500" optional="true" next="callback_reject"/>
+  <recv response="503" optional="true" next="callback_reject"/>
+  <recv response="600" optional="true" next="callback_reject"/>
+  <recv response="603" optional="true" next="callback_reject"/>
+  <recv response="200" crlf="true" timeout="45000" ontimeout="call_done"/>
+
+  <send>
+    <![CDATA[
+
+      ACK sip:[$caller_user]@[$peer_host] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[$callee_user]@[$to_host]>;tag=[call_number]cb
+      To: <sip:[$caller_user]@[$peer_host]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 1 ACK
+      Contact: <sip:[$callee_user]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Callback answered: play the caller-side audio (non-blocking). -->
+  <nop>
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-orig.pcap leg=callback"/>
+      <exec play_pcap_audio="g711a-orig.pcap"/>
+    </action>
+  </nop>
+
+  <!-- Same recv-based wait as leg 1: follow re-INVITEs, expect the remote  -->
+  <!-- BYE, and hang up ourselves if the window elapses.                    -->
+  <label id="cb_wait"/>
+  <recv request="INVITE" optional="true" timeout="180000" ontimeout="cb_send_bye"
+        crlf="true" next="cb_answer_reinvite"/>
+  <recv request="BYE" timeout="180000" ontimeout="cb_send_bye"
+        crlf="true" next="cb_peer_bye"/>
+
+  <label id="cb_answer_reinvite"/>
+  <nop>
+    <action>
+      <add assign_to="cb_reinvites" value="1"/>
+      <test assign_to="cb_reinvite_cap" variable="cb_reinvites"
+            compare="greater_than_equal" value="8"/>
+    </action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=sipp 53655765 2353687640 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+      a=ptime:20
+
+    ]]>
+  </send>
+  <recv request="ACK" crlf="true"/>
+  <nop test="cb_reinvite_cap" next="cb_send_bye"/>
+  <nop next="cb_wait">
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-orig2.pcap leg=callback reinvite=[$cb_reinvites]"/>
+      <exec play_pcap_audio="g711a-orig2.pcap"/>
+    </action>
+  </nop>
+
+  <!-- Expected ending for leg 2: the remote side hangs up. -->
+  <label id="cb_peer_bye"/>
+  <send next="call_done">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="cb_send_bye"/>
+  <send retrans="500">
+    <![CDATA[
+
+      BYE sip:[$caller_user]@[$peer_host] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: <sip:[$callee_user]@[$to_host]>;tag=[call_number]cb
+      To: <sip:[$caller_user]@[$peer_host]>[peer_tag_param]
+      Call-ID: [call_id]
+      CSeq: 2 BYE
+      Contact: <sip:[$callee_user]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="200" timeout="5000" ontimeout="call_done"
+        crlf="true" next="call_done"/>
+
+  <!-- Callback rejected before answer: ACK the final and finish. -->
+  <label id="callback_reject"/>
+  <send next="call_done">
+    <![CDATA[
+
+      ACK sip:[$caller_user]@[$peer_host] SIP/2.0
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      Call-ID: [call_id]
+      CSeq: 1 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="call_done"/>
+  <!-- Stay alive briefly so a retransmitted BYE still gets a 200. -->
+  <timewait milliseconds="4000"/>
+
+  <ResponseTimeRepartition value="2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 100, 125, 150, 175, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 2000"/>
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+
+</scenario>

@@ -82,9 +82,12 @@ The system supports two configuration modes controlled by `lib/config.js`:
 - `csv-utils.sh` - Shared `normalize_device_csv` (6-column device CSV layout incl. `calleeExt` for extension-to-extension calls).
 - `opus-utils.sh` - Shared Opus/G.711a percentage-regex helpers for UAS scenarios.
 - `net-utils.sh` - Shared `resolve_ipv4 <host>`: resolves the SIP destination to an A record before handing it to SIPp, so an AAAA answer can't trigger "Network family mismatch for local/remote IP" (SIPp binds IPv4 via `-i`). IPv4 literals pass through; on resolution failure the hostname is used as-is with a warning. Sourced by `inbound.sh`, `register_all.sh`, `register.sh`, `call_all.sh`, `call.sh`, `manual_test.sh`.
+- `callback_uas.sh` - Launches the long-lived answer-then-callback UAS (`sipp_uas_answer_then_callback.xml`) on a fixed SIP port (default 5050, control 5051, media base 60002 - above the port-allocator range so it never collides with pooled instances). No remote host / `servers.json` lookup: the callback goes back to the source of each inbound call, so **one instance serves all servers** (`--server` is only a stats-file label). Capped at 6h via SIPp's global `-timeout`; writes `/tmp/sipp-callback-uas/callback_uas_<port>.state` (pid, start epoch, stats path).
+- `callback_uas_monitor.sh` - Cron keep-alive (every minute) for the above. Restarts it when the PID is gone (normal 6h exit or crash), runtime exceeds the cap + 300s grace, the stats file goes stale (>180s), or the SIP port is not bound. Graceful `q` -> SIGTERM -> SIGKILL; `flock` prevents overlapping runs; logs to syslog under `sipp-callback`.
 
 **SIPp XML scenarios** (`sipp/scripts/`):
 - `register.and.subscribe.sipp.xml` - Main registration + SUBSCRIBE scenario (used by `register.sh`). After the re-registration loop, a `-key extcall_pct`-gated fraction of devices wait 5-60s then place one authenticated extension-to-extension call to `[field5]` (own extension - 1; ext 1000 wraps to 1001). Requires `-key extcall_pct` and `-key reg_loops` from the launcher.
+- `sipp_uas_answer_then_callback.xml` - Standalone UAS: answers an inbound call, plays `g711a-term.pcap`, follows in-dialog re-INVITEs (cap 8), waits for the orig BYE; then pauses 65s and calls the originating number back - callee from the inbound From URI, destination `[$peer_host]` from the inbound Contact, so it returns to whichever server called in - plays `g711a-orig.pcap`, answers an optional re-INVITE and waits for the remote BYE. Both legs share `[call_id]` (different From tags) because SIPp matches incoming messages by Call-ID. No auth on the callback leg. Launched by `callback_uas.sh`.
 - `register.sipp.xml` / `register_once.sipp.xml` - Simple registration scenarios
 - `register_then_accept.sipp.xml` / `register_then_call.sipp.xml` - Register then handle calls
 - `sipp_uac_pcap_g711a.xml` / `sipp_uac_big_sdp.xml` - UAC (caller) scenarios with PCAP audio
@@ -98,6 +101,7 @@ The system supports two configuration modes controlled by `lib/config.js`:
 - Registration: runs every minute, processes a subset of domains per cycle
 - Inbound: 5-minute cycles per timezone, 8-hour business day windows (UTC), rotating UDP/TCP/TLS transport on staggered minutes
 - Each timezone has offset minute patterns to distribute load
+- Callback UAS: `callback_uas_monitor.sh` every minute (keeps the single port-5050 answer-then-callback instance running for all servers; the instance itself recycles every 6 hours)
 
 `cron/start_sockettester` - Runs socket.io tester hourly 10:00-17:00
 

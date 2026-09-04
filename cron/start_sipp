@@ -38,3 +38,10 @@
 * 11-23 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
 * 0-4 * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/call_all.sh --server all
 
+
+#answer-then-callback UAS: one long-lived sipp instance bound to port 5050 that answers
+#inbound calls from ANY server, then calls the originating number back 65s later (to the source
+#of the inbound call, so one instance covers every server). Capped at 6h runtime
+#(sipp -timeout); the monitor runs every minute and restarts it if it exited, wedged,
+#overran the cap, or is no longer bound to 5050.
+* * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/callback_uas_monitor.sh
