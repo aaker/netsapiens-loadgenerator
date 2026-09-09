@@ -23,6 +23,9 @@
 #                     24001-60000 range managed by port-allocator.sh so this
 #                     fixed-port instance can never collide with the pooled
 #                     register/inbound instances)
+#   --media-ip        IP advertised in the SDP c= line (default: this host's
+#                     public IP - always public regardless of IP_USE_PUBLIC,
+#                     since the SUT reaches this listener across NAT)
 #   --control-port    SIPp control port for the graceful 'q' (default 5051)
 #   --transport       u1 (UDP, default) | t1 (TCP) | l1 (TLS)
 #   --runtime         Max runtime in seconds (default 21600 = 6h)
@@ -38,6 +41,7 @@ source "$BASE_DIR/.env"
 SERVER_ID=""
 PORT=5050
 MEDIA_PORT=60002
+MEDIA_IP=""
 CONTROL_PORT=5051
 TRANSPORT="u1"
 MAX_RUNTIME=21600
@@ -48,6 +52,7 @@ while [ $# -gt 0 ]; do
         --server)       SERVER_ID="$2"; shift 2 ;;
         --port)         PORT="$2"; shift 2 ;;
         --media-port)   MEDIA_PORT="$2"; shift 2 ;;
+        --media-ip)     MEDIA_IP="$2"; shift 2 ;;
         --control-port) CONTROL_PORT="$2"; shift 2 ;;
         --transport|-t) TRANSPORT="$2"; shift 2 ;;
         --runtime)      MAX_RUNTIME="$2"; shift 2 ;;
@@ -114,21 +119,22 @@ fi
 
 PRIVATEIP=$(ip a s | sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}' | head -1)
 
-# Media IP advertised in the SDP c= line.  Mirrors inbound.sh / manual_test.sh:
-# behind NAT the RTP socket must bind the private address (-mi) while the SDP
-# has to advertise the public one, so the scenario uses the custom keyword
-# [sdp_media_ip] instead of SIPp's built-in [media_ip] (a -key cannot override
-# a built-in keyword).  IP_USE_PUBLIC defaults to 1; if the public-IP lookup
-# fails we fall back to the private address rather than emit an empty c= line.
-if [ "${IP_USE_PUBLIC:-1}" == "1" ]; then
+# Media IP advertised in the SDP c= line.  Behind NAT the RTP socket must bind
+# the private address (-mi) while the SDP has to advertise the public one, so
+# the scenario uses the custom keyword [sdp_media_ip] instead of SIPp's
+# built-in [media_ip] (a -key cannot override a built-in keyword).
+#
+# This listener ALWAYS advertises the public IP: it is reached from the SUT
+# across NAT on a fixed port, so a private c= address is never correct here.
+# IP_USE_PUBLIC from .env is deliberately ignored (unlike inbound.sh /
+# manual_test.sh); use --media-ip to pin an address explicitly.
+if [ -z "$MEDIA_IP" ]; then
     PUBLICIP=$(dig +short myip.opendns.com @resolver1.opendns.com -4 2>/dev/null | tail -1)
     MEDIA_IP=${PUBLICIP:-$PRIVATEIP}
     if [ -z "$PUBLICIP" ]; then
         echo "WARNING: public IP lookup failed - advertising private IP $PRIVATEIP in SDP"
         logger -t sipp-callback -p user.warning "Public IP lookup failed; advertising private IP $PRIVATEIP in SDP for callback UAS port $PORT"
     fi
-else
-    MEDIA_IP=$PRIVATEIP
 fi
 
 # TLS certificates (only used when TRANSPORT=l1)
@@ -202,7 +208,7 @@ fi
     echo "stats=$STATS_FILE"
 } > "$STATE_FILE"
 
-echo "Media IP advertised in SDP: $MEDIA_IP (bind IP: $PRIVATEIP, IP_USE_PUBLIC=${IP_USE_PUBLIC:-1})"
+echo "Media IP advertised in SDP: $MEDIA_IP (bind IP: $PRIVATEIP)"
 echo "Callback UAS started: pid=$SIPP_PID port=$PORT transport=$TRANSPORT (callback target: source of each inbound call) max_runtime=${MAX_RUNTIME}s"
 logger -t sipp-callback -p user.info "Callback UAS started: pid=$SIPP_PID port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT transport=$TRANSPORT server=$SERVER_ID media_ip=$MEDIA_IP max_runtime=${MAX_RUNTIME}s stats=$STATS_FILE"
 exit 0

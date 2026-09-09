@@ -32,9 +32,11 @@
 <!-- MEDIA IP: the SDP c= line uses [sdp_media_ip], NOT SIPp's built-in      -->
 <!-- [media_ip], so the advertised RTP address can be the host's PUBLIC IP   -->
 <!-- while the media socket still binds the private IP (-mi).  A -key        -->
-<!-- cannot override a built-in keyword, hence the distinct name; the value  -->
-<!-- comes from callback_uas.sh per IP_USE_PUBLIC (default 1).  SIPp aborts  -->
-<!-- at load time if -key sdp_media_ip is not supplied.                      -->
+<!-- cannot override a built-in keyword, hence the distinct name.  The value -->
+<!-- comes from callback_uas.sh, which ALWAYS uses the public IP (this       -->
+<!-- listener is reached across NAT, so IP_USE_PUBLIC is ignored here);      -->
+<!-- override it with the launcher's media-ip flag.  SIPp aborts at load     -->
+<!-- time if -key sdp_media_ip is not supplied.                              -->
 <!--                                                                        -->
 <!-- Transport note: with UDP the peer association survives the 65s gap.  On -->
 <!-- TCP/TLS the far end may close the connection after leg 1's BYE, in      -->
