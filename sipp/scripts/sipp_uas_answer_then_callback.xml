@@ -255,7 +255,7 @@
   <!-- Leg 2: 65s later, call the number that called us                    -->
   <!-- ================================================================== -->
   <label id="callback_wait"/>
-  <pause milliseconds="65000"/>
+  <pause milliseconds="30000"/>
 
   <nop>
     <action>
