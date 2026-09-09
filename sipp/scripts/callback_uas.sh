@@ -114,6 +114,23 @@ fi
 
 PRIVATEIP=$(ip a s | sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}' | head -1)
 
+# Media IP advertised in the SDP c= line.  Mirrors inbound.sh / manual_test.sh:
+# behind NAT the RTP socket must bind the private address (-mi) while the SDP
+# has to advertise the public one, so the scenario uses the custom keyword
+# [sdp_media_ip] instead of SIPp's built-in [media_ip] (a -key cannot override
+# a built-in keyword).  IP_USE_PUBLIC defaults to 1; if the public-IP lookup
+# fails we fall back to the private address rather than emit an empty c= line.
+if [ "${IP_USE_PUBLIC:-1}" == "1" ]; then
+    PUBLICIP=$(dig +short myip.opendns.com @resolver1.opendns.com -4 2>/dev/null | tail -1)
+    MEDIA_IP=${PUBLICIP:-$PRIVATEIP}
+    if [ -z "$PUBLICIP" ]; then
+        echo "WARNING: public IP lookup failed - advertising private IP $PRIVATEIP in SDP"
+        logger -t sipp-callback -p user.warning "Public IP lookup failed; advertising private IP $PRIVATEIP in SDP for callback UAS port $PORT"
+    fi
+else
+    MEDIA_IP=$PRIVATEIP
+fi
+
 # TLS certificates (only used when TRANSPORT=l1)
 TLS_OPTIONS=""
 if [ "$TRANSPORT" == "l1" ]; then
@@ -150,6 +167,7 @@ ulimit -n 65536
 SIPP_CMD="sipp \
 -sf $BASE_DIR/sipp/scripts/sipp_uas_answer_then_callback.xml \
 -key ua_version $UA_VERSION \
+-key sdp_media_ip $MEDIA_IP \
 -t $TRANSPORT $TLS_OPTIONS -p $PORT -cp $CONTROL_PORT -mp $MEDIA_PORT \
 -i $PRIVATEIP -mi $PRIVATEIP \
 -timeout ${MAX_RUNTIME}s \
@@ -184,6 +202,7 @@ fi
     echo "stats=$STATS_FILE"
 } > "$STATE_FILE"
 
+echo "Media IP advertised in SDP: $MEDIA_IP (bind IP: $PRIVATEIP, IP_USE_PUBLIC=${IP_USE_PUBLIC:-1})"
 echo "Callback UAS started: pid=$SIPP_PID port=$PORT transport=$TRANSPORT (callback target: source of each inbound call) max_runtime=${MAX_RUNTIME}s"
-logger -t sipp-callback -p user.info "Callback UAS started: pid=$SIPP_PID port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT transport=$TRANSPORT server=$SERVER_ID max_runtime=${MAX_RUNTIME}s stats=$STATS_FILE"
+logger -t sipp-callback -p user.info "Callback UAS started: pid=$SIPP_PID port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT transport=$TRANSPORT server=$SERVER_ID media_ip=$MEDIA_IP max_runtime=${MAX_RUNTIME}s stats=$STATS_FILE"
 exit 0

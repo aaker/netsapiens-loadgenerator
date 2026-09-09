@@ -26,7 +26,15 @@
 <!--   sipp -sf sipp_uas_answer_then_callback.xml \                          -->
 <!--        -i <local-ip> -p 5050 -cp 5051 -mp 60002 \                       -->
 <!--        -key ua_version "$(get_ua_version $BASE_DIR)" \                  -->
+<!--        -key sdp_media_ip <public-or-private-ip> \                       -->
 <!--        -t u1 -timeout 21600s -trace_stat -fd 15 -bg                     -->
+<!--                                                                        -->
+<!-- MEDIA IP: the SDP c= line uses [sdp_media_ip], NOT SIPp's built-in      -->
+<!-- [media_ip], so the advertised RTP address can be the host's PUBLIC IP   -->
+<!-- while the media socket still binds the private IP (-mi).  A -key        -->
+<!-- cannot override a built-in keyword, hence the distinct name; the value  -->
+<!-- comes from callback_uas.sh per IP_USE_PUBLIC (default 1).  SIPp aborts  -->
+<!-- at load time if -key sdp_media_ip is not supplied.                      -->
 <!--                                                                        -->
 <!-- Transport note: with UDP the peer association survives the 65s gap.  On -->
 <!-- TCP/TLS the far end may close the connection after leg 1's BYE, in      -->
@@ -134,7 +142,7 @@
       v=0
       o=sipp 53655765 2353687637 IN IP[local_ip_type] [local_ip]
       s=-
-      c=IN IP[media_ip_type] [media_ip]
+      c=IN IP4 [sdp_media_ip]
       t=0 0
       m=audio [media_port] RTP/AVP 0 101
       a=rtpmap:0 PCMU/8000
@@ -190,7 +198,7 @@
       v=0
       o=sipp 53655765 2353687638 IN IP[local_ip_type] [local_ip]
       s=-
-      c=IN IP[media_ip_type] [media_ip]
+      c=IN IP4 [sdp_media_ip]
       t=0 0
       m=audio [media_port] RTP/AVP 0 101
       a=rtpmap:0 PCMU/8000
@@ -281,7 +289,7 @@
       v=0
       o=sipp 53655765 2353687639 IN IP[local_ip_type] [local_ip]
       s=-
-      c=IN IP[media_ip_type] [media_ip]
+      c=IN IP4 [sdp_media_ip]
       t=0 0
       m=audio [media_port] RTP/AVP 0 101
       a=rtpmap:0 PCMU/8000
@@ -369,7 +377,7 @@
       v=0
       o=sipp 53655765 2353687640 IN IP[local_ip_type] [local_ip]
       s=-
-      c=IN IP[media_ip_type] [media_ip]
+      c=IN IP4 [sdp_media_ip]
       t=0 0
       m=audio [media_port] RTP/AVP 0 101
       a=rtpmap:0 PCMU/8000
