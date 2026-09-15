@@ -14,6 +14,7 @@ a block of generated data plus an echo of the post it received.
 | `src/reply.js` | **Reply content lives here** - `enrich()` for new data, `buildReply()` for the text |
 | `src/bandwidth.js` | Messaging API v2 client (send, retry/backoff) |
 | `scripts/send-test.js` | Posts a sample inbound callback at the running service |
+| `scripts/send-direct.js` | Sends one message through the Bandwidth client, bypassing the webhook |
 | `apache/smsautoreply.conf` | Apache proxy fragment (conf-enabled; `<Location>` blocks only) |
 | `apache/smsautoreply.service` | systemd unit |
 
@@ -172,6 +173,25 @@ sudo ./deploy/install.sh --no-apache
 
 The installer checks this up front by trying to run node as the service user,
 so it fails with instructions instead of leaving a restart-looping unit.
+
+**Bandwidth returns 403 `Access Denied` on the send.** The callback worked;
+the outbound was refused. Isolate it from the webhook:
+
+```bash
+cd /usr/local/NetSapiens/netsapiens-loadgenerator/smsautoreply
+node scripts/send-direct.js --show                     # config only, sends nothing
+node scripts/send-direct.js --to +1YOURCELL --from +1YOURBWNUMBER
+```
+
+In order of likelihood: the `from` number is not assigned to
+`BW_APPLICATION_ID`; the application belongs to a different account than
+`BW_ACCOUNT_ID`; the credentials are dashboard rather than Messaging API
+credentials; or the account lacks messaging permission for that number. The
+failure log lists all four along with the account/application actually used
+and a fingerprint of the token, so two hosts can be compared without
+printing secrets.
+
+Set `LOG_LEVEL=debug` to log the full outbound payload and every response.
 
 **`/health` returns 503.** Expected until `.env` has the Bandwidth
 credentials; the response lists the missing keys in `problems[]`.
