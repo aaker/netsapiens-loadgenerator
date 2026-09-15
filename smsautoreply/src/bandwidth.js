@@ -41,12 +41,19 @@ function pickHeaders(res) {
  */
 function explain(status, payload) {
   if (status === 403) {
-    return [
+    const causes = [];
+    if (!/^\d+$/.test(bw.accountId)) {
+      causes.push(
+        `BW_ACCOUNT_ID is "${bw.accountId}", which is not a numeric account id - ` +
+        'this alone causes a 403; use the numeric Account ID from the dashboard'
+      );
+    }
+    return causes.concat([
       `the "from" number ${payload.from} is not assigned to application ${bw.applicationId}`,
       'BW_APPLICATION_ID belongs to a different account than BW_ACCOUNT_ID',
       'BW_API_TOKEN/BW_API_SECRET are dashboard credentials rather than Messaging API credentials',
       'the account lacks messaging permission for this number or destination',
-    ];
+    ]);
   }
   if (status === 401) {
     return ['BW_API_TOKEN/BW_API_SECRET are wrong, or the user has no Messaging API role'];

@@ -67,7 +67,16 @@ function validate() {
   const problems = [];
   const bw = config.bandwidth;
 
-  if (!bw.accountId) problems.push('BW_ACCOUNT_ID is not set');
+  if (!bw.accountId) {
+    problems.push('BW_ACCOUNT_ID is not set');
+  } else if (!/^\d+$/.test(bw.accountId)) {
+    // The account id goes in the request path; a username or email there is
+    // accepted by the URL and then rejected as 403 Access Denied.
+    problems.push(
+      `BW_ACCOUNT_ID must be the numeric account id from the Bandwidth dashboard, not "${bw.accountId}". ` +
+      'A username or email belongs in BW_API_TOKEN/BW_API_SECRET.'
+    );
+  }
   if (!bw.apiToken) problems.push('BW_API_TOKEN is not set');
   if (!bw.apiSecret) problems.push('BW_API_SECRET is not set');
   if (!bw.applicationId) problems.push('BW_APPLICATION_ID is not set');

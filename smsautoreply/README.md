@@ -183,7 +183,12 @@ node scripts/send-direct.js --show                     # config only, sends noth
 node scripts/send-direct.js --to +1YOURCELL --from +1YOURBWNUMBER
 ```
 
-In order of likelihood: the `from` number is not assigned to
+First check `BW_ACCOUNT_ID`: it must be the **numeric** account id from the
+dashboard (digits only). A username or email there produces a request to
+`/users/<username>/messages`, which Bandwidth answers with exactly this 403.
+`/health` and `send-direct.js --show` now flag a non-numeric value.
+
+Otherwise, in order of likelihood: the `from` number is not assigned to
 `BW_APPLICATION_ID`; the application belongs to a different account than
 `BW_ACCOUNT_ID`; the credentials are dashboard rather than Messaging API
 credentials; or the account lacks messaging permission for that number. The
