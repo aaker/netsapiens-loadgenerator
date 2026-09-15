@@ -1,0 +1,28 @@
+# systemd unit for the Node service Apache proxies to.
+#   cp apache/smsautoreply.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now smsautoreply
+
+[Unit]
+Description=Bandwidth SMS/MMS auto-reply service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/usr/local/NetSapiens/netsapiens-loadgenerator/smsautoreply
+EnvironmentFile=/usr/local/NetSapiens/netsapiens-loadgenerator/smsautoreply/.env
+ExecStart=/usr/bin/node src/index.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=smsautoreply
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

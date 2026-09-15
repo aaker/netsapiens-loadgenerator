@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+.env
+*.log
+
+# The repo-root .gitignore excludes "deploy.sh" (a personal deploy helper);
+# this app's deploy script is part of the source and must be tracked.
+!deploy/deploy.sh
