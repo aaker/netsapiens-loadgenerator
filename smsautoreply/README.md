@@ -128,3 +128,26 @@ install the vhost, or point `SSLCertificateFile` at an existing one.
 | `--logs` | Tail the remote journal |
 
 Logs: `journalctl -u smsautoreply -f` (JSON, one object per line).
+
+## Troubleshooting
+
+**`node not found` when run under sudo, but node works in your shell.**
+`sudo` replaces `PATH` with `secure_path`. The installer searches the usual
+install locations itself; if yours is elsewhere, pass `--node /path/to/node`.
+
+**`status=203/EXEC`, `Failed to execute .../node: Permission denied`.**
+The service runs as `www-data`, which cannot execute a node under `/root`
+(mode 700 — a symlink into `/usr/local/bin` does not help, because the
+traversal into `/root` is what is denied). Install node system-wide:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt-get install -y nodejs
+sudo ./deploy/install.sh --no-apache
+```
+
+The installer checks this up front by trying to run node as the service user,
+so it fails with instructions instead of leaving a restart-looping unit.
+
+**`/health` returns 503.** Expected until `.env` has the Bandwidth
+credentials; the response lists the missing keys in `problems[]`.

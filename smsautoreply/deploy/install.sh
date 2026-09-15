@@ -101,18 +101,46 @@ NODE_MAJOR="$("$NODE" -p 'process.versions.node.split(".")[0]')"
 [ "$NODE_MAJOR" -ge 18 ] || die "node >= 18 required (found $("$NODE" -v)); the app uses global fetch"
 log "node $("$NODE" -v) at $NODE"
 
-# The systemd unit runs as $SERVICE_USER, which cannot execute a binary under
-# /root or another user's home. Catch that here rather than at first start.
-case "$NODE" in
-    /root/*|/home/*)
-        if [ "$SERVICE_USER" != "root" ]; then
-            warn "$NODE is inside a private home directory"
-            warn "the service runs as $SERVICE_USER and will not be able to execute it"
-            warn "fix with a system-wide install, a symlink into /usr/local/bin,"
-            warn "or re-run with --user root"
-        fi
-        ;;
-esac
+# The systemd unit runs as $SERVICE_USER. Actually try to execute node as that
+# user: a path check is not enough, because a node under /root is unreachable
+# through a symlink too (/root is mode 700, so the traversal itself is denied).
+# Without this the unit starts, fails 203/EXEC and restart-loops.
+if [ "$SERVICE_USER" != "root" ] && id "$SERVICE_USER" >/dev/null 2>&1; then
+    if command -v runuser >/dev/null 2>&1; then
+        CAN_EXEC="runuser -u $SERVICE_USER -- $NODE -v"
+    else
+        CAN_EXEC="su -s /bin/sh -c '\"$NODE\" -v' $SERVICE_USER"
+    fi
+    if ! eval "$CAN_EXEC" >/dev/null 2>&1; then
+        die "$SERVICE_USER cannot execute $NODE
+
+       The service would fail with status=203/EXEC and restart-loop.
+       A symlink does NOT fix this when node lives under /root: that
+       directory is mode 700, so the path traversal is denied.
+
+       Pick one:
+         1. Install node system-wide (recommended):
+              curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+              # then re-run this script
+         2. Copy the existing install out of /root:
+              sudo cp -a \"\$(dirname \"\$(dirname $NODE)\")\" /usr/local/lib/nodejs
+              sudo ln -sf /usr/local/lib/nodejs/bin/node /usr/local/bin/node
+              sudo ln -sf /usr/local/lib/nodejs/bin/npm  /usr/local/bin/npm
+              sudo ./deploy/install.sh --node /usr/local/bin/node
+         3. Run the service as root (not recommended for a network listener):
+              sudo ./deploy/install.sh --user root"
+    fi
+    log "$SERVICE_USER can execute node"
+fi
+
+# The service user must also be able to read the app and its dependencies.
+if [ "$SERVICE_USER" != "root" ] && id "$SERVICE_USER" >/dev/null 2>&1; then
+    if ! runuser -u "$SERVICE_USER" -- test -r "$APP_DIR/src/index.js" 2>/dev/null \
+       && ! su -s /bin/sh -c "test -r '$APP_DIR/src/index.js'" "$SERVICE_USER" 2>/dev/null; then
+        warn "$SERVICE_USER cannot read $APP_DIR/src/index.js; check directory permissions"
+    fi
+fi
 
 log "installing production dependencies"
 cd "$APP_DIR"
