@@ -14,7 +14,7 @@ a block of generated data plus an echo of the post it received.
 | `src/reply.js` | **Reply content lives here** - `enrich()` for new data, `buildReply()` for the text |
 | `src/bandwidth.js` | Messaging API v2 client (send, retry/backoff) |
 | `scripts/send-test.js` | Posts a sample inbound callback at the running service |
-| `apache/smsautoreply.conf` | Apache reverse-proxy vhost |
+| `apache/smsautoreply.conf` | Apache proxy fragment (conf-enabled; `<Location>` blocks only) |
 | `apache/smsautoreply.service` | systemd unit |
 
 ## Setup
@@ -98,30 +98,40 @@ are never overwritten**.
    service user) and warns that it needs filling in
 3. Writes `/etc/systemd/system/smsautoreply.service`, rewriting the paths, node
    binary and user for the actual install location
-4. Writes the Apache vhost with `ServerName` and the Let's Encrypt cert paths
-   substituted, enables the required modules, runs `apachectl configtest` and
-   reloads **only if the test passes**
+4. Installs the Apache fragment to `conf-available` + `a2enconf` (or
+   `/etc/httpd/conf.d` on RHEL), enables the required modules, runs
+   `apachectl configtest` and reloads **only if the test passes**
 5. Curls `/health` and prints the result
+
+### Apache
+
+`apache/smsautoreply.conf` is a config fragment, not a vhost. It carries only
+the `<Location>` blocks; the `ServerName`, TLS certificate and any HTTP->HTTPS
+redirect are expected to be configured elsewhere. Because conf-enabled applies
+server-wide, these paths are proxied on **every** vhost — move the blocks
+inside a `<VirtualHost>` if that needs to be narrower.
+
+The health check is proxied at `/smsautoreply-health`, not `/health`, so a
+server-wide fragment does not claim a path other applications may want. It is
+restricted to localhost.
 
 ### First install
 
 ```bash
-./deploy/deploy.sh --no-apache             # app + service; vhost needs a cert first
+./deploy/deploy.sh --no-apache
 ssh loadgen2-phx.ca.nseng.dev
 sudo vi /usr/local/NetSapiens/netsapiens-loadgenerator/smsautoreply/.env
 ```
 
-Then, once a certificate exists for the host, re-run `./deploy/deploy.sh` to
-install the vhost, or point `SSLCertificateFile` at an existing one.
+Then re-run `./deploy/deploy.sh` to add the Apache fragment.
 
 ### Options
 
 | Command | Effect |
 |---|---|
 | `--host <fqdn>` | Deploy somewhere else (or set `SMSAUTOREPLY_HOST`) |
-| `--server-name <fqdn>` | `ServerName` for the vhost; defaults to the target host |
 | `--remote-dir <path>` | Install path (or `SMSAUTOREPLY_REMOTE_DIR`) |
-| `--no-apache` | App and systemd unit only |
+| `--no-apache` | App and systemd unit only, no Apache fragment |
 | `--no-restart` | Install files without restarting anything |
 | `--restart-only` | Restart the remote service, no file copy |
 | `--status` | Remote `systemctl status` plus `/health` |

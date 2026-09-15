@@ -9,7 +9,7 @@
 #   ./deploy/deploy.sh                       # deploy to the default host
 #   ./deploy/deploy.sh --dry-run             # show what rsync would transfer
 #   ./deploy/deploy.sh --host other.host     # different target
-#   ./deploy/deploy.sh --no-apache           # app + service only
+#   ./deploy/deploy.sh --no-apache           # app + service, no Apache fragment
 #   ./deploy/deploy.sh --restart-only        # restart the remote service, no copy
 #   ./deploy/deploy.sh --status              # remote service + health status
 #   ./deploy/deploy.sh --logs                # tail the remote journal
@@ -19,7 +19,6 @@ set -euo pipefail
 HOST="${SMSAUTOREPLY_HOST:-loadgen2-phx.ca.nseng.dev}"
 SSH_USER="${SMSAUTOREPLY_SSH_USER:-}"
 REMOTE_DIR="${SMSAUTOREPLY_REMOTE_DIR:-/usr/local/NetSapiens/netsapiens-loadgenerator/smsautoreply}"
-SERVER_NAME=""
 SERVICE_NAME="smsautoreply"
 DRY_RUN=0
 MODE="deploy"
@@ -35,7 +34,6 @@ while [ $# -gt 0 ]; do
         --host)        HOST="${2:?--host needs a value}"; shift 2 ;;
         --user)        SSH_USER="${2:?--user needs a value}"; shift 2 ;;
         --remote-dir)  REMOTE_DIR="${2:?--remote-dir needs a value}"; shift 2 ;;
-        --server-name) SERVER_NAME="${2:?--server-name needs a value}"; shift 2 ;;
         --dry-run)     DRY_RUN=1; shift ;;
         --no-apache)   INSTALL_ARGS+=(--no-apache); shift ;;
         --no-restart)  INSTALL_ARGS+=(--no-restart); shift ;;
@@ -49,7 +47,6 @@ done
 
 TARGET="$HOST"
 [ -n "$SSH_USER" ] && TARGET="$SSH_USER@$HOST"
-[ -z "$SERVER_NAME" ] && SERVER_NAME="$HOST"
 
 SSH_OPTS=(-o ConnectTimeout=15 -o BatchMode=yes)
 
@@ -122,7 +119,7 @@ ssh "${SSH_OPTS[@]}" "$TARGET" "rm -rf $STAGE"
 
 # --- install -----------------------------------------------------------------
 log "running remote installer"
-remote_sudo "bash $REMOTE_DIR/deploy/install.sh --server-name $SERVER_NAME ${INSTALL_ARGS[*]:-}"
+remote_sudo "bash $REMOTE_DIR/deploy/install.sh ${INSTALL_ARGS[*]:-}"
 
 log "deployed to $TARGET:$REMOTE_DIR"
 log "next: ssh $TARGET, edit $REMOTE_DIR/.env with the Bandwidth credentials,"

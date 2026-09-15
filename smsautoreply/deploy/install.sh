@@ -2,15 +2,18 @@
 #
 # smsautoreply - remote installer. Runs ON the target host.
 #
-# Installs node dependencies, the systemd unit and the Apache vhost, then
-# starts/reloads both services. Idempotent: safe to re-run on every deploy.
+# Installs node dependencies, the systemd unit and the Apache config fragment,
+# then starts/reloads both services. Idempotent: safe to re-run on every deploy.
+#
+# The Apache fragment goes to conf-available/conf-enabled (or conf.d on RHEL)
+# and contains only <Location> blocks: the vhost, ServerName and TLS cert are
+# assumed to be configured elsewhere.
 #
 # Usage (as root, from the deployed directory):
 #   ./deploy/install.sh [options]
 #
 # Options:
-#   --server-name <fqdn>   ServerName for the Apache vhost (default: hostname -f)
-#   --no-apache            Skip all Apache configuration
+#   --no-apache            Skip the Apache config fragment
 #   --no-systemd           Skip the systemd unit; only install dependencies
 #   --no-restart           Install files but do not start/reload services
 #   --user <user>          Unix user the service runs as (default: www-data)
@@ -22,7 +25,6 @@ set -euo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_NAME="smsautoreply"
 SERVICE_USER="www-data"
-SERVER_NAME=""
 NODE_BIN="${NODE_BIN:-}"
 DO_APACHE=1
 DO_SYSTEMD=1
@@ -34,30 +36,18 @@ die()  { printf '[install] ERROR: %s\n' "$*" >&2; exit 1; }
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --server-name) SERVER_NAME="${2:?--server-name needs a value}"; shift 2 ;;
         --user)        SERVICE_USER="${2:?--user needs a value}"; shift 2 ;;
         --node)        NODE_BIN="${2:?--node needs a value}"; shift 2 ;;
         --no-apache)   DO_APACHE=0; shift ;;
         --no-systemd)  DO_SYSTEMD=0; shift ;;
         --no-restart)  DO_RESTART=0; shift ;;
-        -h|--help)     sed -n '2,18p' "$0"; exit 0 ;;
+        -h|--help)     sed -n '2,21p' "$0"; exit 0 ;;
         *)             die "unknown option: $1" ;;
     esac
 done
 
 [ "$(id -u)" -eq 0 ] || die "must run as root (try: sudo $0 $*)"
-if [ -z "$SERVER_NAME" ]; then
-    SERVER_NAME="$(hostname -f 2>/dev/null || hostname)"
-    case "$SERVER_NAME" in
-        localhost|localhost.*|"")
-            SERVER_NAME="$(hostname)"
-            [ "$DO_APACHE" -eq 1 ] && warn "hostname -f returned localhost; using '$SERVER_NAME' as ServerName. Pass --server-name <fqdn> for the real name."
-            ;;
-    esac
-fi
-
 log "app directory: $APP_DIR"
-log "server name:   $SERVER_NAME"
 
 # --- 1. Node -----------------------------------------------------------------
 # sudo replaces PATH with secure_path, so a node installed outside /usr/bin
@@ -191,56 +181,46 @@ if [ "$DO_SYSTEMD" -eq 1 ]; then
 fi
 
 # --- 4. Apache ---------------------------------------------------------------
+# The vhost, ServerName and TLS certificate are managed elsewhere; this only
+# drops in the proxy fragment.
 if [ "$DO_APACHE" -eq 1 ]; then
-    VHOST_SRC="$APP_DIR/apache/${SERVICE_NAME}.conf"
-    [ -f "$VHOST_SRC" ] || die "missing vhost: $VHOST_SRC"
+    CONF_SRC="$APP_DIR/apache/${SERVICE_NAME}.conf"
+    [ -f "$CONF_SRC" ] || die "missing config fragment: $CONF_SRC"
 
-    if [ -d /etc/apache2/sites-available ]; then
+    if [ -d /etc/apache2/conf-available ]; then
         APACHE_FLAVOR="debian"
-        VHOST_DST="/etc/apache2/sites-available/${SERVICE_NAME}.conf"
+        CONF_DST="/etc/apache2/conf-available/${SERVICE_NAME}.conf"
         APACHE_SVC="apache2"
     elif [ -d /etc/httpd/conf.d ]; then
         APACHE_FLAVOR="rhel"
-        VHOST_DST="/etc/httpd/conf.d/${SERVICE_NAME}.conf"
+        CONF_DST="/etc/httpd/conf.d/${SERVICE_NAME}.conf"
         APACHE_SVC="httpd"
     else
         APACHE_FLAVOR=""
-        warn "no Apache config directory found; skipping vhost install"
+        warn "no Apache config directory found; skipping fragment install"
     fi
 
     if [ -n "$APACHE_FLAVOR" ]; then
-        log "installing $VHOST_DST"
-        sed -e "s|ServerName sms\.example\.com|ServerName $SERVER_NAME|g" \
-            -e "s|/etc/letsencrypt/live/sms\.example\.com|/etc/letsencrypt/live/$SERVER_NAME|g" \
-            "$VHOST_SRC" > "$VHOST_DST"
-
-        # The vhost references ${APACHE_LOG_DIR}, which only Debian defines.
-        if [ "$APACHE_FLAVOR" = "rhel" ]; then
-            sed -i 's|\${APACHE_LOG_DIR}|/var/log/httpd|g' "$VHOST_DST"
-        fi
-
-        CERT="/etc/letsencrypt/live/$SERVER_NAME/fullchain.pem"
-        if [ ! -f "$CERT" ]; then
-            warn "no certificate at $CERT"
-            warn "Apache will fail to load this vhost until one exists; run certbot,"
-            warn "or edit SSLCertificateFile/SSLCertificateKeyFile in $VHOST_DST"
-        fi
+        log "installing $CONF_DST"
+        install -m 644 "$CONF_SRC" "$CONF_DST"
 
         if [ "$APACHE_FLAVOR" = "debian" ]; then
-            log "enabling modules: proxy proxy_http headers ssl rewrite setenvif"
-            a2enmod proxy proxy_http headers ssl rewrite setenvif >/dev/null
-            a2ensite "$SERVICE_NAME" >/dev/null
+            log "enabling modules: proxy proxy_http headers setenvif"
+            a2enmod proxy proxy_http headers setenvif >/dev/null
+            a2enconf "$SERVICE_NAME" >/dev/null
         fi
 
-        if apachectl configtest 2>&1 | tee /tmp/${SERVICE_NAME}-configtest.log | grep -qi 'Syntax OK'; then
+        CONFTEST_LOG="/tmp/${SERVICE_NAME}-configtest.log"
+        if apachectl configtest 2>&1 | tee "$CONFTEST_LOG" | grep -qi 'Syntax OK'; then
             log "apache configtest: Syntax OK"
             if [ "$DO_RESTART" -eq 1 ]; then
                 log "reloading $APACHE_SVC"
                 systemctl reload "$APACHE_SVC"
             fi
         else
-            cat /tmp/${SERVICE_NAME}-configtest.log >&2
-            die "apache configtest failed; vhost left in place but NOT reloaded"
+            cat "$CONFTEST_LOG" >&2
+            die "apache configtest failed; fragment installed but NOT reloaded.
+       Undo with: $( [ "$APACHE_FLAVOR" = debian ] && echo "a2disconf $SERVICE_NAME" || echo "rm $CONF_DST" )"
         fi
     fi
 fi
