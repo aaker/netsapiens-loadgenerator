@@ -14,6 +14,7 @@
 #   --no-systemd           Skip the systemd unit; only install dependencies
 #   --no-restart           Install files but do not start/reload services
 #   --user <user>          Unix user the service runs as (default: www-data)
+#   --node <path>          Path to the node binary (default: autodetected)
 #   -h, --help             This help
 #
 set -euo pipefail
@@ -22,6 +23,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICE_NAME="smsautoreply"
 SERVICE_USER="www-data"
 SERVER_NAME=""
+NODE_BIN="${NODE_BIN:-}"
 DO_APACHE=1
 DO_SYSTEMD=1
 DO_RESTART=1
@@ -34,32 +36,90 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --server-name) SERVER_NAME="${2:?--server-name needs a value}"; shift 2 ;;
         --user)        SERVICE_USER="${2:?--user needs a value}"; shift 2 ;;
+        --node)        NODE_BIN="${2:?--node needs a value}"; shift 2 ;;
         --no-apache)   DO_APACHE=0; shift ;;
         --no-systemd)  DO_SYSTEMD=0; shift ;;
         --no-restart)  DO_RESTART=0; shift ;;
-        -h|--help)     sed -n '2,17p' "$0"; exit 0 ;;
+        -h|--help)     sed -n '2,18p' "$0"; exit 0 ;;
         *)             die "unknown option: $1" ;;
     esac
 done
 
 [ "$(id -u)" -eq 0 ] || die "must run as root (try: sudo $0 $*)"
-[ -z "$SERVER_NAME" ] && SERVER_NAME="$(hostname -f 2>/dev/null || hostname)"
+if [ -z "$SERVER_NAME" ]; then
+    SERVER_NAME="$(hostname -f 2>/dev/null || hostname)"
+    case "$SERVER_NAME" in
+        localhost|localhost.*|"")
+            SERVER_NAME="$(hostname)"
+            [ "$DO_APACHE" -eq 1 ] && warn "hostname -f returned localhost; using '$SERVER_NAME' as ServerName. Pass --server-name <fqdn> for the real name."
+            ;;
+    esac
+fi
 
 log "app directory: $APP_DIR"
 log "server name:   $SERVER_NAME"
 
 # --- 1. Node -----------------------------------------------------------------
-command -v node >/dev/null 2>&1 || die "node is not installed"
-NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-[ "$NODE_MAJOR" -ge 18 ] || die "node >= 18 required (found $(node -v)); the app uses global fetch"
-log "node $(node -v)"
+# sudo replaces PATH with secure_path, so a node installed outside /usr/bin
+# (nvm, n, /usr/local/bin, /opt) is invisible here even though it works in an
+# interactive root shell. Search the usual locations before giving up.
+find_node() {
+    [ -n "$NODE_BIN" ] && { echo "$NODE_BIN"; return; }
+
+    local found
+    found="$(command -v node 2>/dev/null || true)"
+    [ -n "$found" ] && { echo "$found"; return; }
+
+    local candidate
+    for candidate in /usr/bin/node /usr/local/bin/node /opt/node/bin/node \
+                     /opt/nodejs/bin/node /snap/bin/node; do
+        [ -x "$candidate" ] && { echo "$candidate"; return; }
+    done
+
+    # Version-manager installs: take the highest version present.
+    for candidate in $(ls -d /usr/local/n/versions/node/*/bin/node \
+                              /root/.nvm/versions/node/*/bin/node \
+                              /home/*/.nvm/versions/node/*/bin/node 2>/dev/null \
+                       | sort -V -r); do
+        [ -x "$candidate" ] && { echo "$candidate"; return; }
+    done
+}
+
+NODE="$(find_node)"
+[ -n "$NODE" ] || die "node not found. Install it, or pass --node /path/to/node
+       (an interactive shell may see node via a PATH that sudo discards;
+        run 'command -v node' as your normal user to locate it)"
+
+NODE_DIR="$(dirname "$NODE")"
+# Put the chosen node first so npm resolves to the matching install.
+export PATH="$NODE_DIR:$PATH"
+NPM="$NODE_DIR/npm"
+[ -x "$NPM" ] || NPM="$(command -v npm 2>/dev/null || true)"
+[ -n "$NPM" ] || die "npm not found alongside $NODE"
+
+NODE_MAJOR="$("$NODE" -p 'process.versions.node.split(".")[0]')"
+[ "$NODE_MAJOR" -ge 18 ] || die "node >= 18 required (found $("$NODE" -v)); the app uses global fetch"
+log "node $("$NODE" -v) at $NODE"
+
+# The systemd unit runs as $SERVICE_USER, which cannot execute a binary under
+# /root or another user's home. Catch that here rather than at first start.
+case "$NODE" in
+    /root/*|/home/*)
+        if [ "$SERVICE_USER" != "root" ]; then
+            warn "$NODE is inside a private home directory"
+            warn "the service runs as $SERVICE_USER and will not be able to execute it"
+            warn "fix with a system-wide install, a symlink into /usr/local/bin,"
+            warn "or re-run with --user root"
+        fi
+        ;;
+esac
 
 log "installing production dependencies"
 cd "$APP_DIR"
 if [ -f package-lock.json ]; then
-    npm ci --omit=dev --no-audit --no-fund
+    "$NPM" ci --omit=dev --no-audit --no-fund
 else
-    npm install --omit=dev --no-audit --no-fund
+    "$NPM" install --omit=dev --no-audit --no-fund
 fi
 
 # --- 2. .env -----------------------------------------------------------------
@@ -87,7 +147,7 @@ if [ "$DO_SYSTEMD" -eq 1 ]; then
     log "installing $UNIT_DST"
     sed -e "s|^WorkingDirectory=.*|WorkingDirectory=$APP_DIR|" \
         -e "s|^EnvironmentFile=.*|EnvironmentFile=$APP_DIR/.env|" \
-        -e "s|^ExecStart=.*|ExecStart=$(command -v node) src/index.js|" \
+        -e "s|^ExecStart=.*|ExecStart=$NODE src/index.js|" \
         -e "s|^User=.*|User=$SERVICE_USER|" \
         -e "s|^Group=.*|Group=$SERVICE_USER|" \
         "$UNIT_SRC" > "$UNIT_DST"
