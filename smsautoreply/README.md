@@ -45,9 +45,23 @@ Bandwidth requires a publicly trusted HTTPS certificate on the callback URL.
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `${WEBHOOK_PATH}` | Inbound message callback. Returns `200` immediately, then sends the reply. |
+| `POST` | `/ns-api/?object=sms&action=create` | NetSapiens-shaped endpoint; what Bandwidth is pointed at. Other `object`/`action` values get a `404`. |
+| `POST` | `${WEBHOOK_PATH}` | Same handler on the plain webhook path. Returns `200` immediately, then sends the reply. |
 | `POST` | `${WEBHOOK_PATH}/status` | Delivery status callback; logs outcome only. |
 | `GET` | `/health` | `200` when configured, `503` with a `problems[]` list otherwise. |
+
+### Accepted bodies
+
+Both endpoints take either a Bandwidth callback (a JSON array of events, or a
+single event object) or a flat NetSapiens-style body, JSON or form-encoded:
+
+```
+from_num=%2B19195551212&to_num=%2B19195559999&message=hello
+```
+
+`from`/`to`/`source`/`destination` and `text`/`body` are accepted as aliases.
+Percent-encode the leading `+` in a form body — an unencoded `+` decodes to a
+space — though the app repairs a bare 10-15 digit number either way.
 
 ## Reply flow
 

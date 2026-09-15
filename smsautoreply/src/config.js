@@ -38,6 +38,12 @@ const config = {
   },
   webhook: {
     path: str('WEBHOOK_PATH', '/webhooks/bandwidth/inbound'),
+    // NetSapiens-shaped endpoint: POST /ns-api/?object=sms&action=create
+    nsApiPath: str('NSAPI_PATH', '/ns-api/'),
+    nsApiObject: str('NSAPI_OBJECT', 'sms'),
+    nsApiAction: str('NSAPI_ACTION', 'create'),
+    // 0 accepts any query string on the ns-api path
+    nsApiRequireQuery: bool('NSAPI_REQUIRE_QUERY', true),
     username: str('WEBHOOK_USERNAME'),
     password: str('WEBHOOK_PASSWORD'),
     token: str('WEBHOOK_TOKEN'),
@@ -70,6 +76,9 @@ function validate() {
   }
   if (!config.webhook.path.startsWith('/')) {
     problems.push('WEBHOOK_PATH must start with /');
+  }
+  if (config.webhook.nsApiPath && !config.webhook.nsApiPath.startsWith('/')) {
+    problems.push('NSAPI_PATH must start with /');
   }
   if (config.webhook.username && !config.webhook.password) {
     problems.push('WEBHOOK_USERNAME is set but WEBHOOK_PASSWORD is not');

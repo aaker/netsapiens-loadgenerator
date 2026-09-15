@@ -29,13 +29,59 @@ function alreadyHandled(id) {
 }
 
 /**
+ * Map a flat, NetSapiens/form-style body onto the Bandwidth event shape, so the
+ * /ns-api/ endpoint accepts `from_num`/`to_num`/`message` as well as a real
+ * Bandwidth callback. Returns null when the body does not look like a message.
+ */
+function normalizeNumber(value) {
+  if (value === undefined || value === null) return value;
+  const trimmed = String(value).trim();
+  // In a form body an unencoded "+" decodes to a space; put it back.
+  if (/^\d{10,15}$/.test(trimmed)) return `+${trimmed}`;
+  return trimmed;
+}
+
+function fromFlatBody(body) {
+  const from = normalizeNumber(body.from_num || body.from || body.source || body.fromNumber);
+  const to = normalizeNumber(body.to_num || body.to || body.destination || body.toNumber);
+  const text = body.message !== undefined ? body.message
+    : body.text !== undefined ? body.text
+      : body.body;
+
+  if (!from && !to) return null;
+
+  return {
+    type: 'message-received',
+    time: body.time || new Date().toISOString(),
+    to,
+    message: {
+      id: body.id || body.message_id || `nsapi-${Date.now()}`,
+      owner: to,
+      time: body.time || new Date().toISOString(),
+      direction: 'in',
+      to: to ? [to] : [],
+      from,
+      text: text === undefined ? '' : String(text),
+      segmentCount: 1,
+      // Keep whatever else was posted; it is echoed back in the reply.
+      ...(body.media ? { media: [].concat(body.media) } : {}),
+    },
+  };
+}
+
+/**
  * Bandwidth posts an array of events; a single object is accepted too so the
- * endpoint is easy to exercise by hand.
+ * endpoint is easy to exercise by hand, as is a flat NetSapiens-style body.
  */
 function normalizeEvents(body) {
   if (Array.isArray(body)) return body;
-  if (body && typeof body === 'object') return [body];
-  return [];
+  if (!body || typeof body !== 'object') return [];
+  // A Bandwidth event has a `message` OBJECT; a flat NS body uses `message`
+  // as the text field, so check the type before treating it as an event.
+  if (body.type || (body.message && typeof body.message === 'object')) return [body];
+
+  const mapped = fromFlatBody(body);
+  return mapped ? [mapped] : [body];
 }
 
 function isInboundMessage(event) {
@@ -145,4 +191,4 @@ async function handleCallback(body, meta) {
   return results;
 }
 
-module.exports = { handleCallback, handleEvent, normalizeEvents };
+module.exports = { handleCallback, handleEvent, normalizeEvents, fromFlatBody };
