@@ -140,18 +140,33 @@ async function cmdReport(d, args) {
     const end = Math.min(Date.now(), epochOf(dateKey, 24 * 60, tz) - 1000);
     const window = { 'datetime-start': formatForApi(start, tz), 'datetime-end': formatForApi(end, tz) };
 
+    // Queue endpoints group by wall clock in the zone named in brackets
+    const zoned = { 'datetime-start': `${window['datetime-start']}[${tz}]`, 'datetime-end': `${window['datetime-end']}[${tz}]` };
     const perQueue = await api.stats('perQueue', {
-        ...window, fields: 'VOL,CH,AC,AR,SL,AWT,AHT,VM,FWD', sla: d.sla, unit: 'seconds'
+        ...zoned, fields: 'VOL,CH,AC,AR,SL,AWT,AHT,VM,FWD', sla: d.sla, unit: 'seconds'
     }).catch(e => ({ error: e.message }));
     console.log(`Queue performance ${dateKey} (SL ${d.sla}s):`);
     if (perQueue.error) console.log('  ', perQueue.error);
     else {
-        console.log('queue   profile         VOL    CH    AC    AR%    SL%   AWT(s)  AHT');
+        // The API answers with long field names, not the codes it was asked for
+        const cols = [
+            ['VOL', 'calls-total-count'], ['CH', 'calls-answered-count'], ['AC', 'calls-abandoned-count'],
+            ['AR%', 'calls-abandoned-rate'], ['SL%', 'calls-service-level-percent'],
+            ['AWT', 'calls-queueing-avg-duration-seconds'], ['AHT', /^calls-handling-avg-duration/],
+            ['VM', 'calls-voicemail-count'], ['FWD', 'calls-forwarded-count']
+        ];
+        const get = (v, key) => {
+            const k = key instanceof RegExp ? Object.keys(v).find(x => key.test(x)) : key;
+            const x = k ? v[k] : undefined;
+            return x === undefined || x === null ? '-' : typeof x === 'number' ? String(Math.round(x * 10) / 10) : String(x);
+        };
+        console.log('queue   profile      ' + cols.map(([h]) => h.padStart(7)).join('') + '  name');
+        const totals = {};
         for (const [q, v] of Object.entries(perQueue).sort()) {
-            const g = k => v[k] ?? v[Object.keys(v).find(x => x.toUpperCase() === k)] ?? '';
-            console.log(`${q.padEnd(7)} ${profileNameFor(d, q).padEnd(12)} ` +
-                [g('VOL'), g('CH'), g('AC'), g('AR'), g('SL'), g('AWT'), g('AHT')].map(x => String(typeof x === 'number' ? Math.round(x * 10) / 10 : x).padStart(6)).join(''));
+            for (const [h, key] of cols.slice(0, 3)) totals[h] = (totals[h] || 0) + Number(v[key] || 0);
+            console.log(`${q.padEnd(7)} ${profileNameFor(d, q).padEnd(12)} ` + cols.map(([, key]) => get(v, key).padStart(7)).join('') + `  ${v.name || ''}`);
         }
+        console.log(`total   ${''.padEnd(12)} ${['VOL', 'CH', 'AC'].map(h => String(totals[h]).padStart(7)).join('')}`);
     }
 
     const log = await api.stats('agentLog', window).catch(e => ({ error: e.message }));

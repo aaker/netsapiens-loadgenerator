@@ -93,10 +93,13 @@ SUT=$(resolve_ipv4 "$SUT")
 source "$BASE_DIR/sipp/scripts/cps-utils.sh"
 CPS_TZ_OFFSET=$TZ_OFFSET
 CPS_MULTIPLIER=$(cps_multiplier)
-CALLRATE=$(awk -v cps="$BOOST_CPS" -v mult="$CPS_MULTIPLIER" -v seed="$RANDOM" \
-    'BEGIN { srand(seed); v=cps*mult*(1+(rand()*0.04)-0.02); if (v<0.01) v=0.01; printf "%.2f", v }')
 DURATION=275
-NUMCALLS=$(awk -v r="$CALLRATE" -v d="$DURATION" 'BEGIN { printf "%.0f", r*d }')
+# Expected calls this batch, rounded randomly (so 0.4 expected calls gives a
+# call 40% of the time) - a low overnight rate stays proportionally low rather
+# than being floored. The SIPp rate then spreads them over the batch.
+read NUMCALLS CALLRATE < <(awk -v cps="$BOOST_CPS" -v mult="$CPS_MULTIPLIER" -v d="$DURATION" -v seed="$RANDOM" \
+    'BEGIN { srand(seed); v=cps*mult*(1+(rand()*0.04)-0.02); n=int(v*d + rand());
+             r=(n>0)? n/d : 0; if (r>0 && r<0.01) r=0.01; printf "%d %.3f", n, r }')
 if [ "$NUMCALLS" -lt 1 ]; then
     echo "Call rate $CALLRATE too low for a batch (multiplier $CPS_MULTIPLIER); nothing to do"
     exit 0
