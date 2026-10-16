@@ -145,6 +145,9 @@ if [ "$TRANSPORT" == "l1" ]; then
     if [ ! -f "$TLS_CERT" ] || [ ! -f "$TLS_KEY" ]; then
         echo "ERROR: TLS transport requested but certificates not found ($TLS_CERT / $TLS_KEY)"
         echo "Run: $BASE_DIR/sipp/scripts/generate_tls_certs.sh"
+        # Log it: this exit is before the first logger call, so a missing cert
+        # otherwise makes every TLS run vanish without a trace in syslog.
+        logger -t sipp-callback -p user.err "Callback UAS aborted, TLS certificates missing: transport=$TRANSPORT cert=$TLS_CERT key=$TLS_KEY"
         exit 1
     fi
     TLS_CA_PATH=""

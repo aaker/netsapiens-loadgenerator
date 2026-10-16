@@ -93,6 +93,9 @@ if [ "$TRANSPORT" == "l1" ]; then
         echo "ERROR: TLS transport requested but certificates not found!"
         echo "Expected: $TLS_CERT and $TLS_KEY"
         echo "Please run: $BASE_DIR/sipp/scripts/generate_tls_certs.sh"
+        # Log it: this exit is before the first logger call, so a missing cert
+        # otherwise makes every TLS run vanish without a trace in syslog.
+        logger -t sipp-call -p user.err "Call batch aborted, TLS certificates missing: server=$SERVER_ID scenario=call transport=$TRANSPORT cert=$TLS_CERT key=$TLS_KEY"
         exit 1
     fi
 fi
