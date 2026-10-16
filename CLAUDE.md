@@ -53,7 +53,7 @@ The system supports two configuration modes controlled by `lib/config.js`:
 | `server.js` | Main entry point. Orchestrates domain/user/device/queue creation via NetSapiens API. Processes domains in parallel batches (5 concurrent). |
 | `metrics-server.js` | Express server exposing Prometheus metrics at `:9090/metrics`. Monitors `sipp/stats/*.csv` files, parses SIPp statistics, tracks response times (P50/P95/P99), call rates, success/failure counts. Also writes to textfile collector path. |
 | `lib/config.js` | `ConfigLoader` class - loads `servers.json` or `.env`, parses `--server` CLI arg, validates configuration. |
-| `lib/nsapi.js` | `ServerApiClient` class for multi-server API calls + legacy standalone functions. All requests go to `https://<hostname>/ns-api/v2/`. Includes retry logic (3 retries, exponential backoff 1-10s) for transient errors. Handles 409 (duplicate) by calling update function. |
+| `lib/nsapi.js` | `ServerApiClient` class for multi-server API calls + legacy standalone functions. All requests go to `https://<hostname>/ns-api/v2/`. Includes retry logic (3 retries, exponential backoff 1-10s) for transient errors. Handles 409 (duplicate) by calling update function. The original methods swallow errors. `apiRequest`/`apiGet`/`apiPatch`/`apiPutJson`/`apiPostJson`/`apiDelete` return `{status, data}` and throw instead, and also retry 429; `describeApiError()` formats a failure as one line. |
 | `lib/utils.js` | `addToCsv()` - writes device CSVs, `addToCsvNumber()` - writes phone number CSVs, `getDomainSize()` - deterministic domain sizing from name hash, `randomIntFromInterval()`. |
 | `lib/randomdata.js` | Static arrays: `timeZones` (7 US), `queueNames` (31), `departmentNames` (51), `phoneModels` (14). `buildRandomCallerData()` generates 40k random caller ID entries to `sipp/csv/random_caller_ids.csv`. |
 | `lib/sipp-parser.js` | Parses SIPp `-trace_stat` CSV files. Reads only header + last line for performance. Extracts per-operation response time distributions (register, reregister, invite, subscribe), calculates percentiles, failure breakdowns. |
@@ -65,7 +65,7 @@ The system supports two configuration modes controlled by `lib/config.js`:
 1. `server.js` loads config, seeds `fakerator` with `SEED` for reproducible data
 2. Generates `MAX_DOMAIN` company domains with deterministic sizing:
    - ~1% super-large (800-2500 users), ~10% large (80-250), rest small (5-50)
-3. For each domain: creates domain via API, then batches of users (25/batch), devices, MAC addresses (50%), call queues (1 per 10 users, max 8), and queue agents (10% of users per queue)
+3. For each domain: creates domain via API, then batches of users (25/batch), devices, MAC addresses (50%), call queues (1 per 10 users, min 2, effectively max 13 because of an off-by-one guard), and queue agents (15% of users + 6 per queue, picked with unseeded `Math.random()`, so membership is not reproducible between runs)
 4. Writes SIPp-compatible CSV files:
    - **Devices**: `sipp/csv/[servers/<id>/]devices/<domain>.csv` (SEQUENTIAL format)
    - **Phone numbers**: `sipp/csv/[servers/<id>/]phonenumbers/<timezone>.csv` (RANDOM format)
@@ -78,7 +78,8 @@ The system supports two configuration modes controlled by `lib/config.js`:
 - `inbound.sh` - Launches inbound call generation for a timezone. Calculates call rate from `PEAK_CPS / 7` (one per timezone), runs ~275 seconds (5min batch). Sends to the server's `sasHostname` when set in `servers.json`, otherwise `hostname` (legacy mode: `SAS_SERVER`, falling back to `TARGET_SERVER`).
 - `port-allocator.sh` - Lock-based port allocation using `/tmp/sipp-ports/`. Manages SIP (20000-22000), control (22001-24000), and media (24001-60000) port ranges.
 - `generate_tls_certs.sh` - Generates self-signed TLS certificates for SIPp.
-- `cps-utils.sh` - Shared `cps_multiplier [minute_offset]` business-day curve (sourced by `inbound.sh` and `register.sh`).
+- `cps-utils.sh` - Shared `cps_multiplier [minute_offset]` business-day curve (sourced by `inbound.sh` and `domain_inbound.sh`; `register.sh` uses its own cosine curve for registration percentage).
+- `domain_inbound.sh` - Per-domain inbound call boost launched by `agent-sim.js` every 5 minutes (see Agent Simulator). Takes a prebuilt weighted DID CSV (`--csv`), a peak CPS for that domain alone (not divided by 7), and a talk-time range that it templates into a copy of `sipp_uac_pcap_g711a.xml` (`sipp/scripts/.agentsim_uac_*.xml`, removed when SIPp exits). Stats file: `<server>_domainboost_<transport>_<domain>_<pid>.csv`.
 - `csv-utils.sh` - Shared `normalize_device_csv` (5-column device CSV layout: displayName, extension, domain, auth, userAgent).
 - `opus-utils.sh` - Shared Opus/G.711a percentage-regex helpers for UAS scenarios.
 - `net-utils.sh` - Shared `resolve_ipv4 <host>`: resolves the SIP destination to an A record before handing it to SIPp, so an AAAA answer can't trigger "Network family mismatch for local/remote IP" (SIPp binds IPv4 via `-i`). IPv4 literals pass through; on resolution failure the hostname is used as-is with a warning. Sourced by `inbound.sh`, `register_all.sh`, `register.sh`, `call_all.sh`, `call.sh`, `manual_test.sh`.
@@ -95,15 +96,66 @@ The system supports two configuration modes controlled by `lib/config.js`:
 
 **Audio files**: `g711u-{orig,orig2,term,term2}.pcap` (PCMU, PT 0 - used by `sipp_uas_answer_then_callback.xml`; regenerate from the committed reference WAVs with `sipp/scripts/audio/generate-g711u-pcaps.sh`, no TTS key needed) and `g711a-{orig,orig2,term,term2}.pcap` + `opus-{term,term2}.pcap` (PT 121) - real-speech RTP audio, one file per call leg of a support call with a transfer at 90s (orig = caller, term = agents; `2` = post-transfer segment). `g711a-silence.pcap` - 90s of A-law silence, streamed by the UAC during the pre-agent (AA/MOH) stage. Regenerate with `sipp/scripts/audio/generate-call-pcaps.sh` (Deepgram TTS, see `audio/call-script.md`). Legacy: `g711a.pcap`, `opus.pcap`, `sip-rtp-opus-121.pcap` (continuous music), `2024-conversation-02-side-a/b.wav`, `mr.telephone.man.wav`
 
+### Agent Simulator (`agent-sim.js`)
+
+A long-running daemon that makes call-queue agents behave like a real call-center workforce for selected domains. It drives shifts, login/logout, away reasons, wrap-up and dispositions through API v2. Without it, every generated agent stays logged in and Available all day. Each status change is written by the server to `agent_log`, which feeds Horizon's agentLog stats (time available, unavailable, and per reason).
+
+- Config: `agent-sim.json` (gitignored; template `agent-sim.json.example`). There is one entry per domain, keyed by a `servers.json` id. Entries are merged over `DEFAULTS` in `lib/agent-sim/config.js`. Hostname and apikey come from `servers.json`, or from `.env` in legacy mode, where the server id is `default`.
+- Commands (run from the repo root):
+  - `setup`: shapes the roster. Add `--dry-run` to preview, or `--labels-only` to write only the status labels.
+  - `restore`: undoes setup from the snapshot.
+  - `run`: starts the daemon. `--time-scale N` and `--agent` are for testing only.
+  - `status`: shows live queue and agent counts.
+  - `plan`: shows the planned staffing per queue per hour, or one agent's day.
+  - `report`: shows today's per-queue SL/AWT/AR/AHT and agentLog totals.
+  - `codes`: lists the disposition codes; `--seed` creates the server's default set.
+- State lives in `state/agent-sim/<server>/<domain>/` (gitignored):
+  - `roster-snapshot.json`: the original memberships, written once and never overwritten.
+  - `roster.json`: the output of setup, read by `run`.
+  - `state.json`: per-agent runtime state, so a restart resumes the day.
+  - `boost_numbers.csv` and `dispositions-seen.json`.
+  - Also `state/agent-sim/heartbeat` and `agent-sim.pid`, used by the monitor.
+- Modules in `lib/agent-sim/`:
+  - `roster.js`: setup and restore.
+  - `schedule.js`: seeded day plan per agent per local date.
+  - `engine.js`: per-agent state machine, reconcile/drift, reactive staffing, call boost.
+  - `api.js`: paced writes, at most N in flight and at least 1.5s apart per agent.
+  - `dispositions.js`, `metrics.js`, `time.js`, `rng.js`.
+- Queue profiles (`strong` / `normal` / `struggling`, mapped per queue in `queues`) set:
+  - `staffing`: the chance a skilled agent logs into that queue today;
+  - `skillDepth`: how many agents get the skill at setup;
+  - `wrapUpSec`;
+  - `awayMultiplier`;
+  - `negativeBias`: how much negative dispositions are favoured.
+- Status API facts the code relies on:
+  - `PATCH .../callqueues/{q|all}/agents/{user@domain}/{login|logout|manual|onecall}`.
+  - Away reasons `Break|Lunch|Meeting|Web|Other|Manual-unavail|cust1..8` are case-sensitive and require `all`.
+  - Every action returns 202 before the change is applied.
+  - The server drops a second agent_log write for the same agent within the same second.
+  - Agents are logged in regardless of device registration. When an unregistered agent is auto-logged out after missed calls, the reconcile loop records it as drift (`logged_out_unregistered`) and logs the agent back in after `drift.relogDelaySec`.
+- Custom label writes:
+  - `PORTAL_CALL_QUEUE_STATUS_CUSTOM_N`, the configuration the API copies into the user's status message.
+  - The domain setting `callcenter.status.custom`: 8 `[name, icon, tone]` slots, read by Horizon.
+- Dispositions (`dispositions.enabled`):
+  - Polls `GET /domains/{d}/cdrs` for answered calls whose `call-through-user` is a queue and whose `call-term-user` is a rostered agent.
+  - After a wrap-up delay it sends `PUT /domains/{d}/cdrs/{call-parent-cdr-id}` with `call-disposition`, `call-disposition-reason`, `call-disposition-notes` and `call-disposition-submitted-datetime`.
+  - Codes come from `/callcenter-codes` (feature flag `call_center_reports`), else legacy `/dispositions`, else the config fallback. The API does not validate the codes.
+  - In Horizon, dispositions show up in Call History, in columns that are hidden by default.
+- Metrics:
+  - Written to `agent_sim.prom` in the `TEXTFILE_PATH` directory, never `sipp.prom`.
+  - Metrics: `agentsim_agents{queue,state}`, `agentsim_queue_waiting`, `agentsim_queue_agents_available`, `agentsim_actions_total`, `agentsim_drift_total`, `agentsim_reactive_total`, `agentsim_dispositions_total`.
+
 ### Cron Scheduling
 
 `cron/start_sipp` - Production cron configuration:
 - Registration: runs every minute, processes a subset of domains per cycle
-- Inbound: 5-minute cycles per timezone, 8-hour business day windows (UTC), rotating UDP/TCP/TLS transport on staggered minutes
+- Inbound: 5-minute cycles per timezone, running 24/7 (volume shaped only by `cps_multiplier`), rotating UDP/TCP/TLS transport on staggered minutes
 - Each timezone has offset minute patterns to distribute load
 - Callback UAS: `callback_uas_monitor.sh` every minute (keeps the single port-5050 answer-then-callback instance running for all servers; the instance itself recycles every 6 hours)
 
 `cron/start_sockettester` - Runs socket.io tester hourly 10:00-17:00
+
+`cron/start_agentsim` - Runs `scripts/agent_sim_monitor.sh` every minute (keeps the agent-sim daemon running; restarts it on a stale heartbeat)
 
 ### Auxiliary Components
 
@@ -170,12 +222,15 @@ The system supports two configuration modes controlled by `lib/config.js`:
 ### .gitignore
 - `node_modules/`, `package-lock.json`, `deploy.sh`
 - `sipp/csv/devices/`, `sipp/csv/phonenumbers/` (generated data)
+- `agent-sim.json`, `state/` (agent-sim config and runtime state), `sipp/scripts/.agentsim_uac_*.xml`
 - `sockettester/.env`
 
 ## File Tree
 
 ```
 server.js                  # Main data generation entry point
+agent-sim.js               # Call-center agent behaviour simulator (daemon + setup/restore/status/report)
+agent-sim.json.example     # agent-sim per-domain configuration template
 metrics-server.js          # Prometheus metrics server
 package.json               # Dependencies: axios, express, fakerator, seedrandom, prom-client, etc.
 .env.example               # Environment variable template
@@ -188,6 +243,7 @@ lib/
   sipp-parser.js           # SIPp statistics CSV parser
   prometheus-metrics.js    # Prometheus metric definitions
   stats-tracker.js         # Per-file state tracking, aggregation
+  agent-sim/               # agent-sim modules (config, roster, schedule, engine, api, dispositions, metrics)
 sipp/
   scripts/                 # SIPp XML scenarios + bash orchestration
   csv/                     # Generated CSV files (devices/, phonenumbers/, random_*)

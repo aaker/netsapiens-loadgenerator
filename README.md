@@ -131,6 +131,46 @@ Finished running for all servers
 
 See [MIGRATION.md](MIGRATION.md) for detailed migration instructions and troubleshooting.
 
+## Call-Center Agent Simulator (agent-sim)
+
+Out of the box, every generated queue agent stays logged in and Available, and each queue has 100+ agents. That keeps waits at zero and leaves agent-usage reports empty. `agent-sim.js` targets specific domains and makes the call center behave like a real one:
+
+- **Roster shaping** (`setup`):
+  - Trims the domain to a realistic active roster (default ~80 agents), many of them covering several queues.
+  - Leftover agents are deleted, disabled, or kept logged out as a reserve pool.
+  - Wrap-up time and dispatch priority are set per queue profile.
+  - The original roster is snapshotted, and `restore` puts it back.
+- **Workday**:
+  - Seeded per agent per day: shifts (early/core/late with jitter), absences, lunch, breaks, and random away reasons (Break, Meeting, Web, Other, Unavailable, custom reasons such as Training).
+  - Plus occasional single-call and manual-offline periods.
+  - Away periods wait until the agent's current call ends.
+- **Queue profiles**: each queue is `strong`, `normal` or `struggling`. Struggling queues get fewer skilled agents, lower daily staffing, longer wrap-up and more frequent away time, so some queues hit their service level and others miss it.
+- **Reactive staffing**: when a queue backs up, reserve agents are called in and breaks are cut short.
+- **Call boost** (optional): extra inbound calls for just that domain, weighted towards chosen queues, with configurable talk time (`sipp/scripts/domain_inbound.sh`).
+- **Dispositions** (optional): after an agent finishes a queue call, a disposition, call reason and note are written onto the call's CDR. Struggling queues get more negative outcomes.
+- **Metrics**: `agent_sim.prom` in the node-exporter textfile directory.
+
+### Quick start
+
+```bash
+cp agent-sim.json.example agent-sim.json      # edit server id, domain, timezone, queue profiles
+node agent-sim.js status --server core2-phx --domain stiedemann_casper_group
+node agent-sim.js setup  --server core2-phx --domain stiedemann_casper_group --dry-run   # preview
+node agent-sim.js setup  --server core2-phx --domain stiedemann_casper_group
+node agent-sim.js plan   --server core2-phx --domain stiedemann_casper_group           # planned staffing by hour
+node agent-sim.js codes  --server core2-phx --domain stiedemann_casper_group           # disposition codes in use
+node agent-sim.js run                                                                  # foreground daemon
+sudo cp cron/start_agentsim /etc/cron.d/                                               # or keep it running via cron
+node agent-sim.js report --server core2-phx --domain stiedemann_casper_group           # today's SL/AWT/AHT + time in status
+node agent-sim.js restore --server core2-phx --domain stiedemann_casper_group          # undo setup
+```
+
+Run everything from the repository root (`servers.json`, `agent-sim.json` and `state/` are resolved from the working directory).
+
+**Seeing it in Horizon:**
+- Time in each status: the stock Agents report has no time-by-reason chart. Add the Agent Status widget to a custom report.
+- Dispositions: they appear in Call History once the Disposition / Reason / Disposition notes columns are turned on.
+
 ## Usage
 You can run multiple target servers from a single installation (multi-server mode) or use the legacy single-server configuration. The tool can be run anywhere that can access the SIPbx SIP endpoint and API. Note there is network usage so beware of hidden costs if using a provider charging for network.
 

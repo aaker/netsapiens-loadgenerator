@@ -30,3 +30,11 @@ signup/.env
 signup/client/dist/
 
 signup/data/
+
+agent-sim.json
+
+state/
+
+sipp/scripts/.agentsim_uac_*.xml
+
+servers.json

@@ -1,0 +1,6 @@
+#agent-sim: call-center agent behaviour simulator (agent-sim.js) for the domains
+#listed in agent-sim.json. The monitor runs every minute, starts the daemon if it
+#is not running and restarts it if its heartbeat goes stale. Per-agent state is
+#persisted under state/agent-sim/, so a restart resumes the day in place.
+#Run `node agent-sim.js setup --server <id> --domain <d>` once per domain first.
+* * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/scripts/agent_sim_monitor.sh 2>&1 | logger -t agent-sim-monitor
