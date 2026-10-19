@@ -394,7 +394,9 @@ place_call() {
     fi
 
     # Surface where the SIPp __PCAP__ play markers landed for this run.
-    local logf=$(ls -t "$BASE_DIR/sipp/scripts/"sipp_uac_pcap_g711a_*_logs.log 2>/dev/null | head -1)
+    # SIPp names its logs after the scenario file, which is a templated
+    # copy (.manual_uac_<pid>.xml) when --talk/--full-call is used.
+    local logf=$(ls -t "$BASE_DIR/sipp/scripts/$(basename "$UAC_SCENARIO" .xml)"_*_logs.log 2>/dev/null | head -1)
     if [ -n "$logf" ]; then
         echo "[call] pcap-play markers (clock_tick ms) from $logf:"
         grep -h '__PCAP__' "$logf" 2>/dev/null | tail -20 | sed 's/^/       /'
