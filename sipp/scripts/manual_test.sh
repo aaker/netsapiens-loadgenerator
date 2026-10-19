@@ -18,29 +18,31 @@
 #   -t, --transport <t>   u1 (UDP, default) | t1 (TCP) | l1 (TLS)
 #   -s, --server <id>     Multi-server mode: resolve hostname from servers.json
 #   -c, --count <n>       Calls per trigger (default 1)
-#   --talk <min>,<max>    Caller talk time per leg in seconds (default 5,80,
-#                         same as cron). The agent transfers a call it is
-#                         still on 90s after answering, and the caller then
-#                         waits 30s more for the transfer, so 70,80 makes
-#                         every call reach the transfer. Keep max under ~82
-#                         or the transfer lands mid-pause and SIPp BYEs it.
-#   --full-call           Play the whole scripted call once: leg 1 to the
-#                         90s transfer (--talk defaults to 70,80), then the
-#                         transferred leg plays all of orig2/term2 (195s)
-#                         and the caller hangs up, instead of the agent
-#                         transferring again at 90s. ~5 min per call.
-#   --flow <name>         Play one scripted call with a transfer:
-#                           blind     agent 1 talks 90s, blind-REFERs the
-#                                     caller to the next queue, and agent 2's
-#                                     leg plays the whole conversation (the
-#                                     same as --full-call; ~5 min)
+#   --talk <min>,<max>    Caller talk time on leg 1 in seconds (default
+#                         70,80). The agent transfers a call it is still on
+#                         90s after answering, and the caller then waits 30s
+#                         more for the transfer, so 70,80 makes every call
+#                         reach it. Keep max under ~82 or the transfer lands
+#                         mid-pause and SIPp BYEs it.
+#   --full-call           (default) Play the whole scripted call once: leg 1
+#                         to the 90s transfer, then the transferred leg plays
+#                         all of orig2/term2 (195s) and the caller hangs up,
+#                         instead of the agent transferring again at 90s.
+#                         ~5 min per call.
+#   --no-full-call        Use the cron scenarios as-is: every leg talks
+#                         --talk (default 5,80, so most calls end before the
+#                         transfer) and agents keep transferring every 90s.
+#   --flow <name>         Which scripted call with a transfer to play:
+#                           blind     (default) agent 1 talks 90s, blind-
+#                                     REFERs the caller to the next queue,
+#                                     and agent 2's leg plays the whole
+#                                     conversation (~5 min)
 #                           attended  supervised transfer: agent A holds the
 #                                     caller, calls agent B, talks, then
 #                                     REFERs with Replaces (~2.5 min).
 #                                     Registers each device in its own SIPp
-#                                     process; --talk/--full-call don't apply.
-#                         Without --flow, calls use the cron scenarios as-is
-#                         (random 5-80s talk, so most end before the transfer).
+#                                     process; --talk/--full-call/
+#                                     --no-full-call don't apply.
 #   --consult <ext>       attended: agent B's extension (default: the first
 #                         device in the CSV, or the next one when agent A is
 #                         that device)
@@ -65,9 +67,8 @@
 #   ./manual_test.sh                                   # committed manual CSVs
 #   ./manual_test.sh -f sipp/csv/devices/acme_corp.csv -n 14805550100
 #   ./manual_test.sh -t t1 -s prod1 -w 5
-#   ./manual_test.sh -s prod1 --talk 70,80             # always reach the transfer
-#   ./manual_test.sh -s prod1 --full-call              # whole conversation, one transfer
-#   ./manual_test.sh -s prod1 --flow blind             # blind transfer, whole conversation
+#   ./manual_test.sh -s prod1                          # blind transfer, whole conversation
+#   ./manual_test.sh -s prod1 --no-full-call           # cron behaviour (random talk time)
 #   ./manual_test.sh -s prod1 --flow attended          # supervised transfer
 #
 # After the call completes you are prompted again - press Enter to place
@@ -95,7 +96,8 @@ AUTO_WAIT=""
 KEEP=0
 CAPTURE=1
 TALK=""
-FULL_CALL=0
+FULL_CALL=1
+FULL_CALL_FLAG=""
 FLOW=""
 CONSULT=""
 MEDIA_IP_OVERRIDE=""
@@ -109,7 +111,8 @@ while [ $# -gt 0 ]; do
         -c|--count)     CALL_COUNT="$2"; shift 2 ;;
         -w|--wait)      AUTO_WAIT="$2"; shift 2 ;;
         --talk)         TALK="$2"; shift 2 ;;
-        --full-call)    FULL_CALL=1; shift ;;
+        --full-call)    FULL_CALL=1; FULL_CALL_FLAG="$1"; shift ;;
+        --no-full-call) FULL_CALL=0; FULL_CALL_FLAG="$1"; shift ;;
         --flow)         FLOW="$2"; shift 2 ;;
         --consult)      CONSULT="$2"; shift 2 ;;
         --media-ip)     MEDIA_IP_OVERRIDE="$2"; shift 2 ;;
@@ -121,12 +124,12 @@ while [ $# -gt 0 ]; do
 done
 
 case "$FLOW" in
-    "") FLOW="blind" ;;
-    blind) FULL_CALL=1 ;;
+    ""|blind) FLOW="blind" ;;
     attended)
-        if [ -n "$TALK" ] || [ "$FULL_CALL" == "1" ]; then
-            echo "ERROR: --talk/--full-call apply to the blind flow only"; exit 1
-        fi ;;
+        if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
+            echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
+        fi
+        FULL_CALL=0 ;;
     *) echo "ERROR: --flow must be blind or attended (got '$FLOW')"; exit 1 ;;
 esac
 
