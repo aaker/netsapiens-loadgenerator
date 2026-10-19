@@ -32,7 +32,12 @@ npm run metrics                                  # or: node metrics-server.js
 ./scripts/start-metrics-server.sh start          # as background service
 ./scripts/start-metrics-server.sh status|stop|restart|logs
 
-# Diagnostic/test tools
+# Tests (Jest, in test/)
+npm test                                         # run all tests
+npm run test:coverage                            # with coverage report (coverage/)
+npx jest test/lib/utils.test.js                  # single file
+
+# Diagnostic tools
 node test-cpu.js                                 # CPU performance benchmark for stats parsing
 node test-parse-sample.js                        # Debug SIPp CSV parsing
 ```
@@ -197,7 +202,8 @@ A long-running daemon that makes call-queue agents behave like a real call-cente
 ### Code Style
 - Uses `var` for legacy modules, `const`/`let` in newer code - match the style of the file you're editing
 - Node.js CommonJS modules (`require`/`module.exports`) throughout, except `sockettester/` which uses ES modules
-- No test framework - `test-cpu.js` and `test-parse-sample.js` are manual diagnostic scripts
+- Tests use Jest (+ `supertest` for `metrics-server.js` endpoints), in `test/` mirroring the source layout (`test/lib/<module>.test.js`). Coverage is limited to the core `lib/` modules and `metrics-server.js`; agent-sim, `server.js` and the shell scripts have no tests. `lib/config.js` calls `dotenv.config()`, so a local `.env` can leak into the config tests (3 of them fail when `.env` sets `TARGET_SERVER`/`APIKEY`/`MAX_DOMAIN`)
+- `test-cpu.js` and `test-parse-sample.js` are manual diagnostic scripts, not part of the Jest suite
 - No linter or formatter configured
 
 ### API Pattern
@@ -224,6 +230,7 @@ A long-running daemon that makes call-queue agents behave like a real call-cente
 - `sipp/csv/devices/`, `sipp/csv/phonenumbers/` (generated data)
 - `agent-sim.json`, `state/` (agent-sim config and runtime state), `sipp/scripts/.agentsim_uac_*.xml`
 - `sockettester/.env`
+- `coverage/` (Jest coverage output)
 
 ## File Tree
 
@@ -257,6 +264,8 @@ sipp-api/
   index.php                # PHP API for single SIPp operations
 sockettester/
   server.js                # Socket.io WebSocket load tester (ES module)
+test/                      # Jest tests (lib/*.test.js, metrics-server.test.js)
+jest.config.js             # Jest configuration
 test-cpu.js                # CPU performance benchmark
 test-parse-sample.js       # SIPp CSV parsing debugger
 ```
