@@ -38,3 +38,5 @@ state/
 sipp/scripts/.agentsim_uac_*.xml
 
 servers.json
+
+coverage/
