@@ -202,7 +202,10 @@ A long-running daemon that makes call-queue agents behave like a real call-cente
 ### Code Style
 - Uses `var` for legacy modules, `const`/`let` in newer code - match the style of the file you're editing
 - Node.js CommonJS modules (`require`/`module.exports`) throughout, except `sockettester/` which uses ES modules
-- Tests use Jest (+ `supertest` for `metrics-server.js` endpoints), in `test/` mirroring the source layout (`test/lib/<module>.test.js`). Coverage is limited to the core `lib/` modules and `metrics-server.js`; agent-sim, `server.js` and the shell scripts have no tests. `lib/config.js` calls `dotenv.config()`, so a local `.env` can leak into the config tests (3 of them fail when `.env` sets `TARGET_SERVER`/`APIKEY`/`MAX_DOMAIN`)
+- Tests use Jest, plus `supertest` for the `metrics-server.js` endpoints. They live in `test/`, mirroring the source layout (`test/lib/<module>.test.js`).
+  - Covered: the core `lib/` modules and `metrics-server.js`. Not covered: agent-sim, `server.js` and the shell scripts.
+  - `test/lib/config.test.js` deletes `TARGET_SERVER`, `APIKEY`, `MAX_DOMAIN` etc. and then re-requires `lib/config.js`. That module calls `dotenv.config()` on load, so a local `.env` puts the values straight back.
+  - With a populated `.env` in the repo root, 3 config tests fail: "throws when TARGET_SERVER missing", "throws when APIKEY missing" and "applies defaults for optional fields". Without one, all tests pass. Run the suite from a checkout without `.env` (e.g. a `git worktree`) or move `.env` aside.
 - `test-cpu.js` and `test-parse-sample.js` are manual diagnostic scripts, not part of the Jest suite
 - No linter or formatter configured
 
