@@ -34,11 +34,12 @@ Generate everything with `generate-call-pcaps.sh` (requires
 - Agent 1 = `aura-asteria-en` (Priya, female)
 - Agent 2 = `aura-arcas-en` (Marcus, male)
 
-> The UAS scenarios cannot currently tell a fresh call from a transferred one
-> (every answered call plays `g711a-term.pcap`). If the platform marks
-> transferred INVITEs (e.g. `Diversion:` / `Referred-By:`), an `ereg` branch in
-> `sipp_uas_pcap_opus_g711a_fallback.xml` could select `g711a-term2.pcap` for
-> those legs.
+> `sipp_uas_pcap_opus_g711a_fallback.xml` detects a transferred leg by its
+> `Referred-By:` header and plays `term2` there; the UAC plays `orig2` on any
+> leg after the first. By default the transferred agent still transfers again
+> after 90s, so cron calls never play segment 2 to the end. To hear the whole
+> conversation once, run `manual_test.sh --full-call`: the transferred leg then
+> plays all 195s and the caller hangs up.
 
 ---
 

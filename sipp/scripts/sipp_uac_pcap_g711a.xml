@@ -252,7 +252,16 @@
   <!-- transfer re-INVITE.  This is what keeps call durations varied and means   -->
   <!-- not every call reaches the transfer.                                      -->
   <label id="talk_pause"/>
+  <nop test="xfer_leg" next="talk_pause_xfer"/>
   <pause distribution="uniform" min="5000" max="80000"/>
+  <nop next="xfer_watch"/>
+  <!-- Post-transfer legs get their own pause line so manual_test.sh         -->
+  <!-- full-call mode can retarget it (leg2_talk marker) to play all of orig2 -->
+  <!-- (195s).  As shipped it matches the pause above, so behaviour is the   -->
+  <!-- same; domain_inbound.sh and the talk option rewrite both lines.       -->
+  <label id="talk_pause_xfer"/>
+  <pause distribution="uniform" min="5000" max="80000"/> <!-- leg2_talk -->
+  <label id="xfer_watch"/>
   <recv request="INVITE" optional="true" timeout="30000" ontimeout="send_bye" crlf="true" next="answer_reinvite">
   </recv>
   <recv request="BYE" timeout="30000" ontimeout="send_bye" crlf="true" next="peer_bye">

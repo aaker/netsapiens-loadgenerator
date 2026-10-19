@@ -24,6 +24,11 @@
 #                         waits 30s more for the transfer, so 70,80 makes
 #                         every call reach the transfer. Keep max under ~82
 #                         or the transfer lands mid-pause and SIPp BYEs it.
+#   --full-call           Play the whole scripted call once: leg 1 to the
+#                         90s transfer (--talk defaults to 70,80), then the
+#                         transferred leg plays all of orig2/term2 (195s)
+#                         and the caller hangs up, instead of the agent
+#                         transferring again at 90s. ~5 min per call.
 #   -w, --wait <sec>      Auto-place the first call after N seconds (default:
 #                         wait for registrations, then prompt)
 #   -k, --keep            Leave the registration instance running on exit
@@ -40,6 +45,7 @@
 #   ./manual_test.sh -f sipp/csv/devices/acme_corp.csv -n 14805550100
 #   ./manual_test.sh -t t1 -s prod1 -w 5
 #   ./manual_test.sh -s prod1 --talk 70,80             # always reach the transfer
+#   ./manual_test.sh -s prod1 --full-call              # whole conversation, one transfer
 #
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
@@ -66,6 +72,7 @@ AUTO_WAIT=""
 KEEP=0
 CAPTURE=1
 TALK=""
+FULL_CALL=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -76,9 +83,10 @@ while [ $# -gt 0 ]; do
         -c|--count)     CALL_COUNT="$2"; shift 2 ;;
         -w|--wait)      AUTO_WAIT="$2"; shift 2 ;;
         --talk)         TALK="$2"; shift 2 ;;
+        --full-call)    FULL_CALL=1; shift ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
-        -h|--help)      grep '^#' "$0" | head -42; exit 0 ;;
+        -h|--help)      grep '^#' "$0" | head -48; exit 0 ;;
         *) echo "Unknown option: $1 (try -h)"; exit 1 ;;
     esac
 done
@@ -203,6 +211,7 @@ UA_VERSION=$(get_ua_version "$BASE_DIR")
 # (same substitution as domain_inbound.sh). The copy sits next to the
 # original because the pcap paths in it are relative.
 UAC_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml"
+[ "$FULL_CALL" == "1" ] && TALK=${TALK:-70,80}
 if [ -n "$TALK" ]; then
     TALK_MIN_MS=$(awk -F, '{printf "%d", $1*1000}' <<< "$TALK")
     TALK_MAX_MS=$(awk -F, '{printf "%d", $2*1000}' <<< "$TALK")
@@ -218,6 +227,23 @@ if [ -n "$TALK" ]; then
         rm -f "$UAC_SCENARIO"
         exit 1
     fi
+fi
+
+# --full-call: the caller's post-transfer leg talks 188s (+8s settle = the
+# 195s orig2), and a copy of the UAS sends a transferred leg to wait_bye_full
+# instead of transferring again. The copy is ours alone - make_uas_scenario's
+# /tmp file is shared with the cron registrations on this host.
+if [ "$FULL_CALL" == "1" ]; then
+    sed -i -e 's#<pause [^>]*/> <!-- leg2_talk -->#<pause milliseconds="188000"/> <!-- leg2_talk -->#' "$UAC_SCENARIO"
+    sed -e 's#<nop next="wait_bye_90"/>#<nop test="is_transfer" next="wait_bye_full"/>#' \
+        "$_UAS_SCENARIO" > "$WORK_DIR/uas_full_call.xml"
+    if ! grep -q 'milliseconds="188000"/> <!-- leg2_talk -->' "$UAC_SCENARIO" \
+        || ! grep -q 'next="wait_bye_full"/>' "$WORK_DIR/uas_full_call.xml"; then
+        echo "ERROR: --full-call hooks not found in the UAC/UAS scenarios"
+        rm -f "$UAC_SCENARIO"
+        exit 1
+    fi
+    _UAS_SCENARIO="$WORK_DIR/uas_full_call.xml"
 fi
 
 # Two port sets from the shared allocator (same as the cron scripts)
@@ -257,7 +283,11 @@ echo "   Target:      $SUT$SIP_PORT_ADD_ON ($TRANSPORT)"
 echo "   Devices:     $NUM_DEVICES from $DEVICE_CSV"
 echo "   Number:      $NUMBER  (x$CALL_COUNT per trigger)"
 echo "   Local IP:    $PRIVATEIP   Media IP: $MEDIA_IP"
-echo "   Talk time:   ${TALK:-5,80}s per leg (transfer at ~90s after answer)"
+if [ "$FULL_CALL" == "1" ]; then
+    echo "   Talk time:   full call - ${TALK}s to the 90s transfer, then 195s post-transfer"
+else
+    echo "   Talk time:   ${TALK:-5,80}s per leg (transfer at ~90s after answer)"
+fi
 echo "   Opus pct:    ${OPUS_PCT:-50}% (regex: $_OPUS_REGEX)"
 echo "   Reg ports:   sip=$REG_SIP_PORT media=$REG_MEDIA_PORT ctrl=$REG_CONTROL_PORT"
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"

@@ -243,10 +243,37 @@
   </nop>
 
   <label id="wait_bye"/>
+  <!-- manual_test.sh full-call mode rewrites the next line (in its own copy) -->
+  <!-- to <nop test="is_transfer" next="wait_bye_full"/>, so a transferred   -->
+  <!-- leg plays all of term2 (195s) and waits for the caller's BYE instead  -->
+  <!-- of transferring again at 90s.  As shipped it is a no-op jump.         -->
+  <nop next="wait_bye_90"/>
+  <label id="wait_bye_90"/>
   <!-- If the orig side never hangs up within 90s, blind-transfer the call  -->
   <!-- to a neighbouring queue (see do_transfer) instead of just sending a  -->
   <!-- BYE ourselves.                                                       -->
   <recv request="BYE" timeout="90000" ontimeout="do_transfer" ></recv>
+  <send next="99">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Full-call transferred leg (manual_test.sh full-call mode only): term2 -->
+  <!-- runs 195.1s and the caller hangs up just after it; if no BYE comes,   -->
+  <!-- hang up ourselves rather than transfer again.                         -->
+  <label id="wait_bye_full"/>
+  <recv request="BYE" timeout="215000" ontimeout="send_bye"></recv>
   <send next="99">
     <![CDATA[
 
