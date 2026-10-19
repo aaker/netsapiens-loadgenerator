@@ -18,7 +18,7 @@ const path = require('path');
 const { loadAgentSimConfig, profileNameFor, stateDir } = require('./lib/agent-sim/config');
 const { DomainApi, sleep } = require('./lib/agent-sim/api');
 const roster = require('./lib/agent-sim/roster');
-const { buildDayPlan } = require('./lib/agent-sim/schedule');
+const { buildDayPlan, shiftsFor } = require('./lib/agent-sim/schedule');
 const { DomainEngine } = require('./lib/agent-sim/engine');
 const { writeMetrics, outputPath } = require('./lib/agent-sim/metrics');
 const { SimClock, wallClock, epochOf, formatForApi, formatLocal } = require('./lib/agent-sim/time');
@@ -121,6 +121,12 @@ function cmdPlan(d, args) {
         }
     }
     if (!args.agent) {
+        const sf = shiftsFor(d, dateKey);
+        if (sf.rampAt) {
+            console.log(`Shift waves (${d.workday.curve.workHours}h + lunch) from the call curve: calls ramp ~${sf.rampAt}, main calling done ~${sf.doneAt}; ` +
+                `first arrivals ${sf.firstStart}, last leave ${sf.lastEnd}`);
+            console.log('  ' + sf.shifts.map(x => `${x.name === 'close' ? 'close ->' + x.end : x.start} ${Math.round(x.pct * 100)}%`).join(', '));
+        }
         console.log(`Planned available agents per queue at :30 past each hour, ${dateKey} (${tz}); excludes reserve call-ins and on-call time`);
         const hours = [...Array(24).keys()].filter(h => Object.values(perQueueHour).some(a => a[h]));
         console.log('queue   profile      ' + hours.map(h => String(h).padStart(3)).join(''));

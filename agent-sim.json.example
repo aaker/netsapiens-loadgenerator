@@ -22,6 +22,19 @@
 
       "workday": {
         "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        "shiftMode": "curve",
+        "curve": {
+          "workHours": 8,
+          "workJitterMin": [-5, 10],
+          "rampThreshold": 0.25,
+          "openLeadHours": 1.5,
+          "doneThreshold": 0.25,
+          "closeLagHours": 2,
+          "waveEveryMin": 30,
+          "startSpreadMin": 15,
+          "minWavePct": 0.05,
+          "minCoverage": 0.08
+        },
         "weekendStaffingPct": 0.15,
         "shifts": [
           { "name": "early", "start": "07:00", "end": "15:30", "pct": 0.35 },
