@@ -29,12 +29,18 @@
 #                         transferred leg plays all of orig2/term2 (195s)
 #                         and the caller hangs up, instead of the agent
 #                         transferring again at 90s. ~5 min per call.
-#   --flow <name>         Call flow: blind (default; the cron scenarios, a
-#                         blind REFER to the next queue at 90s) or attended
-#                         (supervised transfer: agent A holds the caller,
-#                         calls agent B, talks, then REFERs with Replaces;
-#                         ~2.5 min). attended registers each device in its
-#                         own SIPp process and ignores --talk/--full-call.
+#   --flow <name>         Play one scripted call with a transfer:
+#                           blind     agent 1 talks 90s, blind-REFERs the
+#                                     caller to the next queue, and agent 2's
+#                                     leg plays the whole conversation (the
+#                                     same as --full-call; ~5 min)
+#                           attended  supervised transfer: agent A holds the
+#                                     caller, calls agent B, talks, then
+#                                     REFERs with Replaces (~2.5 min).
+#                                     Registers each device in its own SIPp
+#                                     process; --talk/--full-call don't apply.
+#                         Without --flow, calls use the cron scenarios as-is
+#                         (random 5-80s talk, so most end before the transfer).
 #   --consult <ext>       attended: agent B's extension (default: the first
 #                         device in the CSV, or the next one when agent A is
 #                         that device)
@@ -61,6 +67,7 @@
 #   ./manual_test.sh -t t1 -s prod1 -w 5
 #   ./manual_test.sh -s prod1 --talk 70,80             # always reach the transfer
 #   ./manual_test.sh -s prod1 --full-call              # whole conversation, one transfer
+#   ./manual_test.sh -s prod1 --flow blind             # blind transfer, whole conversation
 #   ./manual_test.sh -s prod1 --flow attended          # supervised transfer
 #
 # After the call completes you are prompted again - press Enter to place
@@ -89,7 +96,7 @@ KEEP=0
 CAPTURE=1
 TALK=""
 FULL_CALL=0
-FLOW="blind"
+FLOW=""
 CONSULT=""
 MEDIA_IP_OVERRIDE=""
 
@@ -108,13 +115,14 @@ while [ $# -gt 0 ]; do
         --media-ip)     MEDIA_IP_OVERRIDE="$2"; shift 2 ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
-        -h|--help)      grep '^#' "$0" | head -63; exit 0 ;;
+        -h|--help)      awk 'NR > 1 && !/^#/ { exit } NR > 1' "$0"; exit 0 ;;
         *) echo "Unknown option: $1 (try -h)"; exit 1 ;;
     esac
 done
 
 case "$FLOW" in
-    blind) ;;
+    "") FLOW="blind" ;;
+    blind) FULL_CALL=1 ;;
     attended)
         if [ -n "$TALK" ] || [ "$FULL_CALL" == "1" ]; then
             echo "ERROR: --talk/--full-call apply to the blind flow only"; exit 1
