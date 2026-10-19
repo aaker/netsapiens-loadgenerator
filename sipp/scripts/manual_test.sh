@@ -38,6 +38,11 @@
 #   --consult <ext>       attended: agent B's extension (default: the first
 #                         device in the CSV, or the next one when agent A is
 #                         that device)
+#   --media-ip <ip>       RTP address the caller advertises in its SDP
+#                         (default: the public IP when IP_USE_PUBLIC=1, else
+#                         the private one). The core's relay does not latch
+#                         onto a NATed caller, so a private address here
+#                         leaves the caller's leg without audio.
 #   -w, --wait <sec>      Auto-place the first call after N seconds (default:
 #                         wait for registrations, then prompt)
 #   -k, --keep            Leave the registration instance running on exit
@@ -85,6 +90,7 @@ TALK=""
 FULL_CALL=0
 FLOW="blind"
 CONSULT=""
+MEDIA_IP_OVERRIDE=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -98,9 +104,10 @@ while [ $# -gt 0 ]; do
         --full-call)    FULL_CALL=1; shift ;;
         --flow)         FLOW="$2"; shift 2 ;;
         --consult)      CONSULT="$2"; shift 2 ;;
+        --media-ip)     MEDIA_IP_OVERRIDE="$2"; shift 2 ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
-        -h|--help)      grep '^#' "$0" | head -58; exit 0 ;;
+        -h|--help)      grep '^#' "$0" | head -63; exit 0 ;;
         *) echo "Unknown option: $1 (try -h)"; exit 1 ;;
     esac
 done
@@ -184,6 +191,7 @@ if [ "${IP_USE_PUBLIC:-1}" == "1" ]; then
 else
     MEDIA_IP=$PRIVATEIP
 fi
+MEDIA_IP=${MEDIA_IP_OVERRIDE:-$MEDIA_IP}
 
 # TLS options mirror register.sh
 TLS_OPTIONS=""
@@ -288,6 +296,17 @@ if [ "$FLOW" == "attended" ]; then
     REG_KEYS="-key consult_target $CONSULT -key consult_target_alt $CONSULT_ALT"
 fi
 
+# The caller always runs from a copy (next to the original, since its pcap
+# paths are relative) with [media_ip] filled in, as inbound.sh does: it is a
+# SIPp built-in keyword that -key cannot override, so without this the SDP
+# carries the private bind address.
+UAC_COPY="$BASE_DIR/sipp/scripts/.manual_uac_$$.xml"
+if [ "$UAC_SCENARIO" != "$UAC_COPY" ]; then
+    cp "$UAC_SCENARIO" "$UAC_COPY"
+    UAC_SCENARIO="$UAC_COPY"
+fi
+sed -i -e "s/\[media_ip\]/$MEDIA_IP/g" "$UAC_SCENARIO"
+
 # Port sets from the shared allocator (same as the cron scripts): one per
 # registration process (one in total, or one per device for attended), plus
 # one for the UAC. REG_SETS entries are "csv:sip:media:ctrl:stats:uas".
@@ -338,7 +357,7 @@ cleanup() {
         echo "Stopping registration instance(s) (PID ${REG_PIDS[*]})"
         kill "${REG_PIDS[@]}" 2>/dev/null
     fi
-    [ -n "$TALK" ] && rm -f "$UAC_SCENARIO"
+    rm -f "$UAC_COPY"
     for p in $ALL_PORTS; do
         unlock_port "$p" 2>/dev/null
     done
@@ -468,7 +487,6 @@ place_call() {
         -t "$TRANSPORT" $TLS_OPTIONS \
         -i "$PRIVATEIP" -p "$UAC_SIP_PORT" -cp "$UAC_CONTROL_PORT" -mp "$UAC_MEDIA_PORT" \
         -recv_timeout 60000 \
-        -key media_ip "$MEDIA_IP" \
         -key ua_version "$UA_VERSION" \
         -trace_stat -stf "$stats" -fd 5 -trace_err -trace_logs -trace_msg
     local rc=$?

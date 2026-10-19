@@ -7,11 +7,12 @@
 <!-- Same call setup as sipp_uac_pcap_g711a.xml (DID INVITE, pre-agent      -->
 <!-- silence + DTMF), then follows the agents in sipp_uas_attended.xml:     -->
 <!--   1. agent A connects (re-INVITE): play g711a-att-orig.pcap (44s)      -->
-<!--   2. A holds us (re-INVITE a=sendonly/inactive): answer recvonly/      -->
-<!--      inactive and stay quiet while A consults agent B                  -->
-<!--   3. the merge (a sendrecv re-INVITE after the hold, or 32s after      -->
-<!--      section 1 if none comes): play g711a-att-orig2.pcap (60s), then   -->
-<!--      hang up                                                           -->
+<!--   2. A holds us: any re-INVITE during section 1 (the core sends a      -->
+<!--      sendrecv one that moves us to music on hold; a=sendonly/inactive  -->
+<!--      is answered recvonly/inactive).  Stay quiet while A consults B.   -->
+<!--      No re-INVITE within 50s counts as the hold too.                   -->
+<!--   3. the merge (the next sendrecv re-INVITE, or 32s after the hold if  -->
+<!--      none comes): play g711a-att-orig2.pcap (60s), then hang up        -->
 <!--                                                                        -->
 <!-- Every wait is a recv with a timeout rather than a <pause>, so a        -->
 <!-- re-INVITE can arrive at any point without being auto-BYEd.  Each wait  -->
@@ -179,7 +180,7 @@
   </nop>
   <recv timeout="44500" ontimeout="c_wait_merge_enter" request="BYE" optional="true" next="peer_bye">
   </recv>
-  <recv request="INVITE" timeout="44500" ontimeout="c_wait_merge_enter" crlf="true" next="c_reinv">
+  <recv request="INVITE" timeout="50000" ontimeout="c_wait_merge_enter" crlf="true" next="c_reinv">
     <action>
       <ereg regexp="a=sendonly" search_in="body" assign_to="offer_sendonly" checkIt="false"/>
       <ereg regexp="a=inactive" search_in="body" assign_to="offer_inactive" checkIt="false"/>
@@ -281,17 +282,18 @@
       <test assign_to="in_phase0" variable="phase" compare="equal" value="0"/>
       <test assign_to="in_phase1" variable="phase" compare="equal" value="1"/>
       <test assign_to="in_phase2" variable="phase" compare="equal" value="2"/>
-      <test assign_to="was_held" variable="held" compare="equal" value="1"/>
     </action>
   </nop>
+  <!-- phase 0: agent A connected.  phase 1: the hold (music on hold).      -->
+  <!-- phase 2: the merge.  phase 3: a re-point while talking to B.         -->
   <nop test="in_phase0" next="c_talk1"/>
-  <nop test="in_phase1" next="c_wait_talk1"/>
-  <nop test="in_phase2" next="c_after_hold"/>
+  <nop test="in_phase1" next="c_held_moh"/>
+  <nop test="in_phase2" next="c_talk2"/>
   <nop next="c_wait_talk2"/>
-  <!-- In phase 2 a sendrecv re-INVITE after a hold is the merge. -->
-  <label id="c_after_hold"/>
-  <nop test="was_held" next="c_talk2"/>
-  <nop next="c_wait_merge"/>
+  <label id="c_held_moh"/>
+  <nop next="c_wait_merge_enter">
+    <action><assign assign_to="held" value="1"/></action>
+  </nop>
 
   <label id="c_ans_recvonly"/>
   <!-- Hold (offer a=sendonly) -->
