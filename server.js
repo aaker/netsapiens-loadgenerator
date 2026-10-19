@@ -650,7 +650,7 @@ async function createNdpUiConfig(args) {
 }
 
 async function updateNdpUiConfig(data) {
-    const path = `configurations` ;
+    const path = `configurations/` + encodeURIComponent(data['config-name']);
     apiClient.apiUpdate(path, data);
 }
 
