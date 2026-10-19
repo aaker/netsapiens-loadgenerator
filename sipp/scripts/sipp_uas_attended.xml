@@ -12,10 +12,12 @@
 <!--     Talk to A, then to the caller once the calls are merged.           -->
 <!--                                                                        -->
 <!-- Used by manual_test.sh flow mode attended, which registers each device -->
-<!-- in its own SIPp process, so [field0..4] are this agent's own device    -->
-<!-- (name, extension, domain, auth, user agent), and passes the consult    -->
-<!-- target as -key consult_target (and consult_target_alt, used when A is  -->
-<!-- the target itself).                                                    -->
+<!-- in its own SIPp process with its own copy of this file, filling in the -->
+<!-- __AGENT_*__ placeholders (NAME, EXT, DOMAIN, and AUTH = the device     -->
+<!-- CSV's [authentication ...] field).  An -oocsf scenario                 -->
+<!-- cannot read SIPp input files, so [fieldN] is not an option.  The       -->
+<!-- consult target comes from -key consult_target (and                    -->
+<!-- consult_target_alt, used when A is the target itself).                 -->
 <!--                                                                        -->
 <!-- The consult call runs inside this same SIPp call: its Call-ID is       -->
 <!-- cx...///<original Call-ID>, and SIPp matches anything after "///" to   -->
@@ -37,7 +39,7 @@
       <ereg regexp="P-Served-Queue:[^0-9]*([0-9]+)@" search_in="msg" assign_to="is_queue,served_queue" checkIt="false"/>
       <!-- Original Call-ID split at '@', so the Replaces value can escape it -->
       <ereg regexp="[: ]*([^@]+)@(.*)" search_in="hdr" header="Call-ID" assign_to="cid_has_at,cid_user,cid_host" checkIt="false"/>
-      <log message="ATT queue=[$served_queue] (empty = consult call, role B) me=[field1]@[field2] callid=[call_id]"/>
+      <log message="ATT queue=[$served_queue] (empty = consult call, role B) me=__AGENT_EXT__@__AGENT_DOMAIN__ callid=[call_id]"/>
     </action>
   </recv>
 
@@ -50,7 +52,7 @@
       [last_To:];tag=[pid]SIPpTag01[call_number]
       [last_Call-ID:]
       [last_CSeq:]
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Length: 0
 
@@ -66,7 +68,7 @@
       [last_To:];tag=[pid]SIPpTag01[call_number]
       [last_Call-ID:]
       [last_CSeq:]
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Length: 0
 
@@ -84,7 +86,7 @@
       [last_To:];tag=[pid]SIPpTag01[call_number]
       [last_Call-ID:]
       [last_CSeq:]
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Type: application/sdp
       Content-Length: [len]
@@ -137,7 +139,7 @@
       To: [$remote_from]
       Call-ID: [call_id]
       CSeq: 2 INVITE
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Type: application/sdp
@@ -187,8 +189,8 @@
       To: [$remote_from]
       Call-ID: [call_id]
       CSeq: 3 INVITE
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
-      [field3]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      __AGENT_AUTH__
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Type: application/sdp
@@ -247,7 +249,7 @@
   <label id="a_consult"/>
   <nop>
     <action>
-      <assignstr assign_to="me" value="[field1]"/>
+      <assignstr assign_to="me" value="__AGENT_EXT__"/>
       <assignstr assign_to="b_ext" value="[consult_target]"/>
       <strcmp assign_to="b_cmp" variable="me" variable2="b_ext"/>
       <test assign_to="b_is_me" variable="b_cmp" compare="equal" value="0"/>
@@ -263,18 +265,18 @@
 
   <label id="a_consult_send"/>
   <nop>
-    <action><log message="ATT A: consult INVITE to [$b_ext]@[field2] callid=[$cx_cid]"/></action>
+    <action><log message="ATT A: consult INVITE to [$b_ext]@__AGENT_DOMAIN__ callid=[$cx_cid]"/></action>
   </nop>
   <send retrans="500">
     <![CDATA[
 
-      INVITE sip:[$b_ext]@[field2] SIP/2.0
+      INVITE sip:[$b_ext]@__AGENT_DOMAIN__ SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
-      To: <sip:[$b_ext]@[field2]>
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cx[call_number]
+      To: <sip:[$b_ext]@__AGENT_DOMAIN__>
       Call-ID: [$cx_cid]
       CSeq: 1 INVITE
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Type: application/sdp
@@ -311,9 +313,9 @@
   <send>
     <![CDATA[
 
-      ACK sip:[$b_ext]@[field2] SIP/2.0
+      ACK sip:[$b_ext]@__AGENT_DOMAIN__ SIP/2.0
       [last_Via:]
-      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cx[call_number]
       [last_To:]
       Call-ID: [$cx_cid]
       CSeq: 1 ACK
@@ -325,14 +327,14 @@
   <send retrans="500">
     <![CDATA[
 
-      INVITE sip:[$b_ext]@[field2] SIP/2.0
+      INVITE sip:[$b_ext]@__AGENT_DOMAIN__ SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
-      To: <sip:[$b_ext]@[field2]>
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cx[call_number]
+      To: <sip:[$b_ext]@__AGENT_DOMAIN__>
       Call-ID: [$cx_cid]
       CSeq: 2 INVITE
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
-      [field3]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      __AGENT_AUTH__
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Type: application/sdp
@@ -367,8 +369,8 @@
 
       ACK [$cx_contact] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
-      To: <sip:[$b_ext]@[field2]>;tag=[$cx_totag]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cx[call_number]
+      To: <sip:[$b_ext]@__AGENT_DOMAIN__>;tag=[$cx_totag]
       Call-ID: [$cx_cid]
       CSeq: 2 ACK
       Max-Forwards: 70
@@ -383,8 +385,8 @@
 
       ACK [$cx_contact] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
-      To: <sip:[$b_ext]@[field2]>;tag=[$cx_totag]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cx[call_number]
+      To: <sip:[$b_ext]@__AGENT_DOMAIN__>;tag=[$cx_totag]
       Call-ID: [$cx_cid]
       CSeq: 1 ACK
       Max-Forwards: 70
@@ -434,9 +436,9 @@
       To: [$remote_from]
       Call-ID: [call_id]
       CSeq: 4 REFER
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
-      Refer-To: <sip:[$b_ext]@[field2]?Replaces=[$replaces]>
-      Referred-By: <sip:[field1]@[field2]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:[$b_ext]@__AGENT_DOMAIN__?Replaces=[$replaces]>
+      Referred-By: <sip:__AGENT_EXT__@__AGENT_DOMAIN__>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Length: 0
@@ -455,10 +457,10 @@
       To: [$remote_from]
       Call-ID: [call_id]
       CSeq: 5 REFER
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
-      Refer-To: <sip:[$b_ext]@[field2]?Replaces=[$replaces]>
-      Referred-By: <sip:[field1]@[field2]>
-      [field3]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:[$b_ext]@__AGENT_DOMAIN__?Replaces=[$replaces]>
+      Referred-By: <sip:__AGENT_EXT__@__AGENT_DOMAIN__>
+      __AGENT_AUTH__
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Length: 0
@@ -492,7 +494,7 @@
       [last_To:]
       [last_Call-ID:]
       [last_CSeq:]
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Length: 0
 
@@ -509,7 +511,7 @@
       [last_To:]
       [last_Call-ID:]
       [last_CSeq:]
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Length: 0
 
@@ -539,7 +541,7 @@
       To: [$remote_from]
       Call-ID: [call_id]
       CSeq: 6 BYE
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Length: 0
@@ -551,11 +553,11 @@
 
       BYE [$cx_contact] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
-      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
-      To: <sip:[$b_ext]@[field2]>;tag=[$cx_totag]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cx[call_number]
+      To: <sip:[$b_ext]@__AGENT_DOMAIN__>;tag=[$cx_totag]
       Call-ID: [$cx_cid]
       CSeq: 3 BYE
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Length: 0
@@ -612,7 +614,7 @@
       [last_To:]
       [last_Call-ID:]
       [last_CSeq:]
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Type: application/sdp
       Content-Length: [len]
@@ -645,7 +647,7 @@
       To: [$remote_from]
       Call-ID: [call_id]
       CSeq: 2 BYE
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Max-Forwards: 70
       Content-Length: 0
@@ -669,7 +671,7 @@
       [last_To:]
       [last_Call-ID:]
       [last_CSeq:]
-      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
       User-Agent: netsapiens-loadgenerator ([ua_version])
       Content-Length: 0
 

@@ -270,12 +270,12 @@ if [ "$FULL_CALL" == "1" ]; then
 fi
 
 # --flow attended: dedicated caller/agent scenarios. Each device registers in
-# its own SIPp process (one-line CSV), so the agent scenario's [field1]/[field3]
-# are that agent's extension and credentials, and a consult leg the platform
-# delivers to agent B can never be matched to agent A's call in a shared process.
+# its own SIPp process with its own copy of the agent scenario, filled in with
+# that device's name, extension, domain and credentials (an -oocsf scenario
+# cannot read SIPp input files). Separate processes also mean a consult leg
+# the platform delivers to agent B can never be matched to agent A's call.
 if [ "$FLOW" == "attended" ]; then
     UAC_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uac_attended.xml"
-    _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_attended.xml"
     DEV_EXTS=($(awk -F';' 'NR > 1 && NF >= 4 { print $2 }' "$REG_CSV"))
     if [ "${#DEV_EXTS[@]}" -lt 2 ]; then
         echo "ERROR: --flow attended needs at least 2 devices (agent A and agent B)"; exit 1
@@ -290,20 +290,37 @@ fi
 
 # Port sets from the shared allocator (same as the cron scripts): one per
 # registration process (one in total, or one per device for attended), plus
-# one for the UAC. REG_SETS entries are "csv:sip:media:ctrl:stats".
+# one for the UAC. REG_SETS entries are "csv:sip:media:ctrl:stats:uas".
 REG_SETS=()
 ALL_PORTS=""
 if [ "$FLOW" == "attended" ]; then
     for ext in "${DEV_EXTS[@]}"; do
         dev_csv="$WORK_DIR/device_$ext.csv"
         { printf 'SEQUENTIAL\r\n'; awk -F';' -v e="$ext" 'NR > 1 && $2 == e' "$REG_CSV"; } > "$dev_csv"
+        # Literal (not regex) substitution via ENVIRON, so any character in a
+        # display name or password is copied as-is.
+        dev_uas="$WORK_DIR/uas_attended_$ext.xml"
+        IFS=';' read -r AGENT_NAME AGENT_EXT AGENT_DOMAIN AGENT_AUTH _ua < <(sed -n '2p' "$dev_csv" | tr -d '\r')
+        AGENT_NAME="$AGENT_NAME" AGENT_EXT="$AGENT_EXT" AGENT_DOMAIN="$AGENT_DOMAIN" AGENT_AUTH="$AGENT_AUTH" awk '
+            function rep(s, from, to,    i, out) {
+                out = ""
+                while ((i = index(s, from)) > 0) { out = out substr(s, 1, i - 1) to; s = substr(s, i + length(from)) }
+                return out s
+            }
+            {
+                $0 = rep($0, "__AGENT_NAME__", ENVIRON["AGENT_NAME"])
+                $0 = rep($0, "__AGENT_EXT__", ENVIRON["AGENT_EXT"])
+                $0 = rep($0, "__AGENT_DOMAIN__", ENVIRON["AGENT_DOMAIN"])
+                $0 = rep($0, "__AGENT_AUTH__", ENVIRON["AGENT_AUTH"])
+                print
+            }' "$BASE_DIR/sipp/scripts/sipp_uas_attended.xml" > "$dev_uas"
         allocate_ports 1 1 1 || exit 1
-        REG_SETS+=("$dev_csv:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv")
+        REG_SETS+=("$dev_csv:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv:$dev_uas")
         ALL_PORTS="$ALL_PORTS $ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
     done
 else
     allocate_ports 1 1 1 || exit 1
-    REG_SETS+=("$REG_CSV:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$.csv")
+    REG_SETS+=("$REG_CSV:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$.csv:$_UAS_SCENARIO")
     ALL_PORTS="$ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
 fi
 allocate_ports 1 1 1 || exit 1
@@ -349,7 +366,7 @@ else
 fi
 echo "   Opus pct:    ${OPUS_PCT:-50}% (regex: $_OPUS_REGEX)"
 for set in "${REG_SETS[@]}"; do
-    IFS=: read -r _csv _sip _media _ctrl _stats <<< "$set"
+    IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
     echo "   Reg ports:   sip=$_sip media=$_media ctrl=$_ctrl ($(basename "$_csv"))"
 done
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
@@ -364,15 +381,15 @@ echo "========================================================"
 # ------------------------------------------- 1) registration (cron path)
 # Mirrors register.sh's sipp invocation: same scenarios, keys and behavior
 # flags; only -r/-m are pinned to register every listed device promptly.
-# start_registration <csv> <sip-port> <media-port> <ctrl-port> <stats-file>
+# start_registration <csv> <sip-port> <media-port> <ctrl-port> <stats-file> <uas-scenario>
 start_registration() {
-    local csv="$1" sip="$2" media="$3" ctrl="$4" stats="$5"
+    local csv="$1" sip="$2" media="$3" ctrl="$4" stats="$5" uas="$6"
     local n=$(grep -cv -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$csv")
     local cmd="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -key reg_loops ${REG_LOOPS:-78} $REG_KEYS \
 -r 5 -m $n -l $n \
 -t $TRANSPORT $TLS_OPTIONS -p $sip -cp $ctrl \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
--oocsf $_UAS_SCENARIO \
+-oocsf $uas \
 -inf $csv \
 -inf $BASE_DIR/sipp/csv/random_user_agents.csv \
 -recv_timeout 60000 \
@@ -395,8 +412,8 @@ start_registration() {
 }
 
 for set in "${REG_SETS[@]}"; do
-    IFS=: read -r _csv _sip _media _ctrl _stats <<< "$set"
-    start_registration "$_csv" "$_sip" "$_media" "$_ctrl" "$_stats"
+    IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
+    start_registration "$_csv" "$_sip" "$_media" "$_ctrl" "$_stats" "$_uas"
 done
 echo "[register] waiting for $NUM_DEVICES registrations..."
 
@@ -406,7 +423,7 @@ WAITED=0
 while [ "$WAITED" -lt 60 ]; do
     CURRENT=0
     for set in "${REG_SETS[@]}"; do
-        IFS=: read -r _csv _sip _media _ctrl _stats <<< "$set"
+        IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
         [ -f "$_stats" ] || continue
         c=$(awk -F';' 'NR==1{for(i=1;i<=NF;i++) if($i=="CurrentCall") c=i} END{if(c) print $c}' "$_stats")
         CURRENT=$((CURRENT + ${c:-0}))
