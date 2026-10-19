@@ -41,11 +41,18 @@
 #                                     caller, calls agent B, talks, then
 #                                     REFERs with Replaces (~2.5 min).
 #                                     Registers each device in its own SIPp
-#                                     process; --talk/--full-call/
-#                                     --no-full-call don't apply.
-#   --consult <ext>       attended: agent B's extension (default: the first
-#                         device in the CSV, or the next one when agent A is
-#                         that device)
+#                                     process.
+#                           park      agent A talks 44s, parks the caller on
+#                                     --park-ext with a blind REFER; after
+#                                     --park-time agent B dials the park
+#                                     extension and takes the call (~2 min).
+#                         --talk/--full-call/--no-full-call apply to blind only.
+#   --consult <ext>       attended/park: agent B's extension (default: the
+#                         first device in the CSV; attended uses the next one
+#                         when agent A is that device)
+#   --park-ext <ext>      park: the park extension (default 700)
+#   --park-time <sec>     park: how long the caller stays parked before agent
+#                         B picks up (default 15, at most 25)
 #   --media-ip <ip>       RTP address the caller advertises in its SDP
 #                         (default: this host's public IP, looked up via
 #                         OpenDNS, then checkip.amazonaws.com; IP_USE_PUBLIC
@@ -70,6 +77,7 @@
 #   ./manual_test.sh -s prod1                          # blind transfer, whole conversation
 #   ./manual_test.sh -s prod1 --no-full-call           # cron behaviour (random talk time)
 #   ./manual_test.sh -s prod1 --flow attended          # supervised transfer
+#   ./manual_test.sh -s prod1 --flow park              # park on 700, picked up by agent B
 #
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
@@ -100,6 +108,8 @@ FULL_CALL=1
 FULL_CALL_FLAG=""
 FLOW=""
 CONSULT=""
+PARK_EXT=700
+PARK_TIME=15
 MEDIA_IP_OVERRIDE=""
 
 while [ $# -gt 0 ]; do
@@ -115,6 +125,8 @@ while [ $# -gt 0 ]; do
         --no-full-call) FULL_CALL=0; FULL_CALL_FLAG="$1"; shift ;;
         --flow)         FLOW="$2"; shift 2 ;;
         --consult)      CONSULT="$2"; shift 2 ;;
+        --park-ext)     PARK_EXT="$2"; shift 2 ;;
+        --park-time)    PARK_TIME="$2"; shift 2 ;;
         --media-ip)     MEDIA_IP_OVERRIDE="$2"; shift 2 ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
@@ -125,13 +137,18 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended)
+    attended|park)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind or attended (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended or park (got '$FLOW')"; exit 1 ;;
 esac
+# The caller falls back to the pickup audio 32s after it is parked, so the
+# park has to end well before that.
+if ! [ "$PARK_TIME" -ge 1 ] 2>/dev/null || [ "$PARK_TIME" -gt 25 ]; then
+    echo "ERROR: --park-time must be 1-25 seconds (got '$PARK_TIME')"; exit 1
+fi
 
 # Default number: first entry in the committed manual phonenumbers CSV
 if [ -z "$NUMBER" ]; then
@@ -313,6 +330,32 @@ if [ "$FLOW" == "attended" ]; then
     REG_KEYS="-key consult_target $CONSULT -key consult_target_alt $CONSULT_ALT"
 fi
 
+# --flow park: agent A (sipp_uas_park.xml) parks the caller on PARK_EXT with a
+# blind REFER and runs the pickup script filled into its copy. That script
+# waits PARK_TIME seconds, then runs sipp_uac_park_pickup.xml as agent B from
+# its own port set (it is a main scenario, so it can read B's device CSV).
+# The caller is the attended caller with the park pcaps: same 44s/60s
+# sections, and it already treats the park's MOH re-INVITE as a hold.
+if [ "$FLOW" == "park" ]; then
+    UAC_SCENARIO="$BASE_DIR/sipp/scripts/.manual_uac_$$.xml"
+    sed -e 's/g711a-att-orig\.pcap/g711a-park-orig.pcap/g' -e 's/g711a-att-orig2\.pcap/g711a-park-orig2.pcap/g' \
+        "$BASE_DIR/sipp/scripts/sipp_uac_attended.xml" > "$UAC_SCENARIO"
+    if grep -q 'g711a-att-' "$UAC_SCENARIO"; then
+        echo "ERROR: could not swap the park pcaps into sipp_uac_attended.xml"; rm -f "$UAC_SCENARIO"; exit 1
+    fi
+    DEV_EXTS=($(awk -F';' 'NR > 1 && NF >= 4 { print $2 }' "$REG_CSV"))
+    CONSULT=${CONSULT:-${DEV_EXTS[0]}}
+    PICKUP_CSV="$WORK_DIR/pickup_$CONSULT.csv"
+    { printf 'SEQUENTIAL\r\n'; awk -F';' -v e="$CONSULT" 'NR > 1 && $2 == e' "$REG_CSV"; } > "$PICKUP_CSV"
+    if [ "$(wc -l < "$PICKUP_CSV")" -lt 2 ]; then
+        echo "ERROR: --consult $CONSULT is not a device in $DEVICE_CSV"; rm -f "$UAC_SCENARIO"; exit 1
+    fi
+    PICKUP_SCRIPT="$WORK_DIR/pickup.sh"
+    _UAS_SCENARIO="$WORK_DIR/uas_park.xml"
+    sed -e "s#__PICKUP_SCRIPT__#$PICKUP_SCRIPT#g" "$BASE_DIR/sipp/scripts/sipp_uas_park.xml" > "$_UAS_SCENARIO"
+    REG_KEYS="-key park_ext $PARK_EXT"
+fi
+
 # The caller always runs from a copy (next to the original, since its pcap
 # paths are relative) with [media_ip] filled in, as inbound.sh does: it is a
 # SIPp built-in keyword that -key cannot override, so without this the SDP
@@ -363,6 +406,28 @@ allocate_ports 1 1 1 || exit 1
 UAC_SIP_PORT=$ALLOCATED_SIP_PORT; UAC_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; UAC_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
 ALL_PORTS="$ALL_PORTS $UAC_SIP_PORT $UAC_MEDIA_PORT $UAC_CONTROL_PORT"
 
+# park: agent B's pickup gets its own port set, and the script agent A runs.
+if [ "$FLOW" == "park" ]; then
+    allocate_ports 1 1 1 || exit 1
+    PICKUP_SIP_PORT=$ALLOCATED_SIP_PORT; PICKUP_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; PICKUP_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
+    ALL_PORTS="$ALL_PORTS $PICKUP_SIP_PORT $PICKUP_MEDIA_PORT $PICKUP_CONTROL_PORT"
+    cat > "$PICKUP_SCRIPT" <<PICKUP
+#!/bin/bash
+# Run by agent A's SIPp (sipp_uas_park.xml) when it parks the caller: wait
+# while the caller sits in park, then pick the call up as agent B ($CONSULT).
+sleep $PARK_TIME
+cd "$BASE_DIR/sipp/scripts" || exit 1
+echo "\$(date '+%F %T') picking up $PARK_EXT as $CONSULT" >> "$WORK_DIR/pickup.log"
+sipp ${SUT}${SIP_PORT_ADD_ON} -sf "$BASE_DIR/sipp/scripts/sipp_uac_park_pickup.xml" \\
+    -inf "$PICKUP_CSV" -m 1 -l 1 -t $TRANSPORT $TLS_OPTIONS \\
+    -i $PRIVATEIP -p $PICKUP_SIP_PORT -cp $PICKUP_CONTROL_PORT -mp $PICKUP_MEDIA_PORT -mi $PRIVATEIP \\
+    -key park_ext $PARK_EXT -key ua_version $UA_VERSION -recv_timeout 60000 \\
+    -trace_stat -stf "$STATS_PATH/manual_pickup_${TRANSPORT}_$$.csv" -fd 5 \\
+    -trace_err -trace_logs -trace_msg -bg >> "$WORK_DIR/pickup.log" 2>&1
+PICKUP
+    chmod +x "$PICKUP_SCRIPT"
+fi
+
 REG_PIDS=()
 
 cleanup() {
@@ -395,6 +460,9 @@ echo "   Number:      $NUMBER  (x$CALL_COUNT per trigger)"
 echo "   Local IP:    $PRIVATEIP   Media IP: $MEDIA_IP"
 if [ "$FLOW" == "attended" ]; then
     echo "   Flow:        attended - agent B is $CONSULT (or $CONSULT_ALT when A is $CONSULT)"
+elif [ "$FLOW" == "park" ]; then
+    echo "   Flow:        park - agent A parks on $PARK_EXT, $CONSULT picks up after ${PARK_TIME}s"
+    echo "   Pickup:      sip=$PICKUP_SIP_PORT media=$PICKUP_MEDIA_PORT ctrl=$PICKUP_CONTROL_PORT (log: $WORK_DIR/pickup.log)"
 elif [ "$FULL_CALL" == "1" ]; then
     echo "   Talk time:   full call - ${TALK}s to the 90s transfer, then 195s post-transfer"
 else
