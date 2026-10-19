@@ -16,9 +16,9 @@ sudo apt update
 sudo apt install -y build-essential cmake libssl-dev libpcap-dev libnet1-dev  libsctp-dev  libncurses5-dev pkg-config libpugixml-dev libgtest-dev
 cd /usr/local/NetSapiens/
 git clone https://github.com/SIPp/sipp.git
-git fetch origin tag  v3.7.7
-git checkout tags/v3.7.7
 cd sipp
+git fetch origin tag  v3.7.7
+git switch -c tags/v3.77
 cmake . -DUSE_SSL=1 -DUSE_PCAP=1 -DBUILD_TESTING=OFF
 make
 ln -s /usr/local/NetSapiens/sipp/sipp /usr/bin/sipp
