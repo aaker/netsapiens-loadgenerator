@@ -18,6 +18,12 @@
 #   -t, --transport <t>   u1 (UDP, default) | t1 (TCP) | l1 (TLS)
 #   -s, --server <id>     Multi-server mode: resolve hostname from servers.json
 #   -c, --count <n>       Calls per trigger (default 1)
+#   --talk <min>,<max>    Caller talk time per leg in seconds (default 5,80,
+#                         same as cron). The agent transfers a call it is
+#                         still on 90s after answering, and the caller then
+#                         waits 30s more for the transfer, so 70,80 makes
+#                         every call reach the transfer. Keep max under ~82
+#                         or the transfer lands mid-pause and SIPp BYEs it.
 #   -w, --wait <sec>      Auto-place the first call after N seconds (default:
 #                         wait for registrations, then prompt)
 #   -k, --keep            Leave the registration instance running on exit
@@ -33,6 +39,7 @@
 #   ./manual_test.sh                                   # committed manual CSVs
 #   ./manual_test.sh -f sipp/csv/devices/acme_corp.csv -n 14805550100
 #   ./manual_test.sh -t t1 -s prod1 -w 5
+#   ./manual_test.sh -s prod1 --talk 70,80             # always reach the transfer
 #
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
@@ -58,6 +65,7 @@ CALL_COUNT=1
 AUTO_WAIT=""
 KEEP=0
 CAPTURE=1
+TALK=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -67,9 +75,10 @@ while [ $# -gt 0 ]; do
         -s|--server)    SERVER_ID="$2"; shift 2 ;;
         -c|--count)     CALL_COUNT="$2"; shift 2 ;;
         -w|--wait)      AUTO_WAIT="$2"; shift 2 ;;
+        --talk)         TALK="$2"; shift 2 ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
-        -h|--help)      grep '^#' "$0" | head -35; exit 0 ;;
+        -h|--help)      grep '^#' "$0" | head -42; exit 0 ;;
         *) echo "Unknown option: $1 (try -h)"; exit 1 ;;
     esac
 done
@@ -190,6 +199,27 @@ _UAS_SCENARIO=$(make_uas_scenario \
 
 UA_VERSION=$(get_ua_version "$BASE_DIR")
 
+# UAC scenario: the original, or a copy with the talk-time pause from --talk
+# (same substitution as domain_inbound.sh). The copy sits next to the
+# original because the pcap paths in it are relative.
+UAC_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml"
+if [ -n "$TALK" ]; then
+    TALK_MIN_MS=$(awk -F, '{printf "%d", $1*1000}' <<< "$TALK")
+    TALK_MAX_MS=$(awk -F, '{printf "%d", $2*1000}' <<< "$TALK")
+    if ! [ "$TALK_MAX_MS" -gt "$TALK_MIN_MS" ] 2>/dev/null; then
+        echo "ERROR: --talk needs <min>,<max> seconds with max > min (got '$TALK')"
+        exit 1
+    fi
+    UAC_SCENARIO="$BASE_DIR/sipp/scripts/.manual_uac_$$.xml"
+    sed -e "s#<pause distribution=\"uniform\" min=\"5000\" max=\"80000\"/>#<pause distribution=\"uniform\" min=\"$TALK_MIN_MS\" max=\"$TALK_MAX_MS\"/>#" \
+        "$BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml" > "$UAC_SCENARIO"
+    if ! grep -q "min=\"$TALK_MIN_MS\" max=\"$TALK_MAX_MS\"" "$UAC_SCENARIO"; then
+        echo "ERROR: talk-time pause not found in sipp_uac_pcap_g711a.xml"
+        rm -f "$UAC_SCENARIO"
+        exit 1
+    fi
+fi
+
 # Two port sets from the shared allocator (same as the cron scripts)
 allocate_ports 1 1 1 || exit 1
 REG_SIP_PORT=$ALLOCATED_SIP_PORT; REG_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; REG_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
@@ -208,6 +238,7 @@ cleanup() {
         echo "Stopping registration instance (PID $REG_PID)"
         kill "$REG_PID" 2>/dev/null
     fi
+    [ -n "$TALK" ] && rm -f "$UAC_SCENARIO"
     for p in $REG_SIP_PORT $REG_MEDIA_PORT $REG_CONTROL_PORT $UAC_SIP_PORT $UAC_MEDIA_PORT $UAC_CONTROL_PORT; do
         unlock_port "$p" 2>/dev/null
     done
@@ -226,6 +257,7 @@ echo "   Target:      $SUT$SIP_PORT_ADD_ON ($TRANSPORT)"
 echo "   Devices:     $NUM_DEVICES from $DEVICE_CSV"
 echo "   Number:      $NUMBER  (x$CALL_COUNT per trigger)"
 echo "   Local IP:    $PRIVATEIP   Media IP: $MEDIA_IP"
+echo "   Talk time:   ${TALK:-5,80}s per leg (transfer at ~90s after answer)"
 echo "   Opus pct:    ${OPUS_PCT:-50}% (regex: $_OPUS_REGEX)"
 echo "   Reg ports:   sip=$REG_SIP_PORT media=$REG_MEDIA_PORT ctrl=$REG_CONTROL_PORT"
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
@@ -306,7 +338,7 @@ place_call() {
     # exchange.  Both land in $BASE_DIR/sipp/scripts as
     # sipp_uac_pcap_g711a_<pid>_{logs,messages,errors}.log
     sipp ${SUT}${SIP_PORT_ADD_ON} -r 1 -m "$CALL_COUNT" -l "$CALL_COUNT" \
-        -sf "$BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml" \
+        -sf "$UAC_SCENARIO" \
         -inf "$NUM_CSV" \
         -inf "$BASE_DIR/sipp/csv/random_caller_ids.csv" \
         -watchdog_interval 900000 -watchdog_minor_threshold 920000 -watchdog_major_threshold 9200000 \

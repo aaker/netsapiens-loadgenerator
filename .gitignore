@@ -36,6 +36,7 @@ agent-sim.json
 state/
 
 sipp/scripts/.agentsim_uac_*.xml
+sipp/scripts/.manual_uac_*.xml
 
 servers.json
 
