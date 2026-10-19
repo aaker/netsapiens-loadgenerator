@@ -1,5 +1,6 @@
 #!/bin/bash
-# Shared helper: force SIPp's destination onto IPv4.
+# Shared network helpers: force SIPp's destination onto IPv4 (resolve_ipv4)
+# and find this host's public IPv4 address (public_ipv4).
 # Source this file; do not execute it directly.
 #
 # Usage in a launch script:
@@ -44,4 +45,21 @@ resolve_ipv4() {
         echo "Warning: could not resolve an IPv4 address for '$host'; using it as-is" >&2
         echo "$host"
     fi
+}
+
+# public_ipv4
+# Echoes this host's public IPv4 address (the NAT address SIP peers see), or
+# nothing if it cannot be found.  Tries OpenDNS first (what inbound.sh and
+# callback_uas.sh use), then checkip.amazonaws.com over HTTPS for hosts where
+# outbound DNS to OpenDNS is blocked.  Each answer must look like an IPv4
+# address, so a resolver error string is never returned.
+public_ipv4() {
+    local ip=""
+    if command -v dig >/dev/null 2>&1; then
+        ip=$(dig +short myip.opendns.com @resolver1.opendns.com -4 2>/dev/null | tail -1)
+    fi
+    if ! [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && command -v curl >/dev/null 2>&1; then
+        ip=$(curl -s --max-time 5 https://checkip.amazonaws.com 2>/dev/null | tr -d '[:space:]')
+    fi
+    [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && echo "$ip"
 }

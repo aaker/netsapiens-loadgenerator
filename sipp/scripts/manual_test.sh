@@ -39,10 +39,11 @@
 #                         device in the CSV, or the next one when agent A is
 #                         that device)
 #   --media-ip <ip>       RTP address the caller advertises in its SDP
-#                         (default: the public IP when IP_USE_PUBLIC=1, else
-#                         the private one). The core's relay does not latch
-#                         onto a NATed caller, so a private address here
-#                         leaves the caller's leg without audio.
+#                         (default: this host's public IP, looked up via
+#                         OpenDNS, then checkip.amazonaws.com; IP_USE_PUBLIC
+#                         is ignored). The core's relay does not latch onto a
+#                         NATed caller, so a private address here leaves the
+#                         caller's leg without audio.
 #   -w, --wait <sec>      Auto-place the first call after N seconds (default:
 #                         wait for registrations, then prompt)
 #   -k, --keep            Leave the registration instance running on exit
@@ -184,14 +185,19 @@ else
 fi
 
 PRIVATEIP=$(ip a s | sed -ne '/127.0.0.1/!{s/^[ \t]*inet[ \t]*\([0-9.]\+\)\/.*$/\1/p}' | head -1)
-# Media IP selection mirrors inbound.sh (IP_USE_PUBLIC defaults to 1)
-if [ "${IP_USE_PUBLIC:-1}" == "1" ]; then
-    PUBLICIP=$(dig +short myip.opendns.com @resolver1.opendns.com -4 2>/dev/null)
-    MEDIA_IP=${PUBLICIP:-$PRIVATEIP}
+# The caller always advertises the public IP (like callback_uas.sh, and
+# unlike inbound.sh, IP_USE_PUBLIC is ignored): the core's relay does not
+# latch onto a NATed caller, so a private address leaves its leg silent.
+if [ -n "$MEDIA_IP_OVERRIDE" ]; then
+    MEDIA_IP=$MEDIA_IP_OVERRIDE
 else
-    MEDIA_IP=$PRIVATEIP
+    MEDIA_IP=$(public_ipv4)
+    if [ -z "$MEDIA_IP" ]; then
+        MEDIA_IP=$PRIVATEIP
+        echo "WARNING: public IP lookup failed - the caller will advertise private IP $PRIVATEIP"
+        echo "         and its leg will likely get no audio. Pass --media-ip <public-ip>."
+    fi
 fi
-MEDIA_IP=${MEDIA_IP_OVERRIDE:-$MEDIA_IP}
 
 # TLS options mirror register.sh
 TLS_OPTIONS=""
