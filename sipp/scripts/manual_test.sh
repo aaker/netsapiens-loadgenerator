@@ -29,6 +29,15 @@
 #                         transferred leg plays all of orig2/term2 (195s)
 #                         and the caller hangs up, instead of the agent
 #                         transferring again at 90s. ~5 min per call.
+#   --flow <name>         Call flow: blind (default; the cron scenarios, a
+#                         blind REFER to the next queue at 90s) or attended
+#                         (supervised transfer: agent A holds the caller,
+#                         calls agent B, talks, then REFERs with Replaces;
+#                         ~2.5 min). attended registers each device in its
+#                         own SIPp process and ignores --talk/--full-call.
+#   --consult <ext>       attended: agent B's extension (default: the first
+#                         device in the CSV, or the next one when agent A is
+#                         that device)
 #   -w, --wait <sec>      Auto-place the first call after N seconds (default:
 #                         wait for registrations, then prompt)
 #   -k, --keep            Leave the registration instance running on exit
@@ -46,10 +55,11 @@
 #   ./manual_test.sh -t t1 -s prod1 -w 5
 #   ./manual_test.sh -s prod1 --talk 70,80             # always reach the transfer
 #   ./manual_test.sh -s prod1 --full-call              # whole conversation, one transfer
+#   ./manual_test.sh -s prod1 --flow attended          # supervised transfer
 #
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
-# registration instance is stopped (unless -k) and ports are released.
+# registration instances are stopped (unless -k) and ports are released.
 #
 # REG_LOOPS=1 ./manual_test.sh makes every registered device exit its
 # re-register loop after one iteration (~45s) instead of running the full hour.
@@ -73,6 +83,8 @@ KEEP=0
 CAPTURE=1
 TALK=""
 FULL_CALL=0
+FLOW="blind"
+CONSULT=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -84,12 +96,23 @@ while [ $# -gt 0 ]; do
         -w|--wait)      AUTO_WAIT="$2"; shift 2 ;;
         --talk)         TALK="$2"; shift 2 ;;
         --full-call)    FULL_CALL=1; shift ;;
+        --flow)         FLOW="$2"; shift 2 ;;
+        --consult)      CONSULT="$2"; shift 2 ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
-        -h|--help)      grep '^#' "$0" | head -48; exit 0 ;;
+        -h|--help)      grep '^#' "$0" | head -58; exit 0 ;;
         *) echo "Unknown option: $1 (try -h)"; exit 1 ;;
     esac
 done
+
+case "$FLOW" in
+    blind) ;;
+    attended)
+        if [ -n "$TALK" ] || [ "$FULL_CALL" == "1" ]; then
+            echo "ERROR: --talk/--full-call apply to the blind flow only"; exit 1
+        fi ;;
+    *) echo "ERROR: --flow must be blind or attended (got '$FLOW')"; exit 1 ;;
+esac
 
 # Default number: first entry in the committed manual phonenumbers CSV
 if [ -z "$NUMBER" ]; then
@@ -246,26 +269,60 @@ if [ "$FULL_CALL" == "1" ]; then
     _UAS_SCENARIO="$WORK_DIR/uas_full_call.xml"
 fi
 
-# Two port sets from the shared allocator (same as the cron scripts)
-allocate_ports 1 1 1 || exit 1
-REG_SIP_PORT=$ALLOCATED_SIP_PORT; REG_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; REG_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
+# --flow attended: dedicated caller/agent scenarios. Each device registers in
+# its own SIPp process (one-line CSV), so the agent scenario's [field1]/[field3]
+# are that agent's extension and credentials, and a consult leg the platform
+# delivers to agent B can never be matched to agent A's call in a shared process.
+if [ "$FLOW" == "attended" ]; then
+    UAC_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uac_attended.xml"
+    _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_attended.xml"
+    DEV_EXTS=($(awk -F';' 'NR > 1 && NF >= 4 { print $2 }' "$REG_CSV"))
+    if [ "${#DEV_EXTS[@]}" -lt 2 ]; then
+        echo "ERROR: --flow attended needs at least 2 devices (agent A and agent B)"; exit 1
+    fi
+    CONSULT=${CONSULT:-${DEV_EXTS[0]}}
+    CONSULT_ALT=""
+    for ext in "${DEV_EXTS[@]}"; do
+        [ "$ext" != "$CONSULT" ] && { CONSULT_ALT="$ext"; break; }
+    done
+    REG_KEYS="-key consult_target $CONSULT -key consult_target_alt $CONSULT_ALT"
+fi
+
+# Port sets from the shared allocator (same as the cron scripts): one per
+# registration process (one in total, or one per device for attended), plus
+# one for the UAC. REG_SETS entries are "csv:sip:media:ctrl:stats".
+REG_SETS=()
+ALL_PORTS=""
+if [ "$FLOW" == "attended" ]; then
+    for ext in "${DEV_EXTS[@]}"; do
+        dev_csv="$WORK_DIR/device_$ext.csv"
+        { printf 'SEQUENTIAL\r\n'; awk -F';' -v e="$ext" 'NR > 1 && $2 == e' "$REG_CSV"; } > "$dev_csv"
+        allocate_ports 1 1 1 || exit 1
+        REG_SETS+=("$dev_csv:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv")
+        ALL_PORTS="$ALL_PORTS $ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
+    done
+else
+    allocate_ports 1 1 1 || exit 1
+    REG_SETS+=("$REG_CSV:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$.csv")
+    ALL_PORTS="$ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
+fi
 allocate_ports 1 1 1 || exit 1
 UAC_SIP_PORT=$ALLOCATED_SIP_PORT; UAC_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; UAC_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
+ALL_PORTS="$ALL_PORTS $UAC_SIP_PORT $UAC_MEDIA_PORT $UAC_CONTROL_PORT"
 
-REG_STATS="$STATS_PATH/manual_register_${TRANSPORT}_$$.csv"
-REG_PID=""
+REG_PIDS=()
 
 cleanup() {
     trap - EXIT INT TERM
     echo ""
-    if [ -n "$REG_PID" ] && [ "$KEEP" == "1" ]; then
-        echo "Leaving registration instance running (PID $REG_PID). Stop it with: kill $REG_PID"
-    elif [ -n "$REG_PID" ]; then
-        echo "Stopping registration instance (PID $REG_PID)"
-        kill "$REG_PID" 2>/dev/null
+    if [ "${#REG_PIDS[@]}" -gt 0 ] && [ "$KEEP" == "1" ]; then
+        echo "Leaving registration instance(s) running (PID ${REG_PIDS[*]}). Stop with: kill ${REG_PIDS[*]}"
+    elif [ "${#REG_PIDS[@]}" -gt 0 ]; then
+        echo "Stopping registration instance(s) (PID ${REG_PIDS[*]})"
+        kill "${REG_PIDS[@]}" 2>/dev/null
     fi
     [ -n "$TALK" ] && rm -f "$UAC_SCENARIO"
-    for p in $REG_SIP_PORT $REG_MEDIA_PORT $REG_CONTROL_PORT $UAC_SIP_PORT $UAC_MEDIA_PORT $UAC_CONTROL_PORT; do
+    for p in $ALL_PORTS; do
         unlock_port "$p" 2>/dev/null
     done
     echo "Logs/CSVs kept in $WORK_DIR (sipp error/message logs in $BASE_DIR/sipp/scripts)"
@@ -283,13 +340,18 @@ echo "   Target:      $SUT$SIP_PORT_ADD_ON ($TRANSPORT)"
 echo "   Devices:     $NUM_DEVICES from $DEVICE_CSV"
 echo "   Number:      $NUMBER  (x$CALL_COUNT per trigger)"
 echo "   Local IP:    $PRIVATEIP   Media IP: $MEDIA_IP"
-if [ "$FULL_CALL" == "1" ]; then
+if [ "$FLOW" == "attended" ]; then
+    echo "   Flow:        attended - agent B is $CONSULT (or $CONSULT_ALT when A is $CONSULT)"
+elif [ "$FULL_CALL" == "1" ]; then
     echo "   Talk time:   full call - ${TALK}s to the 90s transfer, then 195s post-transfer"
 else
     echo "   Talk time:   ${TALK:-5,80}s per leg (transfer at ~90s after answer)"
 fi
 echo "   Opus pct:    ${OPUS_PCT:-50}% (regex: $_OPUS_REGEX)"
-echo "   Reg ports:   sip=$REG_SIP_PORT media=$REG_MEDIA_PORT ctrl=$REG_CONTROL_PORT"
+for set in "${REG_SETS[@]}"; do
+    IFS=: read -r _csv _sip _media _ctrl _stats <<< "$set"
+    echo "   Reg ports:   sip=$_sip media=$_media ctrl=$_ctrl ($(basename "$_csv"))"
+done
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
 echo "   Work dir:    $WORK_DIR"
 if [ "$CAPTURE" == "1" ]; then
@@ -302,44 +364,58 @@ echo "========================================================"
 # ------------------------------------------- 1) registration (cron path)
 # Mirrors register.sh's sipp invocation: same scenarios, keys and behavior
 # flags; only -r/-m are pinned to register every listed device promptly.
-SIPP_REG_CMD="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -key reg_loops ${REG_LOOPS:-78} \
--r 5 -m $NUM_DEVICES -l $NUM_DEVICES \
--t $TRANSPORT $TLS_OPTIONS -p $REG_SIP_PORT -cp $REG_CONTROL_PORT \
+# start_registration <csv> <sip-port> <media-port> <ctrl-port> <stats-file>
+start_registration() {
+    local csv="$1" sip="$2" media="$3" ctrl="$4" stats="$5"
+    local n=$(grep -cv -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$csv")
+    local cmd="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -key reg_loops ${REG_LOOPS:-78} $REG_KEYS \
+-r 5 -m $n -l $n \
+-t $TRANSPORT $TLS_OPTIONS -p $sip -cp $ctrl \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
 -oocsf $_UAS_SCENARIO \
--inf $REG_CSV \
+-inf $csv \
 -inf $BASE_DIR/sipp/csv/random_user_agents.csv \
 -recv_timeout 60000 \
 -watchdog_interval 0 -watchdog_minor_threshold 920000 -watchdog_major_threshold 9200000 \
 -aa -default_behaviors -abortunexp \
--mp $REG_MEDIA_PORT -i $PRIVATEIP -mi $PRIVATEIP \
--trace_stat -stf $REG_STATS -fd 5 -trace_err -trace_logs -trace_msg -bg"
+-mp $media -i $PRIVATEIP -mi $PRIVATEIP \
+-trace_stat -stf $stats -fd 5 -trace_err -trace_logs -trace_msg -bg"
 
-echo ""
-echo "[register] $SIPP_REG_CMD"
-REG_OUTPUT=$($SIPP_REG_CMD 2>&1)
-REG_PID=$(echo "$REG_OUTPUT" | grep -o 'PID=\[[0-9]*\]' | grep -o '[0-9]*')
-if [ -z "$REG_PID" ]; then
-    echo "ERROR: failed to start registration instance:"
-    echo "$REG_OUTPUT"
-    exit 1
-fi
-echo "[register] started (PID $REG_PID), waiting for $NUM_DEVICES registrations..."
+    echo ""
+    echo "[register] $cmd"
+    local out=$($cmd 2>&1)
+    local pid=$(echo "$out" | grep -o 'PID=\[[0-9]*\]' | grep -o '[0-9]*')
+    if [ -z "$pid" ]; then
+        echo "ERROR: failed to start registration instance:"
+        echo "$out"
+        exit 1
+    fi
+    REG_PIDS+=("$pid")
+    echo "[register] started (PID $pid, $n device(s))"
+}
+
+for set in "${REG_SETS[@]}"; do
+    IFS=: read -r _csv _sip _media _ctrl _stats <<< "$set"
+    start_registration "$_csv" "$_sip" "$_media" "$_ctrl" "$_stats"
+done
+echo "[register] waiting for $NUM_DEVICES registrations..."
 
 # Wait until all devices show as active calls in the stats (each registered
 # device is one long-lived 'call' in the re-REGISTER loop), or 60s.
 WAITED=0
 while [ "$WAITED" -lt 60 ]; do
-    if [ -f "$REG_STATS" ]; then
-        CURRENT=$(awk -F';' 'NR==1{for(i=1;i<=NF;i++) if($i=="CurrentCall") c=i} END{if(c) print $c}' "$REG_STATS")
-        echo "  registered/active: ${CURRENT:-0}/$NUM_DEVICES (${WAITED}s)"
-        if [ -n "$CURRENT" ] && [ "$CURRENT" -ge "$NUM_DEVICES" ] 2>/dev/null; then
-            break
-        fi
-    fi
+    CURRENT=0
+    for set in "${REG_SETS[@]}"; do
+        IFS=: read -r _csv _sip _media _ctrl _stats <<< "$set"
+        [ -f "$_stats" ] || continue
+        c=$(awk -F';' 'NR==1{for(i=1;i<=NF;i++) if($i=="CurrentCall") c=i} END{if(c) print $c}' "$_stats")
+        CURRENT=$((CURRENT + ${c:-0}))
+    done
+    echo "  registered/active: $CURRENT/$NUM_DEVICES (${WAITED}s)"
+    [ "$CURRENT" -ge "$NUM_DEVICES" ] && break
     sleep 3; WAITED=$((WAITED + 3))
 done
-[ "$WAITED" -ge 60 ] && echo "  (timed out waiting - continuing anyway, check $REG_STATS)"
+[ "$WAITED" -ge 60 ] && echo "  (timed out waiting - continuing anyway, check $STATS_PATH/manual_register_${TRANSPORT}_$$*.csv)"
 
 # --------------------------------------------- 2) inbound call (cron path)
 # Mirrors inbound.sh's sipp invocation; -r/-m pinned for single targeted calls.

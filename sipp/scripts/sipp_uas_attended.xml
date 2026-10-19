@@ -1,0 +1,685 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!-- ====================================================================== -->
+<!-- Attended (supervised) transfer - agent side (UAS, -oocsf).             -->
+<!--                                                                        -->
+<!-- One file plays both agents; the INVITE decides the role:               -->
+<!--   role A (queue call, has P-Served-Queue): talk to the caller, hold    -->
+<!--     them, call agent B (consult), talk, then REFER the caller to B     -->
+<!--     with Replaces (RFC 5589 basic attended transfer).                  -->
+<!--   role B (direct call, no P-Served-Queue): the consult call from A.    -->
+<!--     Talk to A, then to the caller once the calls are merged.           -->
+<!--                                                                        -->
+<!-- Used by manual_test.sh flow mode attended, which registers each device -->
+<!-- in its own SIPp process, so [field0..4] are this agent's own device    -->
+<!-- (name, extension, domain, auth, user agent), and passes the consult    -->
+<!-- target as -key consult_target (and consult_target_alt, used when A is  -->
+<!-- the target itself).                                                    -->
+<!--                                                                        -->
+<!-- The consult call runs inside this same SIPp call: its Call-ID is       -->
+<!-- cx...///<original Call-ID>, and SIPp matches anything after "///" to   -->
+<!-- the original call, so the consult responses come back here.            -->
+<!--                                                                        -->
+<!-- Timers match the audio (audio/generate-attended-pcaps.sh):             -->
+<!--   44s  section 1, caller + A  (g711a-att-term.pcap), then hold         -->
+<!--   24s  consult, A + B         (g711a-att-consult-a/-b.pcap), then REFER-->
+<!--   60s  caller + B             (g711a-att-term2.pcap)                   -->
+<!-- ====================================================================== -->
+
+<scenario name="UAS attended transfer (agents A and B)">
+
+  <recv request="INVITE" crlf="true" rrs="true">
+    <action>
+      <ereg regexp="[: ]*(.*)" search_in="hdr" header="From" assign_to="remote_from,remote_from"/>
+      <ereg regexp="[: ]*([^;]*)" search_in="hdr" header="To" assign_to="local_to,local_to"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
+      <ereg regexp="P-Served-Queue:[^0-9]*([0-9]+)@" search_in="msg" assign_to="is_queue,served_queue" checkIt="false"/>
+      <!-- Original Call-ID split at '@', so the Replaces value can escape it -->
+      <ereg regexp="[: ]*([^@]+)@(.*)" search_in="hdr" header="Call-ID" assign_to="cid_has_at,cid_user,cid_host" checkIt="false"/>
+      <log message="ATT queue=[$served_queue] (empty = consult call, role B) me=[field1]@[field2] callid=[call_id]"/>
+    </action>
+  </recv>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 100 Trying
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 180 Ringing
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <pause distribution="uniform" min="1000" max="2000"/>
+
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+
+  <recv request="ACK" crlf="true">
+  </recv>
+
+  <nop test="is_queue" next="a_talk"/>
+  <nop next="b_consult"/>
+
+  <!-- ==================================================================== -->
+  <!-- Role A                                                               -->
+  <!-- ==================================================================== -->
+
+  <!-- Section 1: talk to the caller.  A BYE here means they hung up. -->
+  <label id="a_talk"/>
+  <nop>
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-term.pcap stage=agent-a"/>
+      <exec play_pcap_audio="g711a-att-term.pcap"/>
+    </action>
+  </nop>
+  <recv request="BYE" timeout="44000" ontimeout="a_hold" next="bye_200">
+  </recv>
+
+  <!-- Hold the caller: re-INVITE on the original dialog with a=sendonly. -->
+  <label id="a_hold"/>
+  <nop>
+    <action><log message="ATT A: hold re-INVITE callid=[call_id]"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      INVITE [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 INVITE
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687638 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+      a=sendonly
+
+    ]]>
+  </send>
+  <recv timeout="10000" ontimeout="a_consult" response="100" optional="true">
+  </recv>
+  <recv timeout="10000" ontimeout="a_consult" response="407" optional="true" auth="true" next="a_hold_auth">
+  </recv>
+  <recv response="200" timeout="10000" ontimeout="a_consult" next="a_hold_ack">
+  </recv>
+
+  <label id="a_hold_auth"/>
+  <send>
+    <![CDATA[
+
+      ACK [$remote_contact] SIP/2.0
+      [last_Via:]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <send retrans="500">
+    <![CDATA[
+
+      INVITE [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 3 INVITE
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      [field3]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687638 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+      a=sendonly
+
+    ]]>
+  </send>
+  <recv timeout="10000" ontimeout="a_consult" response="100" optional="true">
+  </recv>
+  <recv response="200" timeout="10000" ontimeout="a_consult">
+  </recv>
+  <send next="a_consult">
+    <![CDATA[
+
+      ACK [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 3 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="a_hold_ack"/>
+  <send>
+    <![CDATA[
+
+      ACK [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Consult call to agent B: a new dialog, authenticated as this device.  -->
+  <!-- B is consult_target, or consult_target_alt when that is us.           -->
+  <label id="a_consult"/>
+  <nop>
+    <action>
+      <assignstr assign_to="me" value="[field1]"/>
+      <assignstr assign_to="b_ext" value="[consult_target]"/>
+      <strcmp assign_to="b_cmp" variable="me" variable2="b_ext"/>
+      <test assign_to="b_is_me" variable="b_cmp" compare="equal" value="0"/>
+      <assignstr assign_to="cx_cid" value="cx[call_number]x[pid]///[call_id]"/>
+    </action>
+  </nop>
+  <nop test="b_is_me" next="a_consult_alt"/>
+  <nop next="a_consult_send"/>
+  <label id="a_consult_alt"/>
+  <nop>
+    <action><assignstr assign_to="b_ext" value="[consult_target_alt]"/></action>
+  </nop>
+
+  <label id="a_consult_send"/>
+  <nop>
+    <action><log message="ATT A: consult INVITE to [$b_ext]@[field2] callid=[$cx_cid]"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      INVITE sip:[$b_ext]@[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
+      To: <sip:[$b_ext]@[field2]>
+      Call-ID: [$cx_cid]
+      CSeq: 1 INVITE
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655766 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+  <recv timeout="30000" ontimeout="a_cleanup" response="100" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="a_cleanup" response="180" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="a_cleanup" response="183" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="a_cleanup" response="407" optional="true" auth="true" next="a_consult_auth">
+  </recv>
+  <recv response="200" timeout="30000" ontimeout="a_cleanup" next="a_consult_ack1">
+    <action>
+      <ereg regexp=";tag=([^;>]+)" search_in="hdr" header="To" assign_to="cx_totag,cx_totag"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="cx_contact"/>
+    </action>
+  </recv>
+
+  <label id="a_consult_auth"/>
+  <send>
+    <![CDATA[
+
+      ACK sip:[$b_ext]@[field2] SIP/2.0
+      [last_Via:]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
+      [last_To:]
+      Call-ID: [$cx_cid]
+      CSeq: 1 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <send retrans="500">
+    <![CDATA[
+
+      INVITE sip:[$b_ext]@[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
+      To: <sip:[$b_ext]@[field2]>
+      Call-ID: [$cx_cid]
+      CSeq: 2 INVITE
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      [field3]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655766 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+  <recv timeout="30000" ontimeout="a_cleanup" response="100" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="a_cleanup" response="180" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="a_cleanup" response="183" optional="true">
+  </recv>
+  <recv response="200" timeout="30000" ontimeout="a_cleanup">
+    <action>
+      <ereg regexp=";tag=([^;>]+)" search_in="hdr" header="To" assign_to="cx_totag,cx_totag"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="cx_contact"/>
+    </action>
+  </recv>
+  <send next="a_consult_talk">
+    <![CDATA[
+
+      ACK [$cx_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
+      To: <sip:[$b_ext]@[field2]>;tag=[$cx_totag]
+      Call-ID: [$cx_cid]
+      CSeq: 2 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="a_consult_ack1"/>
+  <send>
+    <![CDATA[
+
+      ACK [$cx_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
+      To: <sip:[$b_ext]@[field2]>;tag=[$cx_totag]
+      Call-ID: [$cx_cid]
+      CSeq: 1 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Consult: the 200's SDP re-pointed our RTP at B, so this plays to B. -->
+  <label id="a_consult_talk"/>
+  <nop>
+    <action>
+      <log message="ATT A: consult answered by [$b_ext], to-tag=[$cx_totag]"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-consult-a.pcap stage=consult-a"/>
+      <exec play_pcap_audio="g711a-att-consult-a.pcap"/>
+    </action>
+  </nop>
+  <recv request="BYE" timeout="24000" ontimeout="a_refer" next="bye_200">
+  </recv>
+
+  <!-- REFER the caller to B, replacing the consult dialog.  The Replaces   -->
+  <!-- value is URI-escaped, so the original Call-ID's '@' becomes %40.     -->
+  <label id="a_refer"/>
+  <nop test="cid_has_at" next="a_refer_at"/>
+  <nop next="a_refer_send">
+    <action>
+      <assignstr assign_to="replaces" value="[$cx_cid]%3Bto-tag%3D[$cx_totag]%3Bfrom-tag%3Dcx[call_number]"/>
+    </action>
+  </nop>
+  <label id="a_refer_at"/>
+  <nop>
+    <action>
+      <assignstr assign_to="replaces" value="cx[call_number]x[pid]///[$cid_user]%40[$cid_host]%3Bto-tag%3D[$cx_totag]%3Bfrom-tag%3Dcx[call_number]"/>
+    </action>
+  </nop>
+
+  <label id="a_refer_send"/>
+  <nop>
+    <action><log message="ATT A: REFER caller to [$b_ext] Replaces=[$replaces]"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 4 REFER
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:[$b_ext]@[field2]?Replaces=[$replaces]>
+      Referred-By: <sip:[field1]@[field2]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop next="a_post"/>
+
+  <label id="a_refer_auth"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 5 REFER
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:[$b_ext]@[field2]?Replaces=[$replaces]>
+      Referred-By: <sip:[field1]@[field2]>
+      [field3]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- After the REFER: answer the transfer NOTIFYs and the BYEs that end   -->
+  <!-- both of our dialogs.  If they stop coming, hang up what is left.     -->
+  <label id="a_post"/>
+  <recv timeout="10000" ontimeout="a_cleanup" response="202" optional="true" next="a_post">
+  </recv>
+  <recv timeout="10000" ontimeout="a_cleanup" response="407" optional="true" auth="true" next="a_refer_auth">
+  </recv>
+  <recv timeout="10000" ontimeout="a_cleanup" request="NOTIFY" optional="true" next="a_notify">
+    <action>
+      <ereg regexp="SIP/2.0 ([0-9]+)" search_in="body" assign_to="notify_status,notify_status" checkIt="false"/>
+      <log message="ATT A: NOTIFY sipfrag [$notify_status]"/>
+    </action>
+  </recv>
+  <recv request="BYE" timeout="10000" ontimeout="a_cleanup" next="a_bye">
+  </recv>
+
+  <label id="a_notify"/>
+  <send next="a_post">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="a_bye"/>
+  <send>
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop>
+    <action>
+      <add assign_to="a_byes" value="1"/>
+      <test assign_to="a_done" variable="a_byes" compare="greater_than_equal" value="2"/>
+      <log message="ATT A: BYE [$a_byes] of 2 answered"/>
+    </action>
+  </nop>
+  <nop test="a_done" next="99"/>
+  <nop next="a_post"/>
+
+  <!-- Hang up both dialogs ourselves; 481s are fine (already gone). -->
+  <label id="a_cleanup"/>
+  <nop>
+    <action><log message="ATT A: cleanup - sending BYE on both dialogs"/></action>
+  </nop>
+  <send>
+    <![CDATA[
+
+      BYE [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 6 BYE
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <send>
+    <![CDATA[
+
+      BYE [$cx_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=cx[call_number]
+      To: <sip:[$b_ext]@[field2]>;tag=[$cx_totag]
+      Call-ID: [$cx_cid]
+      CSeq: 3 BYE
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <label id="a_cleanup_wait"/>
+  <recv timeout="4000" ontimeout="99" response="200" optional="true" next="a_cleanup_wait">
+  </recv>
+  <recv response="481" timeout="4000" ontimeout="99" next="a_cleanup_wait">
+  </recv>
+
+  <!-- ==================================================================== -->
+  <!-- Role B                                                               -->
+  <!-- ==================================================================== -->
+
+  <!-- Consult: talk to A.  A re-INVITE (the merge re-pointing our media)   -->
+  <!-- or the end of the consult starts the caller conversation.            -->
+  <label id="b_consult"/>
+  <nop>
+    <action>
+      <assign assign_to="b_talking" value="0"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-consult-b.pcap stage=consult-b"/>
+      <exec play_pcap_audio="g711a-att-consult-b.pcap"/>
+    </action>
+  </nop>
+  <recv timeout="25000" ontimeout="b_talk" request="INVITE" optional="true" next="b_reinvite">
+  </recv>
+  <recv request="BYE" timeout="25000" ontimeout="b_talk" next="bye_200">
+  </recv>
+
+  <!-- Caller conversation; the caller hangs up at the end of it. -->
+  <label id="b_talk"/>
+  <nop>
+    <action>
+      <assign assign_to="b_talking" value="1"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-term2.pcap stage=agent-b"/>
+      <exec play_pcap_audio="g711a-att-term2.pcap"/>
+    </action>
+  </nop>
+  <label id="b_talk_wait"/>
+  <recv timeout="80000" ontimeout="b_send_bye" request="INVITE" optional="true" next="b_reinvite">
+  </recv>
+  <recv request="BYE" timeout="80000" ontimeout="b_send_bye" next="bye_200">
+  </recv>
+
+  <label id="b_reinvite"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687638 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+  <recv request="ACK" crlf="true">
+    <action><log message="ATT B: re-INVITE answered (talking=[$b_talking])"/></action>
+  </recv>
+  <nop test="b_talking" next="b_talk_wait"/>
+  <nop next="b_talk"/>
+
+  <label id="b_send_bye"/>
+  <send retrans="500">
+    <![CDATA[
+
+      BYE [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 BYE
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="200" timeout="5000" ontimeout="99" next="99">
+  </recv>
+
+  <!-- ==================================================================== -->
+  <!-- Shared endings                                                       -->
+  <!-- ==================================================================== -->
+
+  <label id="bye_200"/>
+  <send next="99">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="99"/>
+  <timewait milliseconds="4000"/>
+
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+
+</scenario>
