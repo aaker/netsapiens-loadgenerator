@@ -44,6 +44,7 @@ registers.
 | Area code / main number | 858 / 1 858-555-1301 |
 | Dial policy | US and Canada |
 | Dial plan | `meridianvoice`, chained to `<Cloud PBX Features>` so devices can dial extensions, the park and the bridge |
+| Park rule | `sip:700@*` -> `Directed-Parktrieve` in the domain's dial plan (destination `[*]@<OwnDomain>`, source host `<OwnDomain>`): dialed from an idle phone it retrieves the call parked on 700 |
 | Call recording | Every user: `yes-with-transcription-and-sentiment` |
 
 Calls come in from the `inbound-carrier` connection (`sip*@inbound-carrier`,

@@ -231,9 +231,59 @@ async function buildQueues() {
     }
 }
 
+// Directed-Parktrieve on the park extension, in the domain's own dial plan
+// (the platform's Cloud PBX Features plan is admin-only): dialed from an idle
+// device it retrieves the call parked there; from a call it parks it. The
+// rule is more specific than the chain rule's "*", so it wins for this
+// number. A rule with the same match fields answers 409; then it is updated
+// by its dialrule id.
+async function buildParkRule() {
+    const rulesPath = `domains/${enc(D)}/dialplans/${enc(D)}/dialrules`;
+    const match = `sip:${lab.park.ext}@*`;
+    const rule = {
+        enabled: 'yes',
+        'dial-rule-application': 'Directed-Parktrieve',
+        'dial-rule-parameter': '',
+        'dial-rule-translation-destination-scheme': 'sip:',
+        'dial-rule-translation-destination-user': '[*]',
+        'dial-rule-translation-destination-host': '<OwnDomain>',
+        'dial-rule-translation-source-name': '[*]',
+        'dial-rule-translation-source-user': '[*]',
+        'dial-rule-translation-source-host': '<OwnDomain>',
+        'dial-rule-description': `Retrieve parked calls (${lab.park.ext})`
+    };
+    const label = `park retrieve rule ${match} (Directed-Parktrieve)`;
+    if (DRY_RUN) {
+        log(`DRY RUN ${label}: POST ${rulesPath} ${JSON.stringify({ 'dial-rule-matching-to-uri': match, 'dial-rule-matching-from-uri': '*', ...rule })}`);
+        return;
+    }
+    try {
+        await client.apiPostJson(rulesPath, { synchronous: 'yes', 'dial-rule-matching-to-uri': match, 'dial-rule-matching-from-uri': '*', ...rule });
+        log(`created ${label}`);
+        return;
+    } catch (e) {
+        if (e?.response?.status !== 409) {
+            failures++;
+            log(`FAILED ${label}: ${describeApiError(e)}`);
+            return;
+        }
+    }
+    try {
+        const res = await client.apiGet(rulesPath, { 'dial-rule-matching-to-uri': match });
+        const existing = (res.data || []).find(r => r['dial-rule-matching-from-uri'] === '*') || (res.data || [])[0];
+        if (!existing?.dialrule) throw new Error(`409 on create, but no rule matching ${match} found`);
+        await client.apiPutJson(`${rulesPath}/${enc(existing.dialrule)}`, rule);
+        log(`updated ${label}`);
+    } catch (e) {
+        failures++;
+        log(`FAILED updating ${label}: ${describeApiError(e)}`);
+    }
+}
+
 async function buildFeatures() {
     await upsert(`park ${lab.park.ext}`, `domains/${enc(D)}/parks`,
         { park: lab.park.ext, description: lab.park.description }, null);
+    await buildParkRule();
 
     const conf = {
         'conference-name': lab.conference.name,
