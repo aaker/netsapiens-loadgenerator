@@ -104,6 +104,12 @@
       "company": "Pinecrest Realty",
       "cnam": "PINECREST RLTY",
       "number": "15035550122"
+    },
+    "frank": {
+      "name": "Frank Russo",
+      "company": "Russo Plumbing",
+      "cnam": "RUSSO PLUMBING",
+      "number": "13125550190"
     }
   },
   "flows": {
@@ -230,6 +236,19 @@
           "disposition": "Resolved",
           "reason": "Account changes",
           "notes": "Summer hours from June 1 (Sat 9-1); removed the conflicting holiday schedule. Added Emma Price (x115) and Daniel Ruiz (x116). Turned on recording for the Sales group. Customer to re-record the main greeting."
+        }
+      }
+    },
+    "upset": {
+      "did": "18585551308",
+      "hour": 16,
+      "caller": "frank",
+      "summary": "Bad sentiment: an angry repeat caller; Priya holds once, can't fix the dropped calls or give a credit, and he hangs up unhappy.",
+      "dispositions": {
+        "2001": {
+          "disposition": "Not Resolved",
+          "reason": "Escalated to network",
+          "notes": "Third call about dropped calls mid-conversation. No errors in our call logs; customer says internet is fine. Escalated to network team (callback in 1-2 business days). Customer requested a service credit - noted, not approved. Customer very frustrated, threatened to switch providers if not fixed by Friday."
         }
       }
     }

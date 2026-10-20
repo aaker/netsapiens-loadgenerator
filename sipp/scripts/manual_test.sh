@@ -61,6 +61,9 @@
 #                           long      ~14 min: agent A holds the caller twice,
 #                                     then blind-transfers to agent B, who
 #                                     holds twice more. Banter and silences.
+#                           upset     ~2.5 min: an angry repeat caller; agent
+#                                     A holds once, can't fix it, and the
+#                                     caller hangs up unhappy (bad sentiment).
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -106,6 +109,7 @@
 #   ./manual_test.sh -s prod1 --flow blind2            # two blind transfers, A -> B -> C
 #   ./manual_test.sh -s prod1 --flow hold              # one agent, two holds
 #   ./manual_test.sh -s prod1 --flow long              # ~14 min, 4 holds and a transfer
+#   ./manual_test.sh -s prod1 --flow upset             # upset caller, bad sentiment
 #
 # The devices register just before each call and are stopped a few seconds
 # after it, so nothing stays registered between calls. Each registration is
@@ -174,12 +178,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park|3way|blind2|hold|long)
+    attended|park|3way|blind2|hold|long|upset)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold or long (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long or upset (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -300,6 +304,7 @@ case "$FLOW" in
     blind2)   FLOW_SECS=130 ;;
     hold)     FLOW_SECS=165 ;;
     long)     FLOW_SECS=900 ;;
+    upset)    FLOW_SECS=150 ;;
 esac
 if [ "$KEEP" == "1" ]; then
     REG_LOOPS=${REG_LOOPS:-78}
@@ -519,6 +524,13 @@ hold)
     flow_caller g711a-hold-orig1 32 g711a-hold-orig2 35 g711a-hold-orig3 27
     _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_hold.xml"
     ;;
+# upset: an angry repeat caller; agent A (sipp_uas_upset.xml, generated from
+# audio/flows/upset.json) holds once and can't fix it. A single registration
+# process is enough.
+upset)
+    flow_caller g711a-upset-orig1 38 g711a-upset-orig2 72
+    _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_upset.xml"
+    ;;
 # long: ~14 minutes. Agent A (the first device, sipp_uas_long_a.xml) holds
 # twice and blind-transfers to agent B (the second device,
 # sipp_uas_long_b.xml), who holds twice more. Both are generated from
@@ -645,6 +657,8 @@ elif [ "$FLOW" == "blind2" ]; then
     echo "   Flow:        blind2 - $AGENT_A -> ${DEV_EXTS[1]} -> $AGENT_C (two blind transfers)"
 elif [ "$FLOW" == "hold" ]; then
     echo "   Flow:        hold - agent A holds the caller twice, 20-30s each"
+elif [ "$FLOW" == "upset" ]; then
+    echo "   Flow:        upset - an angry caller; agent A holds once and can't fix it"
 elif [ "$FLOW" == "long" ]; then
     echo "   Flow:        long (~14 min) - $AGENT_A holds twice, transfers to ${DEV_EXTS[1]}, who holds twice"
 elif [ "$FULL_CALL" == "1" ]; then

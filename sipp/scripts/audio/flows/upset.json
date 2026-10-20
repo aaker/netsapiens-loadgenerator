@@ -1,0 +1,129 @@
+{
+  "name": "upset",
+  "voices": {
+    "CALLER": "aura-helios-en",
+    "AGENT1": "aura-asteria-en"
+  },
+  "say_voices": {
+    "CALLER": "Daniel",
+    "AGENT1": "Samantha"
+  },
+  "sections": [
+    {
+      "length": 38,
+      "tracks": {
+        "CALLER": "g711a-upset-orig1",
+        "AGENT1": "g711a-upset-term1"
+      }
+    },
+    {
+      "length": 72,
+      "tracks": {
+        "CALLER": "g711a-upset-orig2",
+        "AGENT1": "g711a-upset-term2"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT1",
+      "Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?"
+    ],
+    [
+      "CALLER",
+      "Yeah, this is Frank Russo with Russo Plumbing. This is the third time I'm calling about this. Our phones keep dropping calls in the middle of conversations."
+    ],
+    [
+      "AGENT1",
+      "I'm sorry to hear that, Frank. Can I get the main number on the account?"
+    ],
+    [
+      "CALLER",
+      "Three one two, five five five, zero one nine zero. You should have all of this already. I've given it to you people twice."
+    ],
+    [
+      "AGENT1",
+      "I understand, and I apologize. I see the previous tickets here. Let me check the call logs for your line. Can you hold for a moment?"
+    ],
+    [
+      "CALLER",
+      "Fine. Make it quick."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT1",
+      "Thanks for holding, Frank. I'm looking at the logs, and I'm not seeing any errors on our side."
+    ],
+    [
+      "CALLER",
+      "No errors? Calls are dropping every single day. My customers think we're hanging up on them."
+    ],
+    [
+      "AGENT1",
+      "I understand how frustrating that is. It could be something with the internet connection at your office. Have you been able to check with your internet provider?"
+    ],
+    [
+      "CALLER",
+      "My internet is fine. Everything else works. It's only your phones. Every time I call, someone tells me to check something else."
+    ],
+    [
+      "PAUSE",
+      4
+    ],
+    [
+      "AGENT1",
+      "I'm sorry. I don't have a way to fix this from here today. I can escalate the ticket to our network team, and someone should call you back within one to two business days."
+    ],
+    [
+      "CALLER",
+      "One to two days? I'm losing business right now. Can you at least credit us for the time this has been broken?"
+    ],
+    [
+      "AGENT1",
+      "I'm not able to issue credits myself. I can add a note asking for one, but I can't promise it will be approved."
+    ],
+    [
+      "PAUSE",
+      3
+    ],
+    [
+      "CALLER",
+      "Unbelievable. Forget it. If this isn't fixed by Friday, we're switching providers."
+    ],
+    [
+      "AGENT1",
+      "I understand, Frank. I've escalated the ticket and noted your request for a credit. Again, I'm sorry for the trouble."
+    ],
+    [
+      "CALLER",
+      "Yeah. Whatever."
+    ]
+  ],
+  "agents": {
+    "sipp_uas_upset.xml": {
+      "title": "Upset caller agent: one hold, can't fix it",
+      "steps": [
+        [
+          "talk",
+          "g711a-upset-term1",
+          38
+        ],
+        [
+          "hold",
+          15,
+          25
+        ],
+        [
+          "talk",
+          "g711a-upset-term2",
+          72
+        ],
+        [
+          "end"
+        ]
+      ]
+    }
+  }
+}

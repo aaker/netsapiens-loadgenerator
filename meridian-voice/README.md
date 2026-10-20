@@ -95,6 +95,7 @@ The audio uses the caller's own name and company.
 | 1 858-555-1305 | `blind2` | 13:00 | WALSH BUILDERS, 1 602-555-0147 | Derek Walsh, Walsh Builders |
 | 1 858-555-1306 | `hold` | 14:00 | HARBOR VET, 1 415-555-0188 | Rosa Delgado, Harbor Vet Clinic |
 | 1 858-555-1307 | `long` | 15:00 | PINECREST RLTY, 1 503-555-0122 | Greg Hanley, Pinecrest Realty |
+| 1 858-555-1308 | `upset` | 16:00 | RUSSO PLUMBING, 1 312-555-0190 | Frank Russo, Russo Plumbing |
 
 Every flow has a different caller number, so `disposition-calls.js`, which
 finds a call's CDRs by caller number, can't pick up another flow's call.
@@ -117,10 +118,11 @@ that part of the conversation runs 44 seconds.
 | `blind2` | Priya talks 34s and blind-transfers to Marcus. Marcus talks 30s and blind-transfers to Dana, who talks 44s. | 2001, 2002, 2003 | ~2 min |
 | `hold` | No transfer. Priya and Rosa talk 32s, Priya holds her for a random 20-30s, they talk 35s, she holds again for 20-30s, then they talk 27s. | 2001 | ~2.5 min |
 | `long` | Priya and Greg cover an office move, voicemail-to-email and more, with small talk and awkward silences. She holds twice (15-25s, 20-30s) and blind-transfers to Marcus, who holds twice more (20-30s each). | 2001, 2002 | ~14 min |
+| `upset` | Bad sentiment. Frank, an angry repeat caller, reports dropped calls for the third time. Priya holds him for 15-25s, finds nothing, can only escalate with a 1-2 day callback and can't give a credit. He threatens to switch providers and hangs up unhappy. | 2001 | ~2.5 min |
 
 The scripts are in `sipp/scripts/audio/`: `call-script.md` (blind),
 `attended-call-script.md`, `park-call-script.md`, and `flows/*.json` for
-`3way`, `blind2`, `hold` and `long`.
+`3way`, `blind2`, `hold`, `long` and `upset`.
 
 ## Placing calls
 
@@ -146,7 +148,7 @@ sipp/scripts/manual_test.sh -s <server> --flow <flow> [-t u1|t1|l1] [-w 5] [--on
 2. It runs `manual_test.sh --once` for that flow, using the transport in `lab.json` (`t1`).
 3. It runs `disposition-calls.js` for the call that just finished.
 
-The schedule runs one flow an hour from 9am to 3pm. The Phoenix clock is used
+The schedule runs one flow an hour from 9am to 4pm. The Phoenix clock is used
 whatever the box's own time zone, and Phoenix has no daylight saving, so the
 times never shift. The server comes from `MERIDIAN_VOICE_SERVER` in `.env`.
 
