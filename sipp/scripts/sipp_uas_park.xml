@@ -4,7 +4,7 @@
 <!-- ====================================================================== -->
 <!-- Call park - agent A (UAS, -oocsf).                                     -->
 <!--                                                                        -->
-<!-- Answers the queue call, talks 44s (g711a-park-term.pcap), then parks   -->
+<!-- Answers the queue call, talks 45s (g711a-park-term.pcap), then parks   -->
 <!-- the caller with a blind REFER to the park extension                    -->
 <!-- (Refer-To: <sip:[park_ext]@queue domain>, -key park_ext) and launches  -->
 <!-- the pickup: manual_test.sh replaces __PICKUP_SCRIPT__ with a script    -->
@@ -100,7 +100,7 @@
       <exec play_pcap_audio="g711a-park-term.pcap"/>
     </action>
   </nop>
-  <recv request="BYE" timeout="44000" ontimeout="park" next="bye_200">
+  <recv request="BYE" timeout="45000" ontimeout="park" next="bye_200">
   </recv>
 
   <!-- Park: blind REFER to the park extension, then start agent B's pickup. -->

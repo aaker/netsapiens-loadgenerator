@@ -13,11 +13,11 @@ and the scenario timers use those lengths:
 
 | File | Speaker | Length | Played by |
 |---|---|---|---|
-| `g711a-att-orig.pcap`      | Tom (caller), section 1    | 44s | UAC, from the agent-connect re-INVITE |
+| `g711a-att-orig.pcap`      | Nora (caller), section 1    | 44s | UAC, from the agent-connect re-INVITE |
 | `g711a-att-term.pcap`      | Priya (agent A), section 1 | 44s | UAS role A, from the answer; the hold follows |
 | `g711a-att-consult-a.pcap` | Priya, consult             | 24s | UAS role A, from the consult 200; the REFER follows |
 | `g711a-att-consult-b.pcap` | Marcus (agent B), consult  | 24s | UAS role B, from the answer |
-| `g711a-att-orig2.pcap`     | Tom, section 3             | 60s | UAC, from the merge; the caller then hangs up |
+| `g711a-att-orig2.pcap`     | Nora, section 3             | 60s | UAC, from the merge; the caller then hangs up |
 | `g711a-att-term2.pcap`     | Marcus, section 3          | 60s | UAS role B, from the merge |
 
 The caller is silent while on hold: `att-orig` ends at the hold, and
@@ -39,52 +39,52 @@ section's speech runs past its length.
 
 **Priya:** Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?
 
-**Tom:** Hi Priya, it's Tom Becker at Lakeside Dental. Since this morning, every call to our main number goes straight to voicemail instead of ringing the front desk.
+**Nora:** Hi Priya, it's Nora Fields at Bright Smile Ortho. Since this morning, every call to our main number goes straight to voicemail instead of ringing the front desk.
 
-**Priya:** I'm sorry about that, Tom. Let me pull up the account. I have the main number as six one nine, five five five, zero one four four. Is that right?
+**Priya:** I'm sorry about that, Nora. Let me pull up the account. I have the main number as six one nine, five five five, zero one four four. Is that right?
 
-**Tom:** That's the one. As far as I know, nobody here changed anything.
+**Nora:** That's the one. As far as I know, nobody here changed anything.
 
 **Priya:** I can see the answering rules were edited early this morning. Routing changes are handled by our provisioning team, so I'd like Marcus to look at this with you. Let me place you on a brief hold while I fill him in.
 
-**Tom:** Sure, I'll hold.
+**Nora:** Sure, I'll hold.
 
-*— HOLD: Priya re-INVITEs Tom with a=sendonly and calls Marcus —*
+*— HOLD: Priya re-INVITEs Nora with a=sendonly and calls Marcus —*
 
-## Section 2 — consult, Priya + Marcus (24s, Tom on hold)
+## Section 2 — consult, Priya + Marcus (24s, Nora on hold)
 
 **Marcus:** Provisioning, this is Marcus.
 
-**Priya:** Hi Marcus, it's Priya. I have Tom Becker from Lakeside Dental on hold. Their main number started going straight to voicemail this morning, and the answering rules were edited at six a m.
+**Priya:** Hi Marcus, it's Priya. I have Nora Fields from Bright Smile Ortho on hold. Their main number started going straight to voicemail this morning, and the answering rules were edited at six a m.
 
 **Marcus:** Okay, I see the edit on the account. I can take it from here.
 
 **Priya:** Great, I'll connect him now. Thanks, Marcus.
 
-*— MERGE: Priya sends REFER with Replaces; Tom is connected to Marcus —*
+*— MERGE: Priya sends REFER with Replaces; Nora is connected to Marcus —*
 
 ## Section 3 — caller + Marcus (60s, the caller hangs up)
 
-**Marcus:** Hi Tom, this is Marcus in provisioning. Priya filled me in on the voicemail problem.
+**Marcus:** Hi Nora, this is Marcus in provisioning. Priya filled me in on the voicemail problem.
 
-**Tom:** Thanks, Marcus. Our patients can't reach the front desk at all.
+**Nora:** Thanks, Marcus. Our patients can't reach the front desk at all.
 
 **Marcus:** I see what happened. Your after-hours schedule was set to stay active all day, so every call goes to voicemail. I'm switching it back to your normal business hours now.
 
-**Tom:** Do you know who changed it?
+**Nora:** Do you know who changed it?
 
 **Marcus:** It was edited from the admin portal at six this morning. It looks like someone was setting up a holiday schedule. I'd check with whoever manages your portal login.
 
-**Tom:** That might have been our office administrator. I'll ask them.
+**Nora:** That might have been our office administrator. I'll ask them.
 
 **Marcus:** Okay, the schedule is fixed. Can you call your main number from a cell phone so we can test it?
 
-**Tom:** Calling now. And the front desk phones are ringing. That's working again.
+**Nora:** Calling now. And the front desk phones are ringing. That's working again.
 
 **Marcus:** Perfect. I've added a note to your account, so if it happens again, anyone on our team can see the history.
 
-**Tom:** Great. Thank you, Marcus, that was quick.
+**Nora:** Great. Thank you, Marcus, that was quick.
 
-**Marcus:** Happy to help, Tom. Have a good rest of your day.
+**Marcus:** Happy to help, Nora. Have a good rest of your day.
 
-**Tom:** You too. Bye.
+**Nora:** You too. Bye.

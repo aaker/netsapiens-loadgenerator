@@ -80,19 +80,24 @@ listed in `lab.json`.
 
 ### Inbound numbers and callers
 
-Each flow has its own DID, routed to queue 4000. Each also has its own caller:
-the caller ID number is the caller's, and the caller ID name is their company
-(or their own name if a caller has no `company` in `lab.json`).
+Each flow has its own DID, routed to queue 4000, and its own caller. The
+caller ID number is the caller's own. The caller ID name is their `cnam` in
+`lab.json`: upper case, at most 15 characters, like carrier CNAM.
+`manual_test.sh` falls back to the company or name, uppercased and cut to 15.
+The audio uses the caller's own name and company.
 
 | DID | Flow | Daily at (Phoenix) | Caller ID | Caller in the audio |
 |---|---|---|---|---|
-| 1 858-555-1301 | `blind` | 9:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker, office manager |
-| 1 858-555-1302 | `attended` | 10:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
-| 1 858-555-1303 | `park` | 11:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
-| 1 858-555-1304 | `3way` | 12:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
-| 1 858-555-1305 | `blind2` | 13:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
-| 1 858-555-1306 | `hold` | 14:00 | Harbor Vet Clinic, 1 415-555-0188 | Rosa Delgado |
-| 1 858-555-1307 | `long` | 15:00 | Pinecrest Realty, 1 503-555-0122 | Greg Hanley |
+| 1 858-555-1301 | `blind` | 9:00 | LAKESIDE DENTAL, 1 619-555-0144 | Tom Becker, office manager, Lakeside Dental |
+| 1 858-555-1302 | `attended` | 10:00 | BRIGHT SMILE, 1 858-555-0161 | Nora Fields, Bright Smile Ortho |
+| 1 858-555-1303 | `park` | 11:00 | CHEN AUTO BODY, 1 626-555-0173 | Victor Chen, Chen Auto Body |
+| 1 858-555-1304 | `3way` | 12:00 | ALPINE TITLE CO, 1 720-555-0129 | Alicia Moreno, Alpine Title Co |
+| 1 858-555-1305 | `blind2` | 13:00 | WALSH BUILDERS, 1 602-555-0147 | Derek Walsh, Walsh Builders |
+| 1 858-555-1306 | `hold` | 14:00 | HARBOR VET, 1 415-555-0188 | Rosa Delgado, Harbor Vet Clinic |
+| 1 858-555-1307 | `long` | 15:00 | PINECREST RLTY, 1 503-555-0122 | Greg Hanley, Pinecrest Realty |
+
+Every flow has a different caller number, so `disposition-calls.js`, which
+finds a call's CDRs by caller number, can't pick up another flow's call.
 
 A DID can only belong to one domain. If a number is already in another
 domain's DID table, the build reports it as failed. Free it there, or change
@@ -107,7 +112,7 @@ that part of the conversation runs 44 seconds.
 |---|---|---|---|
 | `blind` | Priya talks 90s, then blind-transfers the caller to queue 4001. Marcus takes the rest. | 2001, 2002 | ~5 min |
 | `attended` | Priya talks 44s and puts the caller on hold. She calls Marcus and they talk 24s, then she transfers the caller to him (REFER with Replaces). Marcus and the caller talk 60s. | 2001, 2002 | ~2.5 min |
-| `park` | Priya talks 44s and parks the caller on 700. After 15s Marcus dials 700, picks up, and talks 60s. | 2001, 2002 | ~2 min |
+| `park` | Priya talks 45s and parks the caller on 700. After 15s Marcus dials 700, picks up, and talks 60s. | 2001, 2002 | ~2 min |
 | `3way` | Priya talks 34s, moves the caller onto bridge 800 and joins it herself. Marcus dials in 5s later, and all three talk 46s. | 2001, 2002 | ~1.5 min |
 | `blind2` | Priya talks 34s and blind-transfers to Marcus. Marcus talks 30s and blind-transfers to Dana, who talks 44s. | 2001, 2002, 2003 | ~2 min |
 | `hold` | No transfer. Priya and Rosa talk 32s, Priya holds her for a random 20-30s, they talk 35s, she holds again for 20-30s, then they talk 27s. | 2001 | ~2.5 min |

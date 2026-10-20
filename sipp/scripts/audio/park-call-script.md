@@ -12,9 +12,9 @@ pcaps swapped in:
 
 | File | Speaker | Length | Played by |
 |---|---|---|---|
-| `g711a-park-orig.pcap`  | Tom (caller), section 1    | 44s | UAC, from the agent-connect re-INVITE |
-| `g711a-park-term.pcap`  | Priya (agent A), section 1 | 44s | `sipp_uas_park.xml`, from the answer; the park REFER follows |
-| `g711a-park-orig2.pcap` | Tom, section 2             | 60s | UAC, from the pickup re-INVITE; the caller then hangs up |
+| `g711a-park-orig.pcap`  | Victor (caller), section 1 | 45s | UAC, from the agent-connect re-INVITE |
+| `g711a-park-term.pcap`  | Priya (agent A), section 1 | 45s | `sipp_uas_park.xml`, from the answer; the park REFER follows |
+| `g711a-park-orig2.pcap` | Victor, section 2             | 60s | UAC, from the pickup re-INVITE; the caller then hangs up |
 | `g711a-park-term2.pcap` | Marcus (agent B), section 2 | 60s | `sipp_uac_agent_dial.xml`, from the pickup 200 |
 
 The caller hears the core's music on hold while parked. No pcap plays for that
@@ -30,48 +30,48 @@ audio with the built-in voices instead. The section lengths are `PARK_AT` and
 
 ---
 
-## Section 1 — caller + Priya (0:00 → 0:44, ends at the park)
+## Section 1 — caller + Priya (0:00 → 0:45, ends at the park)
 
 **Priya:** Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?
 
-**Tom:** Hi Priya, it's Tom Becker at Lakeside Dental. Our invoice this month is about two hundred dollars higher than usual, and I can't tell why.
+**Victor:** Hi Priya, it's Victor Chen at Chen Auto Body. Our invoice this month is about two hundred dollars higher than usual, and I can't tell why.
 
 **Priya:** I can help with that. Can you confirm the main number on the account?
 
-**Tom:** Sure, it's six one nine, five five five, zero one four four.
+**Victor:** Sure, it's six one nine, five five five, zero one four four.
 
 **Priya:** Let me take a look. I see the account, and there is a new charge for additional phone numbers. Billing questions go to our billing team, and Marcus can walk you through the details.
 
-**Tom:** Okay. Do I need to call a different number?
+**Victor:** Okay. Do I need to call a different number?
 
 **Priya:** No, I'll park your call, and Marcus will pick it up in just a moment. You'll hear music while you wait.
 
-**Tom:** Sounds good, thanks.
+**Victor:** Sounds good, thanks.
 
-*— PARK: Priya REFERs Tom to 700; after the park time Marcus dials 700 —*
+*— PARK: Priya REFERs Victor to 700; after the park time Marcus dials 700 —*
 
 ## Section 2 — caller + Marcus (60s, the caller hangs up)
 
-**Marcus:** Hi Tom, this is Marcus in billing. I just picked up your call from park. You have a question about this month's invoice?
+**Marcus:** Hi Victor, this is Marcus in billing. I just picked up your call from park. You have a question about this month's invoice?
 
-**Tom:** Yes. It's about two hundred dollars higher than usual.
+**Victor:** Yes. It's about two hundred dollars higher than usual.
 
 **Marcus:** I see it. Ten new phone numbers were added on the third, and each one has a monthly charge plus a one-time setup fee.
 
-**Tom:** Ten numbers? We only asked for two, for our new front desk staff.
+**Victor:** Ten numbers? We only asked for two, for our new front desk staff.
 
 **Marcus:** You're right, the order says two. It looks like the quantity was entered incorrectly. I'm removing the eight extra numbers now, and I'll credit the charges for them.
 
-**Tom:** Great, thank you. Will the credit show up on next month's invoice?
+**Victor:** Great, thank you. Will the credit show up on next month's invoice?
 
 **Marcus:** Yes, it will appear as a separate line item. You'll also get an email confirmation in a few minutes.
 
-**Tom:** One more thing. Can you make sure the two numbers we did order ring the front desk?
+**Victor:** One more thing. Can you make sure the two numbers we did order ring the front desk?
 
 **Marcus:** They do. Both are routed to your reception queue, the same as your main number.
 
-**Tom:** Perfect. Thanks for sorting that out, Marcus.
+**Victor:** Perfect. Thanks for sorting that out, Marcus.
 
-**Marcus:** Happy to help, Tom. Have a great day.
+**Marcus:** Happy to help, Victor. Have a great day.
 
-**Tom:** You too. Bye.
+**Victor:** You too. Bye.

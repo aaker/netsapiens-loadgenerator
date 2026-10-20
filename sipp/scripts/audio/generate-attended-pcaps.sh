@@ -42,12 +42,12 @@ if [ -f "$env_file" ]; then
 fi
 TTS="${TTS:-deepgram}"
 if [ "$TTS" = "say" ]; then
-  CALLER_VOICE="${CALLER_VOICE:-Ralph}"
+  CALLER_VOICE="${CALLER_VOICE:-Flo (English (US))}"
   AGENT1_VOICE="${AGENT1_VOICE:-Samantha}"
   AGENT2_VOICE="${AGENT2_VOICE:-Reed (English (US))}"
 else
   : "${DEEPGRAM_API_KEY:?Set DEEPGRAM_API_KEY in the environment or in audio/.env (or use TTS=say)}"
-  CALLER_VOICE="${CALLER_VOICE:-aura-orion-en}"     # Tom, the office manager
+  CALLER_VOICE="${CALLER_VOICE:-aura-hera-en}"          # Nora Fields, Bright Smile Ortho
   AGENT1_VOICE="${AGENT1_VOICE:-aura-asteria-en}"   # Priya, tier 1 support
   AGENT2_VOICE="${AGENT2_VOICE:-aura-arcas-en}"     # Marcus, provisioning
 fi
@@ -66,18 +66,18 @@ trap 'rm -rf "$work"' EXIT
 # AGENT2). "HOLD" ends section 1 and "MERGE" ends section 2.
 turns=(
 "AGENT1|Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?"
-"CALLER|Hi Priya, it's Tom Becker at Lakeside Dental. Since this morning, every call to our main number goes straight to voicemail instead of ringing the front desk."
-"AGENT1|I'm sorry about that, Tom. Let me pull up the account. I have the main number as six one nine, five five five, zero one four four. Is that right?"
+"CALLER|Hi Priya, it's Nora Fields at Bright Smile Ortho. Since this morning, every call to our main number goes straight to voicemail instead of ringing the front desk."
+"AGENT1|I'm sorry about that, Nora. Let me pull up the account. I have the main number as six one nine, five five five, zero one four four. Is that right?"
 "CALLER|That's the one. As far as I know, nobody here changed anything."
 "AGENT1|I can see the answering rules were edited early this morning. Routing changes are handled by our provisioning team, so I'd like Marcus to look at this with you. Let me place you on a brief hold while I fill him in."
 "CALLER|Sure, I'll hold."
 "HOLD"
 "AGENT2|Provisioning, this is Marcus."
-"AGENT1|Hi Marcus, it's Priya. I have Tom Becker from Lakeside Dental on hold. Their main number started going straight to voicemail this morning, and the answering rules were edited at six a m."
+"AGENT1|Hi Marcus, it's Priya. I have Nora Fields from Bright Smile Ortho on hold. Their main number started going straight to voicemail this morning, and the answering rules were edited at six a m."
 "AGENT2|Okay, I see the edit on the account. I can take it from here."
 "AGENT1|Great, I'll connect him now. Thanks, Marcus."
 "MERGE"
-"AGENT2|Hi Tom, this is Marcus in provisioning. Priya filled me in on the voicemail problem."
+"AGENT2|Hi Nora, this is Marcus in provisioning. Priya filled me in on the voicemail problem."
 "CALLER|Thanks, Marcus. Our patients can't reach the front desk at all."
 "AGENT2|I see what happened. Your after-hours schedule was set to stay active all day, so every call goes to voicemail. I'm switching it back to your normal business hours now."
 "CALLER|Do you know who changed it?"
@@ -87,7 +87,7 @@ turns=(
 "CALLER|Calling now. And the front desk phones are ringing. That's working again."
 "AGENT2|Perfect. I've added a note to your account, so if it happens again, anyone on our team can see the history."
 "CALLER|Great. Thank you, Marcus, that was quick."
-"AGENT2|Happy to help, Tom. Have a good rest of your day."
+"AGENT2|Happy to help, Nora. Have a good rest of your day."
 "CALLER|You too. Bye."
 )
 

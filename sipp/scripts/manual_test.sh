@@ -16,8 +16,9 @@
 #                         meridian-voice/build-domain.js
 #   -n, --number <num>    Inbound number (DID) to call. Default: the flow's
 #                         DID in meridian-voice/lab.json. The caller ID is
-#                         the flow's caller there too (their company, else
-#                         their name); with -n and no lab caller, a random one.
+#                         the flow's caller there too (cnam, else company,
+#                         else name; upper case, max 15 characters); with -n
+#                         and no lab caller, a random one.
 #                         meridian-voice/README.md documents the lab domain.
 #   -t, --transport <t>   u1 (UDP, default) | t1 (TCP) | l1 (TLS)
 #   -s, --server <id>     Multi-server mode: resolve hostname from servers.json
@@ -46,7 +47,7 @@
 #                                     REFERs with Replaces (~2.5 min).
 #                                     Registers each device in its own SIPp
 #                                     process.
-#                           park      agent A talks 44s, parks the caller on
+#                           park      agent A talks 45s, parks the caller on
 #                                     --park-ext with a blind REFER; after
 #                                     --park-time agent B dials the park
 #                                     extension and takes the call (~2 min).
@@ -191,8 +192,9 @@ if [ -f "$LAB_JSON" ] && command -v jq >/dev/null; then
     [ -n "$NUMBER" ] || NUMBER=$(jq -r --arg f "$FLOW" '.flows[$f].did // empty' "$LAB_JSON")
     CALLER_KEY=$(jq -r --arg f "$FLOW" '.flows[$f].caller // empty' "$LAB_JSON")
     if [ -n "$CALLER_KEY" ]; then
-        # The company when the caller has one (what a business line shows), else the name.
-        CALLER_NAME=$(jq -r --arg c "$CALLER_KEY" '.callers[$c] | .company // .name' "$LAB_JSON")
+        # Caller ID name: the caller's cnam, else their company, else their
+        # name - upper case and at most 15 characters, like carrier CNAM.
+        CALLER_NAME=$(jq -r --arg c "$CALLER_KEY" '.callers[$c] | (.cnam // .company // .name) | ascii_upcase | .[0:15]' "$LAB_JSON")
         CALLER_NUMBER=$(jq -r --arg c "$CALLER_KEY" '.callers[$c].number' "$LAB_JSON")
     fi
 fi

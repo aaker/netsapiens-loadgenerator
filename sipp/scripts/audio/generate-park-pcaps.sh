@@ -15,7 +15,7 @@
 #        g711a-park-term2.pcap   agent 2 (sipp_uac_agent_dial.xml, from
 #                                the pickup 200)
 #
-# PARK_AT and TALK2_LEN match the attended call's 44s / 60s sections, so the
+# PARK_AT and TALK2_LEN are 45s / 60s, close to the attended call's 44s / 60s, so the
 # park caller is the attended caller scenario with these pcaps swapped in
 # (manual_test.sh --flow park). The conversation is documented in
 # park-call-script.md; the turns array below is the authoritative copy.
@@ -39,18 +39,18 @@ fi
 
 TTS="${TTS:-deepgram}"
 if [ "$TTS" = "say" ]; then
-  CALLER_VOICE="${CALLER_VOICE:-Ralph}"
+  CALLER_VOICE="${CALLER_VOICE:-Eddy (English (US))}"
   AGENT1_VOICE="${AGENT1_VOICE:-Samantha}"
   AGENT2_VOICE="${AGENT2_VOICE:-Reed (English (US))}"
 else
   : "${DEEPGRAM_API_KEY:?Set DEEPGRAM_API_KEY in the environment or in audio/.env (or use TTS=say)}"
-  CALLER_VOICE="${CALLER_VOICE:-aura-orion-en}"     # Tom, the office manager
+  CALLER_VOICE="${CALLER_VOICE:-aura-orpheus-en}"       # Victor Chen, Chen Auto Body
   AGENT1_VOICE="${AGENT1_VOICE:-aura-asteria-en}"   # Priya, tier 1 support
   AGENT2_VOICE="${AGENT2_VOICE:-aura-arcas-en}"     # Marcus, billing
 fi
 SR=24000                                          # TTS render rate (Hz); final output is 8 kHz
 GAP="${GAP:-0.45}"                                # silence between turns (both tracks), seconds
-PARK_AT="${PARK_AT:-44}"                          # section 1 length (agent 1 parks the caller)
+PARK_AT="${PARK_AT:-45}"                          # section 1 length (agent 1 parks the caller)
 TALK2_LEN="${TALK2_LEN:-60}"                      # section 2 length (the caller hangs up)
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
@@ -62,7 +62,7 @@ trap 'rm -rf "$work"' EXIT
 # AGENT2). "PARK" ends section 1.
 turns=(
 "AGENT1|Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?"
-"CALLER|Hi Priya, it's Tom Becker at Lakeside Dental. Our invoice this month is about two hundred dollars higher than usual, and I can't tell why."
+"CALLER|Hi Priya, it's Victor Chen at Chen Auto Body. Our invoice this month is about two hundred dollars higher than usual, and I can't tell why."
 "AGENT1|I can help with that. Can you confirm the main number on the account?"
 "CALLER|Sure, it's six one nine, five five five, zero one four four."
 "AGENT1|Let me take a look. I see the account, and there is a new charge for additional phone numbers. Billing questions go to our billing team, and Marcus can walk you through the details."
@@ -70,7 +70,7 @@ turns=(
 "AGENT1|No, I'll park your call, and Marcus will pick it up in just a moment. You'll hear music while you wait."
 "CALLER|Sounds good, thanks."
 "PARK"
-"AGENT2|Hi Tom, this is Marcus in billing. I just picked up your call from park. You have a question about this month's invoice?"
+"AGENT2|Hi Victor, this is Marcus in billing. I just picked up your call from park. You have a question about this month's invoice?"
 "CALLER|Yes. It's about two hundred dollars higher than usual."
 "AGENT2|I see it. Ten new phone numbers were added on the third, and each one has a monthly charge plus a one-time setup fee."
 "CALLER|Ten numbers? We only asked for two, for our new front desk staff."
@@ -80,7 +80,7 @@ turns=(
 "CALLER|One more thing. Can you make sure the two numbers we did order ring the front desk?"
 "AGENT2|They do. Both are routed to your reception queue, the same as your main number."
 "CALLER|Perfect. Thanks for sorting that out, Marcus."
-"AGENT2|Happy to help, Tom. Have a great day."
+"AGENT2|Happy to help, Victor. Have a great day."
 "CALLER|You too. Bye."
 )
 
