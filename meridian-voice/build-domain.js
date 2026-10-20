@@ -16,6 +16,8 @@
 //     lab.json, logged in
 //   - park 700, conference bridge 800 (no PIN, no prompts)
 //   - one DID per call flow, routed to queue 4000
+//   - the call-center disposition and call-reason codes in lab.json
+//     (callcenterCodes), which disposition-calls.js writes after each call
 // Then writes lab/devices.csv (gitignored: it holds the SIP passwords), which
 // sipp/scripts/manual_test.sh registers.
 //
@@ -258,6 +260,94 @@ async function buildFeatures() {
     }
 }
 
+// Every disposition and reason a flow writes after its call must be one of
+// the lab's codes (and fit the CDR fields' 32 characters). Checked before
+// anything is sent.
+function checkFlowCodes() {
+    const codes = lab.callcenterCodes;
+    const names = list => new Set(list.map(c => c.name));
+    const disp = names(codes.dispositions);
+    const reasons = names(codes.callReasons);
+    const problems = [];
+    for (const c of [...codes.dispositions, ...codes.callReasons]) {
+        if (c.name.length > 32) problems.push(`code "${c.name}" is longer than 32 characters (the CDR field limit)`);
+    }
+    for (const [flow, f] of Object.entries(lab.flows)) {
+        for (const [ext, e] of Object.entries(f.dispositions)) {
+            if (!disp.has(e.disposition)) problems.push(`${flow}/${ext}: disposition "${e.disposition}" is not in callcenterCodes.dispositions`);
+            if (!reasons.has(e.reason)) problems.push(`${flow}/${ext}: reason "${e.reason}" is not in callcenterCodes.callReasons`);
+        }
+    }
+    if (problems.length) {
+        problems.forEach(p => log(`lab.json: ${p}`));
+        process.exit(1);
+    }
+}
+
+// Disposition and call-reason codes (one collection, told apart by type;
+// a reason is "why the customer called" and is not tied to a disposition).
+// Creates the missing codes and brings existing ones back in line with
+// lab.json; codes the domain has but lab.json doesn't are left alone.
+async function buildCallcenterCodes() {
+    const base = `domains/${enc(D)}/callcenter-codes`;
+    const wanted = [
+        ...lab.callcenterCodes.dispositions.map(c => ({
+            type: 'disposition', name: c.name, description: c.description, direction: c.direction || 'both',
+            classification: c.classification || 'none', 'system-applied': c['system-applied'] || 'no', active: 'yes'
+        })),
+        ...lab.callcenterCodes.callReasons.map(c => ({
+            type: 'call-reason', name: c.name, description: c.description, direction: c.direction || 'both', active: 'yes'
+        }))
+    ];
+    if (DRY_RUN) {
+        wanted.forEach(c => log(`DRY RUN ${c.type} code "${c.name}": POST ${base} ${JSON.stringify(c)}`));
+        return;
+    }
+    let existing;
+    try {
+        existing = (await client.apiGet(base)).data || [];
+    } catch (e) {
+        failures++;
+        if (e?.response?.status === 404) {
+            log('FAILED call-center codes: HTTP 404 - call center reports are not enabled on this platform (or no such domain)');
+        } else {
+            log(`FAILED reading call-center codes: ${describeApiError(e)}`);
+        }
+        return;
+    }
+    const byKey = new Map(existing.map(c => [`${c.type}:${String(c.name).toLowerCase()}`, c]));
+    const counts = { created: 0, updated: 0, unchanged: 0 };
+    for (const c of wanted) {
+        const have = byKey.get(`${c.type}:${c.name.toLowerCase()}`);
+        if (!have) {
+            try {
+                await client.apiPostJson(base, c);
+                counts.created++;
+            } catch (e) {
+                failures++;
+                log(`FAILED creating ${c.type} code "${c.name}": ${describeApiError(e)}`);
+            }
+            continue;
+        }
+        const { type, ...fields } = c;
+        const changed = Object.keys(fields).filter(k => k !== 'name' && String(have[k] ?? '') !== String(fields[k]));
+        if (!changed.length) {
+            counts.unchanged++;
+            continue;
+        }
+        try {
+            await client.apiPutJson(`${base}/${enc(have['code-id'])}`, fields);
+            counts.updated++;
+            log(`updated ${c.type} code "${c.name}" (${changed.join(', ')})`);
+        } catch (e) {
+            failures++;
+            log(`FAILED updating ${c.type} code "${c.name}": ${describeApiError(e)}`);
+        }
+    }
+    log(`call-center codes: ${counts.created} created, ${counts.updated} updated, ${counts.unchanged} unchanged ` +
+        `(${lab.callcenterCodes.dispositions.length} dispositions, ${lab.callcenterCodes.callReasons.length} call reasons)`);
+}
+
 // The device CSV manual_test.sh registers (SEQUENTIAL, 5-column layout).
 function writeDeviceCsv() {
     const dir = path.join(__dirname, 'lab');
@@ -271,7 +361,9 @@ function writeDeviceCsv() {
 
 async function main() {
     log(`building on ${selectedServer.hostname}${DRY_RUN ? ' (dry run)' : ''}`);
+    checkFlowCodes();
     await buildDomain();
+    await buildCallcenterCodes();
     await buildUsers();
     await buildQueues();
     await buildFeatures();

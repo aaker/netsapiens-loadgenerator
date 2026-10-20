@@ -62,6 +62,171 @@
     "ext": "800",
     "name": "Support Bridge"
   },
+  "callcenterCodes": {
+    "dispositions": [
+      {
+        "name": "Resolved",
+        "classification": "positive",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "The customer's issue was fixed on the call."
+      },
+      {
+        "name": "Callback Scheduled",
+        "classification": "positive",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "A callback was booked with the customer."
+      },
+      {
+        "name": "Follow-up Required",
+        "classification": "neutral",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "More work is needed after the call."
+      },
+      {
+        "name": "Escalated",
+        "classification": "neutral",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "Handed to a specialist or another team to finish."
+      },
+      {
+        "name": "Transferred",
+        "classification": "neutral",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "The call was transferred to another agent or queue."
+      },
+      {
+        "name": "Left Voicemail",
+        "classification": "neutral",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "The agent left a voicemail."
+      },
+      {
+        "name": "Not Resolved",
+        "classification": "negative",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "The issue was not fixed and the customer left unhappy."
+      },
+      {
+        "name": "Customer Hung Up",
+        "classification": "negative",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "The customer ended the call before it was resolved."
+      },
+      {
+        "name": "Wrong Number",
+        "classification": "negative",
+        "direction": "both",
+        "system-applied": "no",
+        "description": "The caller reached the wrong business or department."
+      },
+      {
+        "name": "Abandoned in Queue",
+        "classification": "negative",
+        "direction": "inbound",
+        "system-applied": "yes",
+        "description": "The caller hung up while waiting in queue."
+      },
+      {
+        "name": "No Answer",
+        "classification": "negative",
+        "direction": "both",
+        "system-applied": "yes",
+        "description": "Nobody answered the call."
+      },
+      {
+        "name": "Call Failed",
+        "classification": "negative",
+        "direction": "both",
+        "system-applied": "yes",
+        "description": "The call could not be completed."
+      }
+    ],
+    "callReasons": [
+      {
+        "name": "Technical Support",
+        "direction": "both",
+        "description": "Phones, devices or features not working."
+      },
+      {
+        "name": "Network or Connectivity",
+        "direction": "both",
+        "description": "Registration, dropped calls or audio caused by the network."
+      },
+      {
+        "name": "Call Routing",
+        "direction": "both",
+        "description": "Answering rules, schedules, auto attendants or queues."
+      },
+      {
+        "name": "New User Setup",
+        "direction": "both",
+        "description": "Adding users, extensions, phones or voicemail."
+      },
+      {
+        "name": "Account Changes",
+        "direction": "both",
+        "description": "Changing hours, groups, settings or features."
+      },
+      {
+        "name": "Number Porting",
+        "direction": "both",
+        "description": "Moving numbers in from another carrier."
+      },
+      {
+        "name": "Office Move",
+        "direction": "both",
+        "description": "Moving phones and service to a new location."
+      },
+      {
+        "name": "Voicemail Issue",
+        "direction": "both",
+        "description": "Voicemail delivery, greetings or PINs."
+      },
+      {
+        "name": "Call Recording",
+        "direction": "both",
+        "description": "Recording, transcription or access to recordings."
+      },
+      {
+        "name": "Billing or Payment",
+        "direction": "both",
+        "description": "Invoices, charges, credits or payment."
+      },
+      {
+        "name": "Complaint",
+        "direction": "inbound",
+        "description": "The customer is unhappy with the service."
+      },
+      {
+        "name": "Cancellation Request",
+        "direction": "inbound",
+        "description": "The customer wants to cancel or reduce service."
+      },
+      {
+        "name": "Sales Inquiry",
+        "direction": "inbound",
+        "description": "Questions about buying new service."
+      },
+      {
+        "name": "Order Status",
+        "direction": "both",
+        "description": "Checking on an order or install."
+      },
+      {
+        "name": "General Information",
+        "direction": "inbound",
+        "description": "General questions about the service."
+      }
+    ]
+  },
   "callers": {
     "tom": {
       "name": "Tom Becker",
@@ -121,12 +286,12 @@
       "dispositions": {
         "2001": {
           "disposition": "Transferred",
-          "reason": "Provisioning",
+          "reason": "New User Setup",
           "notes": "Tom Becker (Lakeside Dental) needs two new front desk users and a queue change. Verified account 619-555-0144. Transferred to provisioning."
         },
         "2002": {
           "disposition": "Resolved",
-          "reason": "New users added",
+          "reason": "New User Setup",
           "notes": "Added Maria Delgado (x106) and James Whitfield (x107) with voicemail to email. Reception queue changed to round robin, 15s timeout. Flagged after-hours greeting for re-recording. Ticket 47215."
         }
       }
@@ -139,12 +304,12 @@
       "dispositions": {
         "2001": {
           "disposition": "Transferred",
-          "reason": "Supervised transfer",
+          "reason": "Call Routing",
           "notes": "Main number going to voicemail since this morning. Answering rules edited at 6 AM. Briefed Marcus and transferred."
         },
         "2002": {
           "disposition": "Resolved",
-          "reason": "Routing fixed",
+          "reason": "Call Routing",
           "notes": "After-hours schedule was left active all day. Restored business hours and confirmed with a test call. Customer to check who edited the portal."
         }
       }
@@ -157,12 +322,12 @@
       "dispositions": {
         "2001": {
           "disposition": "Transferred",
-          "reason": "Parked for billing",
+          "reason": "Billing or Payment",
           "notes": "Invoice about $200 higher than usual. Parked on 700 for billing."
         },
         "2002": {
           "disposition": "Resolved",
-          "reason": "Billing credit",
+          "reason": "Billing or Payment",
           "notes": "10 numbers ordered instead of 2. Removed the 8 extra numbers and credited their charges. Credit shows on next invoice."
         }
       }
@@ -175,12 +340,12 @@
       "dispositions": {
         "2001": {
           "disposition": "Escalated",
-          "reason": "Porting",
+          "reason": "Number Porting",
           "notes": "Fax line port rejected twice. Set up a 3-way call with Marcus on the porting team."
         },
         "2002": {
           "disposition": "Resolved",
-          "reason": "Port resubmitted",
+          "reason": "Number Porting",
           "notes": "Account number on the port form had an extra digit (44121 vs 4412). Corrected and resubmitted; new port date next Thursday."
         }
       }
@@ -193,17 +358,17 @@
       "dispositions": {
         "2001": {
           "disposition": "Transferred",
-          "reason": "New site setup",
+          "reason": "Technical Support",
           "notes": "Phones at the new Fifth Street office show no service. Transferred to provisioning."
         },
         "2002": {
           "disposition": "Transferred",
-          "reason": "Network issue",
+          "reason": "Network or Connectivity",
           "notes": "Phones provisioned correctly but never checked in. Likely the new site's firewall. Transferred to network engineering."
         },
         "2003": {
           "disposition": "Resolved",
-          "reason": "Router SIP ALG",
+          "reason": "Network or Connectivity",
           "notes": "Sonic Gate 400 router blocks SIP by default. Customer turned off SIP helper; phones registered. Noted on the account."
         }
       }
@@ -216,7 +381,7 @@
       "dispositions": {
         "2001": {
           "disposition": "Resolved",
-          "reason": "Permissions restored",
+          "reason": "Call Recording",
           "notes": "Call recordings missing from the portal since Friday. A permissions update removed recording access from the practice director role. Restored it; customer confirmed."
         }
       }
@@ -229,12 +394,12 @@
       "dispositions": {
         "2001": {
           "disposition": "Transferred",
-          "reason": "Provisioning",
+          "reason": "Office Move",
           "notes": "Office move to Ridge Ave on the 28th, tech on site 8 AM, internet live the 26th. Voicemail to email blocked by the customer's spam filter: allow voicemail@meridianvoice.com. Fax port unaffected. Transferred to provisioning."
         },
         "2002": {
           "disposition": "Resolved",
-          "reason": "Account changes",
+          "reason": "Account Changes",
           "notes": "Summer hours from June 1 (Sat 9-1); removed the conflicting holiday schedule. Added Emma Price (x115) and Daniel Ruiz (x116). Turned on recording for the Sales group. Customer to re-record the main greeting."
         }
       }
@@ -247,7 +412,7 @@
       "dispositions": {
         "2001": {
           "disposition": "Not Resolved",
-          "reason": "Escalated to network",
+          "reason": "Complaint",
           "notes": "Third call about dropped calls mid-conversation. No errors in our call logs; customer says internet is fine. Escalated to network team (callback in 1-2 business days). Customer requested a service credit - noted, not approved. Customer very frustrated, threatened to switch providers if not fixed by Friday."
         }
       }

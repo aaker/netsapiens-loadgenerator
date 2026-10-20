@@ -173,9 +173,63 @@ The API has no separate CDR notes field; the notes are
 agent's disposition is kept and the notes include each agent's entry, prefixed
 with their name.
 
-The API doesn't check disposition names against a code list. The ones in
-`lab.json` (Transferred, Resolved, Escalated) appear in Call History as
-written.
+### Disposition and call-reason codes
+
+The build creates the domain's call-center codes from `lab.json`
+(`callcenterCodes`) with `/domains/meridianvoice/callcenter-codes`. On a
+rebuild it creates any missing codes and brings existing ones back in line
+with `lab.json`. Codes the domain has that aren't in `lab.json` are left
+alone.
+
+There are two lists:
+- **Dispositions:** how the call ended. Each has a classification.
+- **Call reasons:** why the customer called.
+
+The API doesn't tie a reason to a disposition, so any pair is valid. The
+build refuses to run if a flow writes a disposition or reason that isn't in
+the lists. The wrap-up warns if the domain is missing one, because the CDR
+fields accept any text and a typo would otherwise go unnoticed. Names are at
+most 32 characters, the CDR fields' limit.
+
+The code lists need call center reports enabled on the platform. If they're
+off, every code request returns 404 and the build reports
+`FAILED call-center codes: HTTP 404`.
+
+| Disposition | Classification |
+|---|---|
+| Resolved | positive |
+| Callback Scheduled | positive |
+| Follow-up Required | neutral |
+| Escalated | neutral |
+| Transferred | neutral |
+| Left Voicemail | neutral |
+| Not Resolved | negative |
+| Customer Hung Up | negative |
+| Wrong Number | negative |
+| Abandoned in Queue | negative; set by the system, inbound only |
+| No Answer | negative; set by the system |
+| Call Failed | negative; set by the system |
+
+**Call reasons:** Technical Support, Network or Connectivity, Call Routing,
+New User Setup, Account Changes, Number Porting, Office Move, Voicemail Issue,
+Call Recording, Billing or Payment, Complaint, Cancellation Request, Sales
+Inquiry, Order Status, General Information.
+
+What each agent writes after each flow's call:
+
+| Flow | Agent | Disposition | Call reason |
+|---|---|---|---|
+| `blind` | 2001 / 2002 | Transferred / Resolved | New User Setup |
+| `attended` | 2001 / 2002 | Transferred / Resolved | Call Routing |
+| `park` | 2001 / 2002 | Transferred / Resolved | Billing or Payment |
+| `3way` | 2001 / 2002 | Escalated / Resolved | Number Porting |
+| `blind2` | 2001 / 2002 / 2003 | Transferred / Transferred / Resolved | Technical Support / Network or Connectivity / Network or Connectivity |
+| `hold` | 2001 | Resolved | Call Recording |
+| `long` | 2001 / 2002 | Transferred / Resolved | Office Move / Account Changes |
+| `upset` | 2001 | Not Resolved | Complaint |
+
+The details of each call, such as what was fixed, extensions and ticket
+numbers, go in the notes.
 
 ## Avatars
 

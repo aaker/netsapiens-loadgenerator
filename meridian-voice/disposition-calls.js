@@ -18,6 +18,10 @@
 // call-disposition-notes. When two agents' legs share one parent CDR, the
 // last agent's disposition wins and the notes carry both agents' entries.
 //
+// The dispositions and reasons come from lab.json and match the domain's
+// call-center codes (build-domain.js creates them); a pair missing from the
+// domain's active codes is warned about before writing.
+//
 // Finally it reads each CDR back and prints the recording, transcription and
 // sentiment fields, to show whether the domain's call recording with
 // transcription and sentiment ran.
@@ -74,6 +78,23 @@ async function findLegs() {
         r['call-answer-datetime'] && r['call-disconnect-datetime']);
 }
 
+// Warn when this flow's dispositions or reasons aren't active codes on the
+// domain (the CDR fields take any string, so a mismatch would go unnoticed).
+async function checkCodes() {
+    let codes;
+    try {
+        codes = (await client.apiGet(`domains/${enc(D)}/callcenter-codes`, { active: 'yes' })).data || [];
+    } catch (e) {
+        log(`could not read the domain's call-center codes (${describeApiError(e)}) - writing anyway`);
+        return;
+    }
+    const have = new Set(codes.map(c => `${c.type}:${String(c.name).toLowerCase()}`));
+    for (const [ext, e] of Object.entries(flow.dispositions)) {
+        if (!have.has(`disposition:${e.disposition.toLowerCase()}`)) log(`WARNING: disposition "${e.disposition}" (${ext}) is not an active code on ${D} - run build-domain.js`);
+        if (!have.has(`call-reason:${e.reason.toLowerCase()}`)) log(`WARNING: reason "${e.reason}" (${ext}) is not an active code on ${D} - run build-domain.js`);
+    }
+}
+
 async function main() {
     log(`looking for CDRs from ${callerNumber} since ${new Date(SINCE).toISOString()} (agents ${expected.join(', ')})`);
     let legs = [];
@@ -96,6 +117,8 @@ async function main() {
         log('no CDRs found - nothing to disposition');
         process.exit(1);
     }
+
+    await checkCodes();
 
     // One write per parent CDR, in answer order; the last agent's
     // disposition wins and the notes collect every agent's entry.
