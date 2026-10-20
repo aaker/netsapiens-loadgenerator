@@ -15,7 +15,7 @@ pcaps swapped in:
 | `g711a-park-orig.pcap`  | Tom (caller), section 1    | 44s | UAC, from the agent-connect re-INVITE |
 | `g711a-park-term.pcap`  | Priya (agent A), section 1 | 44s | `sipp_uas_park.xml`, from the answer; the park REFER follows |
 | `g711a-park-orig2.pcap` | Tom, section 2             | 60s | UAC, from the pickup re-INVITE; the caller then hangs up |
-| `g711a-park-term2.pcap` | Marcus (agent B), section 2 | 60s | `sipp_uac_park_pickup.xml`, from the pickup 200 |
+| `g711a-park-term2.pcap` | Marcus (agent B), section 2 | 60s | `sipp_uac_agent_dial.xml`, from the pickup 200 |
 
 The caller hears the core's music on hold while parked. No pcap plays for that
 gap.

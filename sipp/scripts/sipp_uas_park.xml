@@ -9,7 +9,7 @@
 <!-- (Refer-To: <sip:[park_ext]@queue domain>, -key park_ext) and launches  -->
 <!-- the pickup: manual_test.sh replaces __PICKUP_SCRIPT__ with a script    -->
 <!-- that waits while the caller sits in park, then runs                    -->
-<!-- sipp_uac_park_pickup.xml as agent B (an INVITE to the park extension). -->
+<!-- sipp_uac_agent_dial.xml as agent B (an INVITE to the park extension).  -->
 <!-- After the REFER, answer the 202/NOTIFY and the core's BYE; hang up     -->
 <!-- ourselves if the BYE does not come.                                    -->
 <!--                                                                        -->

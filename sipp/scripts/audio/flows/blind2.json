@@ -1,0 +1,126 @@
+{
+  "name": "blind2",
+  "voices": {
+    "CALLER": "aura-orion-en",
+    "AGENT1": "aura-asteria-en",
+    "AGENT2": "aura-arcas-en",
+    "AGENT3": "aura-luna-en"
+  },
+  "say_voices": {
+    "CALLER": "Ralph",
+    "AGENT1": "Samantha",
+    "AGENT2": "Reed (English (US))",
+    "AGENT3": "Moira"
+  },
+  "sections": [
+    {
+      "length": 34,
+      "tracks": {
+        "CALLER": "g711a-b2-orig1",
+        "AGENT1": "g711a-b2-term1"
+      }
+    },
+    {
+      "length": 30,
+      "tracks": {
+        "CALLER": "g711a-b2-orig2",
+        "AGENT2": "g711a-b2-term2"
+      }
+    },
+    {
+      "length": 44,
+      "tracks": {
+        "CALLER": "g711a-b2-orig3",
+        "AGENT3": "g711a-b2-term3"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT1",
+      "Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?"
+    ],
+    [
+      "CALLER",
+      "Hi Priya, it's Tom Becker at Lakeside Dental. We opened our new office on Fifth Street this week, and none of the desk phones there will connect."
+    ],
+    [
+      "AGENT1",
+      "I'm sorry to hear that. Can you confirm the main number on the account?"
+    ],
+    [
+      "CALLER",
+      "Six one nine, five five five, zero one four four."
+    ],
+    [
+      "AGENT1",
+      "Thanks, Tom. New site setups are handled by our provisioning team. I'm going to transfer you to Marcus, and he'll take it from here."
+    ],
+    [
+      "CALLER",
+      "Okay, thank you."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT2",
+      "Provisioning, this is Marcus. Tom, I understand the phones at your new office won't connect?"
+    ],
+    [
+      "CALLER",
+      "That's right. They power on, but the screen says no service."
+    ],
+    [
+      "AGENT2",
+      "The phones are provisioned correctly on our side, but none of them have checked in. That usually means the network at the new site is blocking them."
+    ],
+    [
+      "CALLER",
+      "The building's internet was installed on Monday."
+    ],
+    [
+      "AGENT2",
+      "Then it's likely the firewall. I'll transfer you to Dana in network engineering. She can check that with you."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT3",
+      "Network engineering, this is Dana. Hi Tom, Marcus told me the phones at your Fifth Street office aren't connecting."
+    ],
+    [
+      "CALLER",
+      "Hi Dana. Yes, they all say no service."
+    ],
+    [
+      "AGENT3",
+      "Can you look at the label on the internet router? Tell me the brand and model."
+    ],
+    [
+      "CALLER",
+      "It says Sonic Gate, model four hundred."
+    ],
+    [
+      "AGENT3",
+      "That model blocks SIP traffic by default. In the router's admin page, under security, turn off the setting called SIP helper, then save."
+    ],
+    [
+      "CALLER",
+      "Okay, it's off and saved. The phones are restarting. And they're connected now, the screens show the extensions."
+    ],
+    [
+      "AGENT3",
+      "Great. I'll add a note to your account in case any other site uses the same router."
+    ],
+    [
+      "CALLER",
+      "Thanks Dana, that fixed it."
+    ],
+    [
+      "AGENT3",
+      "You're welcome, Tom. Have a good day."
+    ]
+  ]
+}

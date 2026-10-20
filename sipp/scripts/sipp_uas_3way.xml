@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!-- ====================================================================== -->
+<!-- 3-way call - agent A (UAS, -oocsf).                                    -->
+<!--                                                                        -->
+<!-- Answers the queue call and talks 34s (g711a-3way-term1.pcap), then     -->
+<!-- turns it into a 3-way call on the conference bridge (-key conf_ext):   -->
+<!--   1. blind-REFER the caller to the bridge                              -->
+<!--   2. run __JOIN_SCRIPT__, which has agent B dial the bridge a few      -->
+<!--      seconds later (sipp_uac_agent_dial.xml)                           -->
+<!--   3. wait for the core's BYE on the original call                      -->
+<!--   4. dial the bridge ourselves, authenticated as this device, play     -->
+<!--      g711a-3way-conf-a.pcap (46s) and leave                            -->
+<!-- The bridge leg runs inside this SIPp call: its Call-ID is              -->
+<!-- cf...///<original Call-ID>, and SIPp matches anything after "///" to   -->
+<!-- the original call (the same trick as the attended consult call).       -->
+<!--                                                                        -->
+<!-- Each device registers in its own SIPp process with its own copy of     -->
+<!-- this file: manual_test.sh flow mode 3way fills in the __AGENT_*__      -->
+<!-- placeholders (NAME, EXT, DOMAIN, and AUTH = the device CSV's           -->
+<!-- [authentication ...] field) and __JOIN_SCRIPT__.                       -->
+<!-- ====================================================================== -->
+
+<scenario name="UAS 3-way call (agent A)">
+
+  <recv request="INVITE" crlf="true" rrs="true">
+    <action>
+      <ereg regexp="[: ]*(.*)" search_in="hdr" header="From" assign_to="remote_from,remote_from"/>
+      <ereg regexp="[: ]*([^;]*)" search_in="hdr" header="To" assign_to="local_to,local_to"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
+      <log message="3WAY A: __AGENT_EXT__@__AGENT_DOMAIN__ answering callid=[call_id]"/>
+    </action>
+  </recv>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 100 Trying
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 180 Ringing
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <pause distribution="uniform" min="1000" max="2000"/>
+
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+
+  <recv request="ACK" crlf="true">
+  </recv>
+
+  <!-- Talk to the caller.  A BYE here means they hung up. -->
+  <nop>
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-3way-term1.pcap stage=agent-a"/>
+      <exec play_pcap_audio="g711a-3way-term1.pcap"/>
+    </action>
+  </nop>
+  <recv request="BYE" timeout="34000" ontimeout="to_bridge" next="bye_200">
+  </recv>
+
+  <!-- Move the caller to the bridge and start agent B's join. -->
+  <label id="to_bridge"/>
+  <nop>
+    <action>
+      <assignstr assign_to="cf_cid" value="cf[call_number]x[pid]///[call_id]"/>
+      <log message="3WAY A: REFER caller to [conf_ext]@__AGENT_DOMAIN__, launching __JOIN_SCRIPT__"/>
+      <exec command="__JOIN_SCRIPT__"/>
+    </action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:[conf_ext]@__AGENT_DOMAIN__>
+      Referred-By: <sip:__AGENT_EXT__@__AGENT_DOMAIN__>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Answer the 202/NOTIFYs; the core's BYE (or 5s) ends the original call. -->
+  <label id="post"/>
+  <recv timeout="5000" ontimeout="join" response="202" optional="true" next="post">
+  </recv>
+  <recv timeout="5000" ontimeout="join" request="NOTIFY" optional="true" next="notify_200">
+    <action>
+      <ereg regexp="SIP/2.0 ([0-9]+)" search_in="body" assign_to="notify_status,notify_status" checkIt="false"/>
+      <log message="3WAY A: NOTIFY sipfrag [$notify_status]"/>
+    </action>
+  </recv>
+  <recv request="BYE" timeout="5000" ontimeout="join" next="orig_bye">
+  </recv>
+
+  <label id="notify_200"/>
+  <send next="post">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="orig_bye"/>
+  <send next="join">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Join the bridge as this device. -->
+  <label id="join"/>
+  <nop>
+    <action><log message="3WAY A: joining [conf_ext] callid=[$cf_cid]"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      INVITE sip:[conf_ext]@__AGENT_DOMAIN__ SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cf[call_number]
+      To: <sip:[conf_ext]@__AGENT_DOMAIN__>
+      Call-ID: [$cf_cid]
+      CSeq: 1 INVITE
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655768 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+  <recv timeout="30000" ontimeout="99" response="100" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="99" response="180" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="99" response="183" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="99" response="407" optional="true" auth="true" next="join_auth">
+  </recv>
+  <recv response="200" timeout="30000" ontimeout="99" next="join_ack1">
+    <action>
+      <ereg regexp=";tag=([^;>]+)" search_in="hdr" header="To" assign_to="cf_totag,cf_totag"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="cf_contact"/>
+    </action>
+  </recv>
+
+  <label id="join_auth"/>
+  <send>
+    <![CDATA[
+
+      ACK sip:[conf_ext]@__AGENT_DOMAIN__ SIP/2.0
+      [last_Via:]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cf[call_number]
+      [last_To:]
+      Call-ID: [$cf_cid]
+      CSeq: 1 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <send retrans="500">
+    <![CDATA[
+
+      INVITE sip:[conf_ext]@__AGENT_DOMAIN__ SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cf[call_number]
+      To: <sip:[conf_ext]@__AGENT_DOMAIN__>
+      Call-ID: [$cf_cid]
+      CSeq: 2 INVITE
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      __AGENT_AUTH__
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655768 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+  <recv timeout="30000" ontimeout="99" response="100" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="99" response="180" optional="true">
+  </recv>
+  <recv timeout="30000" ontimeout="99" response="183" optional="true">
+  </recv>
+  <recv response="200" timeout="30000" ontimeout="99">
+    <action>
+      <ereg regexp=";tag=([^;>]+)" search_in="hdr" header="To" assign_to="cf_totag,cf_totag"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="cf_contact"/>
+    </action>
+  </recv>
+  <send next="in_bridge">
+    <![CDATA[
+
+      ACK [$cf_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cf[call_number]
+      To: <sip:[conf_ext]@__AGENT_DOMAIN__>;tag=[$cf_totag]
+      Call-ID: [$cf_cid]
+      CSeq: 2 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <label id="join_ack1"/>
+  <send>
+    <![CDATA[
+
+      ACK [$cf_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cf[call_number]
+      To: <sip:[conf_ext]@__AGENT_DOMAIN__>;tag=[$cf_totag]
+      Call-ID: [$cf_cid]
+      CSeq: 1 ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- In the bridge: talk, then leave.  A late BYE for the original call   -->
+  <!-- (no "///" in its Call-ID) is answered and ignored.                   -->
+  <label id="in_bridge"/>
+  <nop>
+    <action>
+      <log message="3WAY A: in the bridge, to-tag=[$cf_totag]"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-3way-conf-a.pcap stage=conference"/>
+      <exec play_pcap_audio="g711a-3way-conf-a.pcap"/>
+    </action>
+  </nop>
+  <label id="bridge_wait"/>
+  <recv timeout="47000" ontimeout="leave" request="INVITE" optional="true" next="bridge_reinvite">
+  </recv>
+  <recv request="BYE" timeout="47000" ontimeout="leave" next="bridge_bye">
+    <action>
+      <ereg regexp="///" search_in="hdr" header="Call-ID" assign_to="bridge_bye_is_ours" checkIt="false"/>
+    </action>
+  </recv>
+
+  <label id="bridge_reinvite"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655768 2353687638 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+  <recv request="ACK" crlf="true" next="bridge_wait">
+  </recv>
+
+  <label id="bridge_bye"/>
+  <send>
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <nop test="bridge_bye_is_ours" next="99"/>
+  <nop next="bridge_wait"/>
+
+  <label id="leave"/>
+  <nop>
+    <action><log message="3WAY A: leaving the bridge"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      BYE [$cf_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "__AGENT_NAME__" <sip:__AGENT_EXT__@__AGENT_DOMAIN__>;tag=cf[call_number]
+      To: <sip:[conf_ext]@__AGENT_DOMAIN__>;tag=[$cf_totag]
+      Call-ID: [$cf_cid]
+      CSeq: 3 BYE
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="200" timeout="5000" ontimeout="99" next="99">
+  </recv>
+
+  <label id="bye_200"/>
+  <send next="99">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="99"/>
+  <timewait milliseconds="4000"/>
+
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+
+</scenario>

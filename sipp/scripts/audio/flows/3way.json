@@ -1,0 +1,106 @@
+{
+  "name": "3way",
+  "voices": {
+    "CALLER": "aura-orion-en",
+    "AGENT1": "aura-asteria-en",
+    "AGENT2": "aura-arcas-en"
+  },
+  "say_voices": {
+    "CALLER": "Ralph",
+    "AGENT1": "Samantha",
+    "AGENT2": "Reed (English (US))"
+  },
+  "sections": [
+    {
+      "length": 34,
+      "tracks": {
+        "CALLER": "g711a-3way-orig1",
+        "AGENT1": "g711a-3way-term1"
+      }
+    },
+    {
+      "length": 46,
+      "tracks": {
+        "CALLER": "g711a-3way-orig2",
+        "AGENT1": "g711a-3way-conf-a",
+        "AGENT2": "g711a-3way-conf-b"
+      },
+      "offsets": {
+        "AGENT2": 5
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT1",
+      "Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?"
+    ],
+    [
+      "CALLER",
+      "Hi Priya, it's Tom Becker at Lakeside Dental. We're moving our fax line to you from our old carrier, and the port date keeps getting pushed back."
+    ],
+    [
+      "AGENT1",
+      "Let me check. I see the port request, and it was rejected by the old carrier twice. Marcus on our porting team has been working on it."
+    ],
+    [
+      "CALLER",
+      "Can I talk to him? I'd like to understand what's going wrong."
+    ],
+    [
+      "AGENT1",
+      "Of course. I'll set up a three-way call so all three of us can go over it together. One moment."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT1",
+      "Tom, you're in the conference. Marcus is joining now."
+    ],
+    [
+      "CALLER",
+      "Okay, I'm here. Thanks for doing this."
+    ],
+    [
+      "AGENT1",
+      "No problem. It can take a few seconds for him to connect."
+    ],
+    [
+      "AGENT2",
+      "Hi Tom, hi Priya, Marcus here. Tom, I have your port request open."
+    ],
+    [
+      "CALLER",
+      "Great. Why was it rejected?"
+    ],
+    [
+      "AGENT2",
+      "The old carrier says the account number on the form doesn't match their records. They have it ending in four four one two."
+    ],
+    [
+      "CALLER",
+      "We wrote four four one two one. I think we added a digit."
+    ],
+    [
+      "AGENT2",
+      "That explains it. I'll correct it and resubmit today. The new port date should be next Thursday."
+    ],
+    [
+      "AGENT1",
+      "I'll add a note to your ticket with the new date, Tom."
+    ],
+    [
+      "CALLER",
+      "Thank you both. Thursday works."
+    ],
+    [
+      "AGENT2",
+      "You'll get an email when it completes. Have a good day, Tom."
+    ],
+    [
+      "CALLER",
+      "You too. Thanks, bye."
+    ]
+  ]
+}

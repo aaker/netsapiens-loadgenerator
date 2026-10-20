@@ -13,8 +13,11 @@
 #   -f, --file <csv>      Device CSV to register (the generated format:
 #                         SEQUENTIAL header, displayName;device;domain;[authentication ...])
 #                         Default: sipp/csv/manual/devices.csv
-#   -n, --number <num>    Inbound number (DID) to call
-#                         Default: first number in sipp/csv/manual/phonenumbers.csv
+#   -n, --number <num>    Inbound number (DID) to call. Default: the number
+#                         in sipp/csv/manual/phonenumbers.csv whose third
+#                         field is the flow name (else the first number).
+#                         sipp/csv/manual/README.md lists the lab setup
+#                         (users, queues, DIDs) the flows expect.
 #   -t, --transport <t>   u1 (UDP, default) | t1 (TCP) | l1 (TLS)
 #   -s, --server <id>     Multi-server mode: resolve hostname from servers.json
 #   -c, --count <n>       Calls per trigger (default 1)
@@ -46,13 +49,24 @@
 #                                     --park-ext with a blind REFER; after
 #                                     --park-time agent B dials the park
 #                                     extension and takes the call (~2 min).
-#                         --talk/--full-call/--no-full-call apply to blind only.
-#   --consult <ext>       attended/park: agent B's extension (default: the
-#                         first device in the CSV; attended uses the next one
-#                         when agent A is that device)
+#                           3way      agent A talks 34s, moves the caller onto
+#                                     the --conf-ext bridge, and both A and B
+#                                     dial in for a 3-way call (~1.5 min).
+#                           blind2    two blind transfers: A -> B -> C, one
+#                                     section with each agent (~2 min).
+#                         attended, 3way and blind2 register each device in
+#                         its own SIPp process. --talk/--full-call/
+#                         --no-full-call apply to blind only.
+#                         Agents A, B and C are the first three devices in the
+#                         CSV; A must be the only member of the DID's queue.
+#   --consult <ext>       attended/park/3way: agent B's extension (default:
+#                         the second device in the CSV; attended uses another
+#                         device when agent A is B)
 #   --park-ext <ext>      park: the park extension (default 700)
 #   --park-time <sec>     park: how long the caller stays parked before agent
 #                         B picks up (default 15, at most 25)
+#   --conf-ext <ext>      3way: the conference bridge extension (default 800;
+#                         no PIN or join prompts)
 #   --media-ip <ip>       RTP address the caller advertises in its SDP
 #                         (default: this host's public IP, looked up via
 #                         OpenDNS, then checkip.amazonaws.com; IP_USE_PUBLIC
@@ -78,6 +92,8 @@
 #   ./manual_test.sh -s prod1 --no-full-call           # cron behaviour (random talk time)
 #   ./manual_test.sh -s prod1 --flow attended          # supervised transfer
 #   ./manual_test.sh -s prod1 --flow park              # park on 700, picked up by agent B
+#   ./manual_test.sh -s prod1 --flow 3way              # 3-way call on the 800 bridge
+#   ./manual_test.sh -s prod1 --flow blind2            # two blind transfers, A -> B -> C
 #
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
@@ -110,6 +126,8 @@ FLOW=""
 CONSULT=""
 PARK_EXT=700
 PARK_TIME=15
+CONF_EXT=800
+JOIN_DELAY=5           # 3way: seconds after the REFER before agent B dials the bridge
 MEDIA_IP_OVERRIDE=""
 
 while [ $# -gt 0 ]; do
@@ -127,6 +145,7 @@ while [ $# -gt 0 ]; do
         --consult)      CONSULT="$2"; shift 2 ;;
         --park-ext)     PARK_EXT="$2"; shift 2 ;;
         --park-time)    PARK_TIME="$2"; shift 2 ;;
+        --conf-ext)     CONF_EXT="$2"; shift 2 ;;
         --media-ip)     MEDIA_IP_OVERRIDE="$2"; shift 2 ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
@@ -137,12 +156,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park)
+    attended|park|3way|blind2)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended or park (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way or blind2 (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -150,11 +169,13 @@ if ! [ "$PARK_TIME" -ge 1 ] 2>/dev/null || [ "$PARK_TIME" -gt 25 ]; then
     echo "ERROR: --park-time must be 1-25 seconds (got '$PARK_TIME')"; exit 1
 fi
 
-# Default number: first entry in the committed manual phonenumbers CSV
+# Default number: the committed manual DID for this flow (third field = flow
+# name), else the first one listed.
 if [ -z "$NUMBER" ]; then
     MANUAL_NUMBERS="$BASE_DIR/sipp/csv/manual/phonenumbers.csv"
     if [ -f "$MANUAL_NUMBERS" ]; then
-        NUMBER=$(grep -v -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$MANUAL_NUMBERS" | head -1 | cut -d';' -f1 | tr -d '\r')
+        NUMBER=$(tr -d '\r' < "$MANUAL_NUMBERS" | awk -F';' -v f="$FLOW" 'NR > 1 && $3 == f { print $1; exit }')
+        [ -n "$NUMBER" ] || NUMBER=$(grep -v -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$MANUAL_NUMBERS" | head -1 | cut -d';' -f1 | tr -d '\r')
     fi
 fi
 
@@ -311,50 +332,130 @@ if [ "$FULL_CALL" == "1" ]; then
     _UAS_SCENARIO="$WORK_DIR/uas_full_call.xml"
 fi
 
-# --flow attended: dedicated caller/agent scenarios. Each device registers in
-# its own SIPp process with its own copy of the agent scenario, filled in with
-# that device's name, extension, domain and credentials (an -oocsf scenario
-# cannot read SIPp input files). Separate processes also mean a consult leg
-# the platform delivers to agent B can never be matched to agent A's call.
-if [ "$FLOW" == "attended" ]; then
-    UAC_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uac_attended.xml"
-    DEV_EXTS=($(awk -F';' 'NR > 1 && NF >= 4 { print $2 }' "$REG_CSV"))
-    if [ "${#DEV_EXTS[@]}" -lt 2 ]; then
-        echo "ERROR: --flow attended needs at least 2 devices (agent A and agent B)"; exit 1
+# ----------------------------------------------------- flow-specific setup
+# Agents: A answers the queue call; B and C are the other parties. They
+# default to the first three devices in the CSV, which
+# sipp/csv/manual/README.md maps to the lab users (A must be the only member
+# of the DID's queue, so the queue always delivers to A).
+DEV_EXTS=($(awk -F';' 'NR > 1 && NF >= 4 { print $2 }' "$REG_CSV"))
+AGENT_A=${DEV_EXTS[0]}
+CONSULT=${CONSULT:-${DEV_EXTS[1]:-${DEV_EXTS[0]}}}
+AGENT_C=${DEV_EXTS[2]:-}
+PER_DEVICE=0           # 1: each device registers in its own SIPp process
+DEV_UAS=()             # PER_DEVICE: agent scenario per device, same order as DEV_EXTS
+DIAL_SCRIPT=""         # park/3way: script agent A runs to start agent B's dial-in
+
+# device_csv <ext>: write a one-line SEQUENTIAL CSV for one device; echo its path.
+device_csv() {
+    local csv="$WORK_DIR/device_$1.csv"
+    { printf 'SEQUENTIAL\r\n'; awk -F';' -v e="$1" 'NR > 1 && $2 == e' "$REG_CSV"; } > "$csv"
+    if [ "$(wc -l < "$csv")" -lt 2 ]; then
+        echo "ERROR: extension $1 is not a device in $DEVICE_CSV" >&2; exit 1
     fi
-    CONSULT=${CONSULT:-${DEV_EXTS[0]}}
+    echo "$csv"
+}
+
+# fill_agent <template> <ext> <out> [NAME=value ...]: copy an agent scenario
+# for one device, filling in __AGENT_NAME__/__AGENT_EXT__/__AGENT_DOMAIN__/
+# __AGENT_AUTH__ (an -oocsf scenario cannot read SIPp input files) and any
+# extra __NAME__ placeholders. The substitution is literal (index/ENVIRON, not
+# regex), so any character in a display name or password is copied as-is.
+fill_agent() {
+    local template="$1" ext="$2" out="$3"; shift 3
+    local csv name dext domain auth ua kv
+    csv=$(device_csv "$ext") || exit 1
+    IFS=';' read -r name dext domain auth ua < <(sed -n '2p' "$csv" | tr -d '\r')
+    local -a vars=(AGENT_NAME="$name" AGENT_EXT="$dext" AGENT_DOMAIN="$domain" AGENT_AUTH="$auth")
+    local keys="AGENT_NAME AGENT_EXT AGENT_DOMAIN AGENT_AUTH"
+    for kv in "$@"; do vars+=("$kv"); keys="$keys ${kv%%=*}"; done
+    env "${vars[@]}" FILL_KEYS="$keys" awk '
+        function rep(s, from, to,    i, out) {
+            out = ""
+            while ((i = index(s, from)) > 0) { out = out substr(s, 1, i - 1) to; s = substr(s, i + length(from)) }
+            return out s
+        }
+        BEGIN { n = split(ENVIRON["FILL_KEYS"], k, " ") }
+        { for (j = 1; j <= n; j++) $0 = rep($0, "__" k[j] "__", ENVIRON[k[j]]); print }' "$template" > "$out"
+}
+
+# flow_caller <sections> <pcap1> <len1> <pcap2> <len2> [<pcap3> <len3>]: the
+# multi-section caller (sipp_uac_flow.xml) filled in for this flow.
+flow_caller() {
+    local n="$1" p1="$2" l1="$3" p2="$4" l2="$5" p3="${6:-$4}" l3="${7:-$5}"
+    UAC_SCENARIO="$BASE_DIR/sipp/scripts/.manual_uac_$$.xml"
+    sed -e "s/__SECTIONS__/$n/g" -e "s/__PCAP1__/$p1/g" -e "s/__LEN1__/$l1/g" \
+        -e "s/__PCAP2__/$p2/g" -e "s/__LEN2__/$l2/g" -e "s/__PCAP3__/$p3/g" -e "s/__LEN3__/$l3/g" \
+        "$BASE_DIR/sipp/scripts/sipp_uac_flow.xml" > "$UAC_SCENARIO"
+}
+
+case "$FLOW" in
+# attended: agent A holds the caller, calls B (consult), then REFERs with
+# Replaces. Separate processes also mean a consult leg the core delivers to
+# B can never be matched to A's call.
+attended)
+    UAC_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uac_attended.xml"
+    [ "${#DEV_EXTS[@]}" -ge 2 ] || { echo "ERROR: --flow attended needs at least 2 devices"; exit 1; }
     CONSULT_ALT=""
     for ext in "${DEV_EXTS[@]}"; do
         [ "$ext" != "$CONSULT" ] && { CONSULT_ALT="$ext"; break; }
     done
     REG_KEYS="-key consult_target $CONSULT -key consult_target_alt $CONSULT_ALT"
-fi
-
-# --flow park: agent A (sipp_uas_park.xml) parks the caller on PARK_EXT with a
-# blind REFER and runs the pickup script filled into its copy. That script
-# waits PARK_TIME seconds, then runs sipp_uac_park_pickup.xml as agent B from
-# its own port set (it is a main scenario, so it can read B's device CSV).
-# The caller is the attended caller with the park pcaps: same 44s/60s
-# sections, and it already treats the park's MOH re-INVITE as a hold.
-if [ "$FLOW" == "park" ]; then
+    PER_DEVICE=1
+    for i in "${!DEV_EXTS[@]}"; do
+        DEV_UAS[$i]="$WORK_DIR/uas_attended_${DEV_EXTS[$i]}.xml"
+        fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_attended.xml" "${DEV_EXTS[$i]}" "${DEV_UAS[$i]}"
+    done
+    ;;
+# park: agent A (sipp_uas_park.xml) parks the caller on PARK_EXT with a blind
+# REFER and runs DIAL_SCRIPT, which waits PARK_TIME seconds and then has B dial
+# the park extension. The caller is the attended caller with the park pcaps
+# (same 44s/60s sections; it already treats the park's MOH re-INVITE as a hold).
+park)
     UAC_SCENARIO="$BASE_DIR/sipp/scripts/.manual_uac_$$.xml"
     sed -e 's/g711a-att-orig\.pcap/g711a-park-orig.pcap/g' -e 's/g711a-att-orig2\.pcap/g711a-park-orig2.pcap/g' \
         "$BASE_DIR/sipp/scripts/sipp_uac_attended.xml" > "$UAC_SCENARIO"
     if grep -q 'g711a-att-' "$UAC_SCENARIO"; then
         echo "ERROR: could not swap the park pcaps into sipp_uac_attended.xml"; rm -f "$UAC_SCENARIO"; exit 1
     fi
-    DEV_EXTS=($(awk -F';' 'NR > 1 && NF >= 4 { print $2 }' "$REG_CSV"))
-    CONSULT=${CONSULT:-${DEV_EXTS[0]}}
-    PICKUP_CSV="$WORK_DIR/pickup_$CONSULT.csv"
-    { printf 'SEQUENTIAL\r\n'; awk -F';' -v e="$CONSULT" 'NR > 1 && $2 == e' "$REG_CSV"; } > "$PICKUP_CSV"
-    if [ "$(wc -l < "$PICKUP_CSV")" -lt 2 ]; then
-        echo "ERROR: --consult $CONSULT is not a device in $DEVICE_CSV"; rm -f "$UAC_SCENARIO"; exit 1
-    fi
-    PICKUP_SCRIPT="$WORK_DIR/pickup.sh"
+    DIAL_SCRIPT="$WORK_DIR/pickup.sh"
+    DIAL_WAIT=$PARK_TIME; DIAL_EXT=$PARK_EXT; DIAL_AUDIO=g711a-park-term2; DIAL_TALK_MS=80000
     _UAS_SCENARIO="$WORK_DIR/uas_park.xml"
-    sed -e "s#__PICKUP_SCRIPT__#$PICKUP_SCRIPT#g" "$BASE_DIR/sipp/scripts/sipp_uas_park.xml" > "$_UAS_SCENARIO"
+    sed -e "s#__PICKUP_SCRIPT__#$DIAL_SCRIPT#g" "$BASE_DIR/sipp/scripts/sipp_uas_park.xml" > "$_UAS_SCENARIO"
     REG_KEYS="-key park_ext $PARK_EXT"
-fi
+    ;;
+# 3way: agent A (sipp_uas_3way.xml) moves the caller onto the conference
+# bridge with a blind REFER, runs DIAL_SCRIPT (B dials the bridge JOIN_DELAY
+# seconds later), and joins the bridge itself.
+3way)
+    flow_caller 2 g711a-3way-orig1 34 g711a-3way-orig2 46
+    DIAL_SCRIPT="$WORK_DIR/join.sh"
+    DIAL_WAIT=$JOIN_DELAY; DIAL_EXT=$CONF_EXT; DIAL_AUDIO=g711a-3way-conf-b; DIAL_TALK_MS=44000
+    REG_KEYS="-key conf_ext $CONF_EXT"
+    PER_DEVICE=1
+    for i in "${!DEV_EXTS[@]}"; do
+        DEV_UAS[$i]="$WORK_DIR/uas_3way_${DEV_EXTS[$i]}.xml"
+        fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_3way.xml" "${DEV_EXTS[$i]}" "${DEV_UAS[$i]}" JOIN_SCRIPT="$DIAL_SCRIPT"
+    done
+    ;;
+# blind2: two blind transfers, A -> B -> C (sipp_uas_chain.xml). The device
+# decides the role: the first three devices in the CSV are A, B and C (any
+# others answer like C).
+blind2)
+    [ "${#DEV_EXTS[@]}" -ge 3 ] || { echo "ERROR: --flow blind2 needs at least 3 devices (A, B and C)"; exit 1; }
+    flow_caller 3 g711a-b2-orig1 34 g711a-b2-orig2 30 g711a-b2-orig3 44
+    PER_DEVICE=1
+    for i in "${!DEV_EXTS[@]}"; do
+        ext=${DEV_EXTS[$i]}
+        DEV_UAS[$i]="$WORK_DIR/uas_chain_$ext.xml"
+        case $i in
+            0) link=(AUDIO=g711a-b2-term1 TALK_MS=34000 AFTER_TALK=refer NEXT_EXT=${DEV_EXTS[1]}) ;;
+            1) link=(AUDIO=g711a-b2-term2 TALK_MS=30000 AFTER_TALK=refer NEXT_EXT=${DEV_EXTS[2]}) ;;
+            *) link=(AUDIO=g711a-b2-term3 TALK_MS=44000 AFTER_TALK=wait_end NEXT_EXT=none) ;;
+        esac
+        fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_chain.xml" "$ext" "${DEV_UAS[$i]}" "${link[@]}"
+    done
+    ;;
+esac
 
 # The caller always runs from a copy (next to the original, since its pcap
 # paths are relative) with [media_ip] filled in, as inbound.sh does: it is a
@@ -368,33 +469,16 @@ fi
 sed -i -e "s/\[media_ip\]/$MEDIA_IP/g" "$UAC_SCENARIO"
 
 # Port sets from the shared allocator (same as the cron scripts): one per
-# registration process (one in total, or one per device for attended), plus
-# one for the UAC. REG_SETS entries are "csv:sip:media:ctrl:stats:uas".
+# registration process (one in total, or one per device), plus one for the
+# UAC and one for agent B's dial-in. REG_SETS entries are
+# "csv:sip:media:ctrl:stats:uas".
 REG_SETS=()
 ALL_PORTS=""
-if [ "$FLOW" == "attended" ]; then
-    for ext in "${DEV_EXTS[@]}"; do
-        dev_csv="$WORK_DIR/device_$ext.csv"
-        { printf 'SEQUENTIAL\r\n'; awk -F';' -v e="$ext" 'NR > 1 && $2 == e' "$REG_CSV"; } > "$dev_csv"
-        # Literal (not regex) substitution via ENVIRON, so any character in a
-        # display name or password is copied as-is.
-        dev_uas="$WORK_DIR/uas_attended_$ext.xml"
-        IFS=';' read -r AGENT_NAME AGENT_EXT AGENT_DOMAIN AGENT_AUTH _ua < <(sed -n '2p' "$dev_csv" | tr -d '\r')
-        AGENT_NAME="$AGENT_NAME" AGENT_EXT="$AGENT_EXT" AGENT_DOMAIN="$AGENT_DOMAIN" AGENT_AUTH="$AGENT_AUTH" awk '
-            function rep(s, from, to,    i, out) {
-                out = ""
-                while ((i = index(s, from)) > 0) { out = out substr(s, 1, i - 1) to; s = substr(s, i + length(from)) }
-                return out s
-            }
-            {
-                $0 = rep($0, "__AGENT_NAME__", ENVIRON["AGENT_NAME"])
-                $0 = rep($0, "__AGENT_EXT__", ENVIRON["AGENT_EXT"])
-                $0 = rep($0, "__AGENT_DOMAIN__", ENVIRON["AGENT_DOMAIN"])
-                $0 = rep($0, "__AGENT_AUTH__", ENVIRON["AGENT_AUTH"])
-                print
-            }' "$BASE_DIR/sipp/scripts/sipp_uas_attended.xml" > "$dev_uas"
+if [ "$PER_DEVICE" == "1" ]; then
+    for i in "${!DEV_EXTS[@]}"; do
+        ext=${DEV_EXTS[$i]}
         allocate_ports 1 1 1 || exit 1
-        REG_SETS+=("$dev_csv:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv:$dev_uas")
+        REG_SETS+=("$WORK_DIR/device_$ext.csv:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv:${DEV_UAS[$i]}")
         ALL_PORTS="$ALL_PORTS $ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
     done
 else
@@ -406,26 +490,35 @@ allocate_ports 1 1 1 || exit 1
 UAC_SIP_PORT=$ALLOCATED_SIP_PORT; UAC_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; UAC_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
 ALL_PORTS="$ALL_PORTS $UAC_SIP_PORT $UAC_MEDIA_PORT $UAC_CONTROL_PORT"
 
-# park: agent B's pickup gets its own port set, and the script agent A runs.
-if [ "$FLOW" == "park" ]; then
+# park/3way: agent B's dial-in (sipp_uac_agent_dial.xml) gets its own port
+# set, and DIAL_SCRIPT runs it after DIAL_WAIT seconds. Agent A's SIPp runs the
+# script (<exec command>, in the background) at the moment it parks the caller
+# or moves them onto the bridge. The dial-in is a main scenario, so it can read
+# B's device CSV for the 407 challenge.
+if [ -n "$DIAL_SCRIPT" ]; then
     allocate_ports 1 1 1 || exit 1
-    PICKUP_SIP_PORT=$ALLOCATED_SIP_PORT; PICKUP_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; PICKUP_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
-    ALL_PORTS="$ALL_PORTS $PICKUP_SIP_PORT $PICKUP_MEDIA_PORT $PICKUP_CONTROL_PORT"
-    cat > "$PICKUP_SCRIPT" <<PICKUP
+    DIAL_SIP_PORT=$ALLOCATED_SIP_PORT; DIAL_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; DIAL_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
+    ALL_PORTS="$ALL_PORTS $DIAL_SIP_PORT $DIAL_MEDIA_PORT $DIAL_CONTROL_PORT"
+    DIAL_CSV=$(device_csv "$CONSULT") || exit 1
+    DIAL_UAC="$WORK_DIR/dial_${FLOW}.xml"
+    sed -e "s/__AUDIO__/$DIAL_AUDIO/g" -e "s/__TALK_MS__/$DIAL_TALK_MS/g" \
+        "$BASE_DIR/sipp/scripts/sipp_uac_agent_dial.xml" > "$DIAL_UAC"
+    DIAL_LOG="$WORK_DIR/$(basename "$DIAL_SCRIPT" .sh).log"
+    cat > "$DIAL_SCRIPT" <<DIAL
 #!/bin/bash
-# Run by agent A's SIPp (sipp_uas_park.xml) when it parks the caller: wait
-# while the caller sits in park, then pick the call up as agent B ($CONSULT).
-sleep $PARK_TIME
+# Run by agent A's SIPp ($FLOW flow): wait ${DIAL_WAIT}s, then have agent B
+# ($CONSULT) dial $DIAL_EXT.
+sleep $DIAL_WAIT
 cd "$BASE_DIR/sipp/scripts" || exit 1
-echo "\$(date '+%F %T') picking up $PARK_EXT as $CONSULT" >> "$WORK_DIR/pickup.log"
-sipp ${SUT}${SIP_PORT_ADD_ON} -sf "$BASE_DIR/sipp/scripts/sipp_uac_park_pickup.xml" \\
-    -inf "$PICKUP_CSV" -m 1 -l 1 -t $TRANSPORT $TLS_OPTIONS \\
-    -i $PRIVATEIP -p $PICKUP_SIP_PORT -cp $PICKUP_CONTROL_PORT -mp $PICKUP_MEDIA_PORT -mi $PRIVATEIP \\
-    -key park_ext $PARK_EXT -key ua_version $UA_VERSION -recv_timeout 60000 \\
-    -trace_stat -stf "$STATS_PATH/manual_pickup_${TRANSPORT}_$$.csv" -fd 5 \\
-    -trace_err -trace_logs -trace_msg -bg >> "$WORK_DIR/pickup.log" 2>&1
-PICKUP
-    chmod +x "$PICKUP_SCRIPT"
+echo "\$(date '+%F %T') $CONSULT dialing $DIAL_EXT" >> "$DIAL_LOG"
+sipp ${SUT}${SIP_PORT_ADD_ON} -sf "$DIAL_UAC" \\
+    -inf "$DIAL_CSV" -m 1 -l 1 -t $TRANSPORT $TLS_OPTIONS \\
+    -i $PRIVATEIP -p $DIAL_SIP_PORT -cp $DIAL_CONTROL_PORT -mp $DIAL_MEDIA_PORT -mi $PRIVATEIP \\
+    -key dial_ext $DIAL_EXT -key ua_version $UA_VERSION -recv_timeout 60000 \\
+    -trace_stat -stf "$STATS_PATH/manual_dial_${TRANSPORT}_$$.csv" -fd 5 \\
+    -trace_err -trace_logs -trace_msg -bg >> "$DIAL_LOG" 2>&1
+DIAL
+    chmod +x "$DIAL_SCRIPT"
 fi
 
 REG_PIDS=()
@@ -462,7 +555,10 @@ if [ "$FLOW" == "attended" ]; then
     echo "   Flow:        attended - agent B is $CONSULT (or $CONSULT_ALT when A is $CONSULT)"
 elif [ "$FLOW" == "park" ]; then
     echo "   Flow:        park - agent A parks on $PARK_EXT, $CONSULT picks up after ${PARK_TIME}s"
-    echo "   Pickup:      sip=$PICKUP_SIP_PORT media=$PICKUP_MEDIA_PORT ctrl=$PICKUP_CONTROL_PORT (log: $WORK_DIR/pickup.log)"
+elif [ "$FLOW" == "3way" ]; then
+    echo "   Flow:        3way - agent A moves the caller onto bridge $CONF_EXT, A and $CONSULT join"
+elif [ "$FLOW" == "blind2" ]; then
+    echo "   Flow:        blind2 - $AGENT_A -> ${DEV_EXTS[1]} -> $AGENT_C (two blind transfers)"
 elif [ "$FULL_CALL" == "1" ]; then
     echo "   Talk time:   full call - ${TALK}s to the 90s transfer, then 195s post-transfer"
 else
@@ -474,6 +570,9 @@ for set in "${REG_SETS[@]}"; do
     echo "   Reg ports:   sip=$_sip media=$_media ctrl=$_ctrl ($(basename "$_csv"))"
 done
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
+if [ -n "$DIAL_SCRIPT" ]; then
+    echo "   Dial-in:     sip=$DIAL_SIP_PORT media=$DIAL_MEDIA_PORT ctrl=$DIAL_CONTROL_PORT (log: $DIAL_LOG)"
+fi
 echo "   Work dir:    $WORK_DIR"
 if [ "$CAPTURE" == "1" ]; then
     echo "   Tracing:     -trace_logs -trace_msg + tcpdump media capture per call"

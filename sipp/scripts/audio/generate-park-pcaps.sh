@@ -12,7 +12,7 @@
 #   2. caller + agent 2 after the pickup, padded to TALK2_LEN - the caller
 #      hangs up at the end
 #        g711a-park-orig2.pcap   caller (UAC, from the pickup re-INVITE)
-#        g711a-park-term2.pcap   agent 2 (sipp_uac_park_pickup.xml, from
+#        g711a-park-term2.pcap   agent 2 (sipp_uac_agent_dial.xml, from
 #                                the pickup 200)
 #
 # PARK_AT and TALK2_LEN match the attended call's 44s / 60s sections, so the

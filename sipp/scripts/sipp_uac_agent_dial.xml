@@ -2,33 +2,31 @@
 <!DOCTYPE scenario SYSTEM "sipp.dtd">
 
 <!-- ====================================================================== -->
-<!-- Call park - agent B's pickup (UAC).                                    -->
+<!-- Agent dial-in (UAC): a device calls an extension and talks.            -->
 <!--                                                                        -->
-<!-- Calls the park extension (-key park_ext) as agent B's device, which    -->
-<!-- connects B to the parked caller.  Then plays g711a-park-term2.pcap     -->
-<!-- (60s, the caller conversation), answers any re-INVITE, and waits for   -->
-<!-- the caller's BYE (or hangs up after 80s).                              -->
-<!--                                                                        -->
-<!-- -inf is a one-line device CSV (SEQUENTIAL; displayName;extension;      -->
-<!-- domain;[authentication ...];userAgent): [field0..3] are B's name,      -->
-<!-- extension, domain and credentials for the 407 challenge.  Launched by  -->
-<!-- the pickup script that sipp_uas_park.xml runs when it parks the        -->
-<!-- caller (manual_test.sh flow mode park).                                -->
+<!-- Dials -key dial_ext as the device in the -inf CSV (a one-line          -->
+<!-- SEQUENTIAL file: displayName;extension;domain;[authentication ...];    -->
+<!-- userAgent), answering the 407 challenge with [field3].  On answer it   -->
+<!-- plays __AUDIO__.pcap, answers any re-INVITE, and hangs up after        -->
+<!-- __TALK_MS__ unless the far end hangs up first.  manual_test.sh fills   -->
+<!-- in __AUDIO__ and __TALK_MS__ and runs it from a script:                -->
+<!--   park  agent B picks up the parked caller (dial_ext = park extension) -->
+<!--   3way  agent B joins the conference bridge (dial_ext = bridge)        -->
 <!-- ====================================================================== -->
 
-<scenario name="UAC call park pickup (agent B)">
+<scenario name="UAC agent dial-in">
 
   <nop>
-    <action><log message="PARK B: [field1]@[field2] picking up [park_ext]"/></action>
+    <action><log message="DIAL: [field1]@[field2] calling [dial_ext]"/></action>
   </nop>
 
   <send retrans="500">
     <![CDATA[
 
-      INVITE sip:[park_ext]@[field2] SIP/2.0
+      INVITE sip:[dial_ext]@[field2] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
       From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
-      To: <sip:[park_ext]@[field2]>
+      To: <sip:[dial_ext]@[field2]>
       Call-ID: [call_id]
       CSeq: 1 INVITE
       Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
@@ -59,7 +57,7 @@
   </recv>
   <recv response="200" timeout="30000" ontimeout="done" next="ack1">
     <action>
-      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="park_contact"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="far_contact"/>
     </action>
   </recv>
 
@@ -67,7 +65,7 @@
   <send>
     <![CDATA[
 
-      ACK sip:[park_ext]@[field2] SIP/2.0
+      ACK sip:[dial_ext]@[field2] SIP/2.0
       [last_Via:]
       From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
       [last_To:]
@@ -81,10 +79,10 @@
   <send retrans="500">
     <![CDATA[
 
-      INVITE sip:[park_ext]@[field2] SIP/2.0
+      INVITE sip:[dial_ext]@[field2] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
       From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
-      To: <sip:[park_ext]@[field2]>
+      To: <sip:[dial_ext]@[field2]>
       Call-ID: [call_id]
       CSeq: 2 INVITE
       Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
@@ -114,13 +112,13 @@
   </recv>
   <recv response="200" timeout="30000" ontimeout="done">
     <action>
-      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="park_contact"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="far_contact"/>
     </action>
   </recv>
   <send next="talk">
     <![CDATA[
 
-      ACK [$park_contact] SIP/2.0
+      ACK [$far_contact] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
       From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
       [last_To:]
@@ -136,7 +134,7 @@
   <send>
     <![CDATA[
 
-      ACK [$park_contact] SIP/2.0
+      ACK [$far_contact] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
       From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
       [last_To:]
@@ -148,18 +146,18 @@
     ]]>
   </send>
 
-  <!-- Talking to the caller; they hang up at the end of the conversation. -->
+  <!-- Talking; the other side usually hangs up first. -->
   <label id="talk"/>
   <nop>
     <action>
-      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-park-term2.pcap stage=pickup"/>
-      <exec play_pcap_audio="g711a-park-term2.pcap"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__AUDIO__.pcap stage=dial-in"/>
+      <exec play_pcap_audio="__AUDIO__.pcap"/>
     </action>
   </nop>
   <label id="talk_wait"/>
-  <recv timeout="80000" ontimeout="send_bye" request="INVITE" optional="true" next="reinvite">
+  <recv timeout="__TALK_MS__" ontimeout="send_bye" request="INVITE" optional="true" next="reinvite">
   </recv>
-  <recv request="BYE" timeout="80000" ontimeout="send_bye" next="bye_200">
+  <recv request="BYE" timeout="__TALK_MS__" ontimeout="send_bye" next="bye_200">
   </recv>
 
   <label id="reinvite"/>
@@ -190,17 +188,17 @@
     ]]>
   </send>
   <recv request="ACK" crlf="true" next="talk_wait">
-    <action><log message="PARK B: re-INVITE answered"/></action>
+    <action><log message="DIAL: re-INVITE answered"/></action>
   </recv>
 
   <label id="send_bye"/>
   <send retrans="500">
     <![CDATA[
 
-      BYE [$park_contact] SIP/2.0
+      BYE [$far_contact] SIP/2.0
       Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
       From: "[field0]" <sip:[field1]@[field2]>;tag=[call_number]
-      To: <sip:[park_ext]@[field2]>[peer_tag_param]
+      To: <sip:[dial_ext]@[field2]>[peer_tag_param]
       Call-ID: [call_id]
       CSeq: 3 BYE
       Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>

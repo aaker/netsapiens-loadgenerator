@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!-- ====================================================================== -->
+<!-- Transfer chain agent (UAS, -oocsf): one link of a chain of blind       -->
+<!-- transfers, e.g. manual_test.sh flow mode blind2 (A -> B -> C).         -->
+<!--                                                                        -->
+<!-- Each device registers in its own SIPp process with its own copy of     -->
+<!-- this file, filled in by manual_test.sh:                                -->
+<!--   __AGENT_EXT__ / __AGENT_DOMAIN__  this device                        -->
+<!--   __AUDIO__ / __TALK_MS__           its part of the conversation (pcap -->
+<!--                                     name without .pcap, talk in ms)    -->
+<!--   __AFTER_TALK__                    refer: blind-REFER the caller to   -->
+<!--                                     __NEXT_EXT__ when the talk ends;   -->
+<!--                                     wait_end: the last agent, wait for -->
+<!--                                     the caller's BYE (hang up 20s      -->
+<!--                                     after the talk if it never comes)  -->
+<!-- Any incoming call (from the queue or transferred in) gets the same     -->
+<!-- treatment: the device decides the role, not the call.                  -->
+<!-- ====================================================================== -->
+
+<scenario name="UAS transfer chain agent">
+
+  <recv request="INVITE" crlf="true" rrs="true">
+    <action>
+      <ereg regexp="[: ]*(.*)" search_in="hdr" header="From" assign_to="remote_from,remote_from"/>
+      <ereg regexp="[: ]*([^;]*)" search_in="hdr" header="To" assign_to="local_to,local_to"/>
+      <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
+      <log message="CHAIN __AGENT_EXT__: answering, then __AFTER_TALK__ (next=__NEXT_EXT__) callid=[call_id]"/>
+    </action>
+  </recv>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 100 Trying
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send>
+    <![CDATA[
+
+      SIP/2.0 180 Ringing
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <pause distribution="uniform" min="1000" max="2000"/>
+
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+
+  <recv request="ACK" crlf="true">
+  </recv>
+
+  <!-- Talk.  A BYE here means the caller hung up.  Re-INVITEs (the core    -->
+  <!-- re-pointing media) are answered without restarting the audio.       -->
+  <nop>
+    <action>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__AUDIO__.pcap stage=agent-__AGENT_EXT__"/>
+      <exec play_pcap_audio="__AUDIO__.pcap"/>
+    </action>
+  </nop>
+  <label id="talk"/>
+  <recv timeout="__TALK_MS__" ontimeout="__AFTER_TALK__" request="INVITE" optional="true" next="reinvite">
+  </recv>
+  <recv request="BYE" timeout="__TALK_MS__" ontimeout="__AFTER_TALK__" next="bye_200">
+  </recv>
+
+  <label id="reinvite"/>
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=user1 53655765 2353687638 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 101
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:101 telephone-event/8000
+      a=fmtp:101 0-15
+
+    ]]>
+  </send>
+  <recv request="ACK" crlf="true" next="talk">
+  </recv>
+
+  <!-- Last agent: give the caller 20s to hang up, then hang up ourselves. -->
+  <label id="wait_end"/>
+  <recv timeout="20000" ontimeout="send_bye" request="INVITE" optional="true" next="reinvite">
+  </recv>
+  <recv request="BYE" timeout="20000" ontimeout="send_bye" next="bye_200">
+  </recv>
+
+  <!-- Blind transfer to the next agent. -->
+  <label id="refer"/>
+  <nop>
+    <action><log message="CHAIN __AGENT_EXT__: REFER caller to __NEXT_EXT__@__AGENT_DOMAIN__ callid=[call_id]"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      REFER [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 2 REFER
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      Refer-To: <sip:__NEXT_EXT__@__AGENT_DOMAIN__>
+      Referred-By: <sip:__AGENT_EXT__@__AGENT_DOMAIN__>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- After the REFER: answer the transfer NOTIFYs and the core's BYE. -->
+  <label id="post"/>
+  <recv timeout="15000" ontimeout="send_bye" response="202" optional="true" next="post">
+  </recv>
+  <recv timeout="15000" ontimeout="send_bye" request="NOTIFY" optional="true" next="notify_200">
+    <action>
+      <ereg regexp="SIP/2.0 ([0-9]+)" search_in="body" assign_to="notify_status,notify_status" checkIt="false"/>
+      <log message="CHAIN __AGENT_EXT__: NOTIFY sipfrag [$notify_status]"/>
+    </action>
+  </recv>
+  <recv request="BYE" timeout="15000" ontimeout="send_bye" next="bye_200">
+  </recv>
+
+  <label id="notify_200"/>
+  <send next="post">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="send_bye"/>
+  <nop>
+    <action><log message="CHAIN __AGENT_EXT__: hanging up"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      BYE [$remote_contact] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [$local_to];tag=[pid]SIPpTag01[call_number]
+      To: [$remote_from]
+      Call-ID: [call_id]
+      CSeq: 3 BYE
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="200" timeout="5000" ontimeout="99" next="99">
+  </recv>
+
+  <label id="bye_200"/>
+  <send next="99">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <label id="99"/>
+  <timewait milliseconds="4000"/>
+
+  <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
+  <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
+
+</scenario>
