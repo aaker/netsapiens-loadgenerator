@@ -21,9 +21,10 @@ The devices and DIDs live next to this file:
 The names match the voices in the call audio. Each user needs one device with
 the extension as its name and the password from `devices.csv`.
 
-The caller is not a user. Calls arrive from the `inbound-carrier` connection
+The callers are not users. Calls arrive from the `inbound-carrier` connection
 with a random caller ID from `sipp/csv/random_caller_ids.csv`. In the audio,
-the caller is Tom Becker from Lakeside Dental.
+the caller is Tom Becker from Lakeside Dental, except in `hold`, where it is
+Rosa Delgado from Harbor Vet Clinic.
 
 The roles come from the order of `devices.csv`: the first device is agent A,
 the second is B, and the third is C. `--consult <ext>` picks a different agent
@@ -55,7 +56,7 @@ recording or any other prompt, because SIPp can't answer them.
 
 ## DIDs
 
-All five DIDs route to queue 4000. Use a DID table entry that sends the call
+All six DIDs route to queue 4000. Use a DID table entry that sends the call
 to `sip:start@call-queuing` with the To rewritten to `4000@netsapiens`, the
 same as the existing "DID for Testing".
 
@@ -66,6 +67,7 @@ same as the existing "DID for Testing".
 | 1 858-555-1236 | `park` | `manual_test.sh -s <server> --flow park` |
 | 1 858-555-1237 | `3way` | `manual_test.sh -s <server> --flow 3way` |
 | 1 858-555-1238 | `blind2` | `manual_test.sh -s <server> --flow blind2` |
+| 1 858-555-1239 | `hold` | `manual_test.sh -s <server> --flow hold` |
 
 `-n <number>` calls any other DID.
 
@@ -78,6 +80,7 @@ same as the existing "DID for Testing".
 | `park` | Priya talks 44s and parks the caller on 700. 15s later, Marcus dials 700 and talks with the caller for 60s. | 2001, 2002 | ~2 min | `audio/park-call-script.md` |
 | `3way` | Priya talks 34s, then moves the caller onto bridge 800 and joins. Marcus dials in 5s later, and all three talk for 46s. | 2001, 2002 | ~1.5 min | `audio/flows/3way.json` |
 | `blind2` | Priya talks 34s and blind-transfers the caller to Marcus (2002). Marcus talks 30s and blind-transfers them to Dana (2003). Dana talks 44s. | 2001, 2002, 2003 | ~2 min | `audio/flows/blind2.json` |
+| `hold` | No transfer. Priya talks with Rosa for 32s, puts her on hold for a random 20-30s, talks 35s, holds again for 20-30s, then talks 27s. | 2001 | ~2.5 min | `audio/flows/hold.json` |
 
 The script paths are under `sipp/scripts/`. The two JSON files are the specs
 for `audio/generate-flow-pcaps.py`, and they hold the script itself in their
@@ -91,6 +94,6 @@ for `audio/generate-flow-pcaps.py`, and they hold the script itself in their
    (Provisioning) with 2002.
 3. Set up call park so 700 parks a call and dialing 700 picks it up.
 4. Create conference bridge 800 with no PIN and no entry prompts.
-5. Add the five DIDs to the DID table, all routed to queue 4000.
+5. Add the six DIDs to the DID table, all routed to queue 4000.
 6. Run each flow once. The banner shows the DID, the agents and the
    extensions it is using.

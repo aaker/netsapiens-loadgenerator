@@ -54,6 +54,8 @@
 #                                     dial in for a 3-way call (~1.5 min).
 #                           blind2    two blind transfers: A -> B -> C, one
 #                                     section with each agent (~2 min).
+#                           hold      no transfer: agent A puts the caller on
+#                                     hold twice, 20-30s each (~2.5 min).
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -94,6 +96,7 @@
 #   ./manual_test.sh -s prod1 --flow park              # park on 700, picked up by agent B
 #   ./manual_test.sh -s prod1 --flow 3way              # 3-way call on the 800 bridge
 #   ./manual_test.sh -s prod1 --flow blind2            # two blind transfers, A -> B -> C
+#   ./manual_test.sh -s prod1 --flow hold              # one agent, two holds
 #
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
@@ -156,12 +159,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park|3way|blind2)
+    attended|park|3way|blind2|hold)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended, park, 3way or blind2 (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2 or hold (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -455,6 +458,12 @@ blind2)
         fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_chain.xml" "$ext" "${DEV_UAS[$i]}" "${link[@]}"
     done
     ;;
+# hold: no transfer. Agent A (sipp_uas_hold.xml) holds the caller twice for a
+# random 20-30s each; a single registration process is enough.
+hold)
+    flow_caller 3 g711a-hold-orig1 32 g711a-hold-orig2 35 g711a-hold-orig3 27
+    _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_hold.xml"
+    ;;
 esac
 
 # The caller always runs from a copy (next to the original, since its pcap
@@ -559,6 +568,8 @@ elif [ "$FLOW" == "3way" ]; then
     echo "   Flow:        3way - agent A moves the caller onto bridge $CONF_EXT, A and $CONSULT join"
 elif [ "$FLOW" == "blind2" ]; then
     echo "   Flow:        blind2 - $AGENT_A -> ${DEV_EXTS[1]} -> $AGENT_C (two blind transfers)"
+elif [ "$FLOW" == "hold" ]; then
+    echo "   Flow:        hold - agent A holds the caller twice, 20-30s each"
 elif [ "$FULL_CALL" == "1" ]; then
     echo "   Talk time:   full call - ${TALK}s to the 90s transfer, then 195s post-transfer"
 else

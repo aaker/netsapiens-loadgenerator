@@ -1,0 +1,114 @@
+{
+  "name": "hold",
+  "voices": {
+    "CALLER": "aura-athena-en",
+    "AGENT1": "aura-asteria-en"
+  },
+  "say_voices": {
+    "CALLER": "Shelley (English (US))",
+    "AGENT1": "Samantha"
+  },
+  "sections": [
+    {
+      "length": 32,
+      "tracks": {
+        "CALLER": "g711a-hold-orig1",
+        "AGENT1": "g711a-hold-term1"
+      }
+    },
+    {
+      "length": 35,
+      "tracks": {
+        "CALLER": "g711a-hold-orig2",
+        "AGENT1": "g711a-hold-term2"
+      }
+    },
+    {
+      "length": 27,
+      "tracks": {
+        "CALLER": "g711a-hold-orig3",
+        "AGENT1": "g711a-hold-term3"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT1",
+      "Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?"
+    ],
+    [
+      "CALLER",
+      "Hi Priya, this is Rosa Delgado at Harbor Vet Clinic. Our call recordings stopped showing up in the portal last Friday."
+    ],
+    [
+      "AGENT1",
+      "I'm sorry about that, Rosa. Can you confirm the main number on the account?"
+    ],
+    [
+      "CALLER",
+      "It's four one five, five five five, zero one eight eight."
+    ],
+    [
+      "AGENT1",
+      "Thank you. I need to check the recording settings on our side. Can I place you on a brief hold?"
+    ],
+    [
+      "CALLER",
+      "Sure, go ahead."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT1",
+      "Thanks for holding, Rosa. Recording is still turned on for all of your users, and the recordings are being saved."
+    ],
+    [
+      "CALLER",
+      "Then why can't we see them?"
+    ],
+    [
+      "AGENT1",
+      "That's what I'm checking. Have any of your staff changed roles recently?"
+    ],
+    [
+      "CALLER",
+      "Actually, yes. Our office manager was promoted to practice director on Friday."
+    ],
+    [
+      "AGENT1",
+      "That lines up. The portal access for the practice director role was changed the same day. I want to find out who made that change. One more short hold, please."
+    ],
+    [
+      "CALLER",
+      "No problem."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT1",
+      "Thank you for waiting. The change was part of a permissions update on our side, and it removed recording access from that role by mistake. I've restored it."
+    ],
+    [
+      "CALLER",
+      "Let me check. Yes, I can see last week's recordings now."
+    ],
+    [
+      "AGENT1",
+      "Great. I've also added a note so the next update doesn't affect your account."
+    ],
+    [
+      "CALLER",
+      "Perfect. Thanks for your help, Priya."
+    ],
+    [
+      "AGENT1",
+      "You're welcome, Rosa. Have a great day."
+    ],
+    [
+      "CALLER",
+      "You too, bye."
+    ]
+  ]
+}
