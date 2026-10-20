@@ -40,8 +40,13 @@
       <!-- Original Call-ID split at '@', so the Replaces value can escape it -->
       <ereg regexp="[: ]*([^@]+)@(.*)" search_in="hdr" header="Call-ID" assign_to="cid_has_at,cid_user,cid_host" checkIt="false"/>
       <log message="ATT queue=[$served_queue] (empty = consult call, role B) me=__AGENT_EXT__@__AGENT_DOMAIN__ callid=[call_id]"/>
+      <ereg regexp="^INVITE sip:__AGENT_EXT__@" search_in="msg" assign_to="for_me" checkIt="false"/>
     </action>
   </recv>
+
+  <nop test="for_me" next="routed"/>
+  <nop next="misrouted"/>
+  <label id="routed"/>
 
   <send>
     <![CDATA[
@@ -677,6 +682,32 @@
 
     ]]>
   </send>
+
+  <nop next="99"/>
+
+  <!-- Sent to this process for another extension (a stale binding on this -->
+  <!-- port): refuse it so the core's fork reaches the real device.         -->
+  <label id="misrouted"/>
+  <nop>
+    <action><log message="ATT __AGENT_EXT__: rejecting an INVITE for another extension (stale binding on this port?) callid=[call_id]"/></action>
+  </nop>
+  <send>
+    <![CDATA[
+
+      SIP/2.0 480 Temporarily Unavailable
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv request="ACK" timeout="5000" ontimeout="99" next="99">
+  </recv>
 
   <label id="99"/>
   <timewait milliseconds="4000"/>

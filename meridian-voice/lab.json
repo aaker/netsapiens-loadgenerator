@@ -7,9 +7,15 @@
   "emailDomain": "meridianvoice.test",
   "recording": "yes-with-transcription-and-sentiment",
   "transport": "t1",
+  "ports": {
+    "note": "Fixed local ports manual_test.sh registers the lab devices from (not the shared pool), so a binding the core still holds can only ever reach the same device. Each set is the first of 'slots' ports (media: steps of 10); a run takes the first free slot, since a stopped TCP registration leaves its port in TIME_WAIT for ~60s. 'shared' is the single registration process of the blind/park/hold/upset flows. Open these on the box's firewall/NAT like the pool ports.",
+    "slots": 5,
+    "shared": { "sip": 5170, "control": 5175, "media": 60600 }
+  },
   "users": [
     {
       "ext": "2001",
+      "ports": { "sip": 5110, "control": 5115, "media": 60300 },
       "first": "Priya",
       "last": "Shah",
       "department": "Support",
@@ -19,6 +25,7 @@
     },
     {
       "ext": "2002",
+      "ports": { "sip": 5130, "control": 5135, "media": 60400 },
       "first": "Marcus",
       "last": "Reed",
       "department": "Provisioning",
@@ -28,6 +35,7 @@
     },
     {
       "ext": "2003",
+      "ports": { "sip": 5150, "control": 5155, "media": 60500 },
       "first": "Dana",
       "last": "Ortiz",
       "department": "Network Engineering",

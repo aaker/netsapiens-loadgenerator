@@ -562,24 +562,122 @@ if [ "$UAC_SCENARIO" != "$UAC_COPY" ]; then
 fi
 sed -i -e "s/\[media_ip\]/$MEDIA_IP/g" "$UAC_SCENARIO"
 
-# Port sets from the shared allocator (same as the cron scripts): one per
-# registration process (one in total, or one per device), plus one for the
-# UAC and one for agent B's dial-in. REG_SETS entries are
-# "csv:sip:media:ctrl:stats:uas".
+# Registration ports. The lab devices register from fixed ports (lab.json
+# "ports" per user, and "ports.shared" for the single registration process),
+# never from the shared pool: a binding the core still holds after a run (a
+# killed process does not un-REGISTER) then points to the same device's
+# process, not to whichever device the pool gave that port to next. Each set
+# is the first of "slots" ports (media in steps of 10) and every registration
+# takes the first free slot, since a stopped TCP registration leaves its port
+# in TIME_WAIT for ~60s. Other devices (-f) use the pool, as do the UAC and
+# agent B's dial-in. REG_SETS entries are "csv:sip:media:ctrl:stats:uas";
+# REG_LAB[n] is the lab.json key for entry n ("" = the ports in the entry).
+LAB_PORTS=0
+if [ -f "$LAB_JSON" ] && command -v jq >/dev/null && \
+   [ -n "$(jq -r '.ports.shared.sip // empty' "$LAB_JSON")" ]; then
+    LAB_PORTS=1
+fi
+
+# lab_port_base <ext|shared>: "sip control media" from lab.json, or nothing.
+lab_port_base() {
+    [ "$LAB_PORTS" == "1" ] || return 0
+    if [ "$1" == "shared" ]; then
+        jq -r '.ports.shared | "\(.sip) \(.control) \(.media)"' "$LAB_JSON"
+    else
+        jq -r --arg e "$1" '.users[] | select(.ext == $e) | .ports // empty | "\(.sip) \(.control) \(.media)"' "$LAB_JSON"
+    fi
+}
+
 REG_SETS=()
+REG_LAB=()
 ALL_PORTS=""
+# add_reg_set <csv> <stats> <uas> <lab key>: lab ports when the key has them
+# (picked per registration), else a set from the pool.
+add_reg_set() {
+    if [ -n "$(lab_port_base "$4")" ]; then
+        REG_SETS+=("$1:0:0:0:$2:$3")
+        REG_LAB+=("$4")
+    else
+        allocate_ports 1 1 1 || exit 1
+        REG_SETS+=("$1:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$2:$3")
+        REG_LAB+=("")
+        ALL_PORTS="$ALL_PORTS $ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
+    fi
+}
 if [ "$PER_DEVICE" == "1" ]; then
     for i in "${!DEV_EXTS[@]}"; do
         ext=${DEV_EXTS[$i]}
-        allocate_ports 1 1 1 || exit 1
-        REG_SETS+=("$WORK_DIR/device_$ext.csv:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv:${DEV_UAS[$i]}")
-        ALL_PORTS="$ALL_PORTS $ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
+        add_reg_set "$WORK_DIR/device_$ext.csv" "$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv" "${DEV_UAS[$i]}" "$ext"
     done
 else
-    allocate_ports 1 1 1 || exit 1
-    REG_SETS+=("$REG_CSV:$ALLOCATED_SIP_PORT:$ALLOCATED_MEDIA_PORT:$ALLOCATED_CONTROL_PORT:$STATS_PATH/manual_register_${TRANSPORT}_$$.csv:$_UAS_SCENARIO")
-    ALL_PORTS="$ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
+    # The shared set only fits the lab's own device list.
+    key=""
+    [ "$DEVICE_CSV" == "$BASE_DIR/meridian-voice/lab/devices.csv" ] && key=shared
+    add_reg_set "$REG_CSV" "$STATS_PATH/manual_register_${TRANSPORT}_$$.csv" "$_UAS_SCENARIO" "$key"
 fi
+
+# port_pids <port>: PIDs with a socket on that local port.
+port_pids() {
+    if command -v ss >/dev/null; then
+        ss -Hanptu "( sport = :$1 )" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u
+    else
+        lsof -nP -t -i ":$1" 2>/dev/null | sort -u
+    fi
+}
+
+# port_in_use <port>: any socket on that local port, TIME_WAIT included.
+port_in_use() {
+    if command -v ss >/dev/null; then
+        [ -n "$(ss -Hantu "( sport = :$1 )" 2>/dev/null)" ]
+    else
+        [ -n "$(lsof -nP -t -i ":$1" 2>/dev/null)" ]
+    fi
+}
+
+# clear_port <port>: stop a manual_test registration process still holding a
+# lab port - left by -k, by a killed run, or this run's previous call still
+# shutting down. Fails if another manual_test.sh that is still running owns
+# it (two runs on the same lab devices). Other programs are left alone: the
+# slot is just skipped (the media ports sit in the kernel's ephemeral range).
+clear_port() {
+    local pid args owner t
+    for pid in $(port_pids "$1"); do
+        args=$(ps -o args= -p "$pid" 2>/dev/null) || continue
+        if [[ "$args" == *sipp* && "$args" =~ manual_register_[a-z0-9]+_([0-9]+) ]]; then
+            owner=${BASH_REMATCH[1]}
+            if [ "$owner" != "$$" ] && ps -o args= -p "$owner" 2>/dev/null | grep -q manual_test; then
+                echo "ERROR: port $1 is in use by another manual_test.sh run (PID $owner, registration PID $pid); wait for it or stop it first"
+                return 1
+            fi
+            echo "[register] stopping leftover registration process $pid on port $1 (from manual_test.sh PID $owner)"
+            kill "$pid" 2>/dev/null
+            for t in 1 2 3 4 5 6; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+            kill -9 "$pid" 2>/dev/null
+        fi
+    done
+    return 0
+}
+
+# pick_lab_slot <ext|shared>: clear the key's slots of leftover processes,
+# then set SLOT_SIP/SLOT_CTRL/SLOT_MEDIA to the first slot with all of its
+# ports free (media and its RTCP port +1).
+pick_lab_slot() {
+    local sip0 ctrl0 media0 slots k
+    read -r sip0 ctrl0 media0 <<< "$(lab_port_base "$1")"
+    slots=$(jq -r '.ports.slots // 5' "$LAB_JSON")
+    for ((k = 0; k < slots; k++)); do
+        clear_port $((sip0 + k)) && clear_port $((ctrl0 + k)) && clear_port $((media0 + 10 * k)) || return 1
+    done
+    for ((k = 0; k < slots; k++)); do
+        if ! port_in_use $((sip0 + k)) && ! port_in_use $((ctrl0 + k)) && \
+           ! port_in_use $((media0 + 10 * k)) && ! port_in_use $((media0 + 10 * k + 1)); then
+            SLOT_SIP=$((sip0 + k)); SLOT_CTRL=$((ctrl0 + k)); SLOT_MEDIA=$((media0 + 10 * k))
+            return 0
+        fi
+    done
+    echo "ERROR: no free registration port for $1 (sip $sip0-$((sip0 + slots - 1)) all in use or in TIME_WAIT)"
+    return 1
+}
 allocate_ports 1 1 1 || exit 1
 UAC_SIP_PORT=$ALLOCATED_SIP_PORT; UAC_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; UAC_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
 ALL_PORTS="$ALL_PORTS $UAC_SIP_PORT $UAC_MEDIA_PORT $UAC_CONTROL_PORT"
@@ -667,9 +765,14 @@ else
     echo "   Talk time:   ${TALK:-5,80}s per leg (transfer at ~90s after answer)"
 fi
 echo "   Opus pct:    ${OPUS_PCT:-50}% (regex: $_OPUS_REGEX)"
-for set in "${REG_SETS[@]}"; do
-    IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
-    echo "   Reg ports:   sip=$_sip media=$_media ctrl=$_ctrl ($(basename "$_csv"))"
+for n in "${!REG_SETS[@]}"; do
+    IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "${REG_SETS[$n]}"
+    if [ -n "${REG_LAB[$n]}" ]; then
+        read -r _sip _ctrl _media <<< "$(lab_port_base "${REG_LAB[$n]}")"
+        echo "   Reg ports:   lab.json ${REG_LAB[$n]}: sip=$_sip+ media=$_media+ ctrl=$_ctrl+ (first free slot per call) ($(basename "$_csv"))"
+    else
+        echo "   Reg ports:   sip=$_sip media=$_media ctrl=$_ctrl ($(basename "$_csv"))"
+    fi
 done
 if [ "$KEEP" == "1" ]; then
     echo "   Registered:  once, up to $((REG_LOOPS * 45))s, left running on exit (-k)"
@@ -747,7 +850,15 @@ unregister_devices() {
 # devices show as active calls in the stats (each registered device is one
 # long-lived 'call' in the re-REGISTER loop), or 60s.
 register_devices() {
-    local set c WAITED=0 CURRENT
+    local set c n WAITED=0 CURRENT
+    # Lab ports first: this also stops leftover registration processes, which
+    # would otherwise re-add the bindings unregister_devices removes.
+    for n in "${!REG_SETS[@]}"; do
+        [ -n "${REG_LAB[$n]}" ] || continue
+        IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "${REG_SETS[$n]}"
+        pick_lab_slot "${REG_LAB[$n]}" || exit 1
+        REG_SETS[$n]="$_csv:$SLOT_SIP:$SLOT_MEDIA:$SLOT_CTRL:$_stats:$_uas"
+    done
     unregister_devices
     for set in "${REG_SETS[@]}"; do
         IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"

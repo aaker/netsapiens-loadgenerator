@@ -28,6 +28,11 @@
 # INVITE's request URI. A "transfer" agent needs manual_test.sh's per-device
 # copy, which fills in __NEXT_EXT__ and __AGENT_DOMAIN__.
 #
+# "perDevice": true (an agent run from manual_test.sh's per-device copy, which
+# also fills in __AGENT_EXT__) answers only INVITEs for its own extension and
+# sends any other a 480, so a call the core sends to a stale binding on this
+# device's port is not answered with the wrong agent's script.
+#
 # Usage (from sipp/scripts):
 #   ./gen-agent-scenario.py audio/flows/hold.json
 #
@@ -49,6 +54,40 @@ NOW = '''      <gettimeofday assign_to="t_s,t_us"/>
       <add assign_to="t_frac" variable="t_us"/>
       <divide assign_to="t_frac" value="1000000"/>
       <add assign_to="now" variable="t_frac"/>
+'''
+
+# perDevice agents: answer only INVITEs whose request URI is __AGENT_EXT__.
+GUARD_EREG = '''      <ereg regexp="^INVITE sip:__AGENT_EXT__@" search_in="msg" assign_to="for_me" checkIt="false"/>
+'''
+GUARD_TEST = '''  <nop test="for_me" next="routed"/>
+  <nop next="misrouted"/>
+  <label id="routed"/>
+
+'''
+GUARD_REJECT = '''
+  <!-- Sent to this process for another extension (a stale binding on this -->
+  <!-- port): refuse it so the core's fork reaches the real device.         -->
+  <label id="misrouted"/>
+  <nop>
+    <action><log message="AGENT __AGENT_EXT__: rejecting an INVITE for another extension (stale binding on this port?) callid=[call_id]"/></action>
+  </nop>
+  <send>
+    <![CDATA[
+
+      SIP/2.0 480 Temporarily Unavailable
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv request="ACK" timeout="5000" ontimeout="99" next="99">
+  </recv>
 '''
 
 CONTACT = 'Contact: <sip:[$me]@[local_ip]:[local_port];transport=[transport]>'
@@ -151,10 +190,10 @@ def generate(name, agent):
       <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
       <ereg regexp="INVITE sip:([^@;> ]+)@" search_in="msg" assign_to="me,me" checkIt="false"/>
       <log message="AGENT [$me]: answering callid=[call_id]"/>
-    </action>
+''' + (GUARD_EREG if agent.get('perDevice') else '') + '''    </action>
   </recv>
 
-''')
+''' + (GUARD_TEST if agent.get('perDevice') else ''))
     tag = ';tag=[pid]SIPpTag01[call_number]'
     w(send(reply('100 Trying', tag)))
     w(send(reply('180 Ringing', tag)))
@@ -306,6 +345,8 @@ def generate(name, agent):
   <label id="bye_200"/>
 ''')
     w(send(reply('200 OK'), ' next="99"'))
+    if agent.get('perDevice'):
+        w(GUARD_REJECT)
     w('''
   <label id="99"/>
   <timewait milliseconds="4000"/>

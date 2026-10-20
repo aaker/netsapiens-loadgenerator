@@ -666,6 +666,7 @@
   "agents": {
     "sipp_uas_long_a.xml": {
       "title": "Long call agent A: two holds, then a blind transfer",
+      "perDevice": true,
       "steps": [
         [
           "talk",
@@ -699,6 +700,7 @@
     },
     "sipp_uas_long_b.xml": {
       "title": "Long call agent B: takes the transfer, two holds",
+      "perDevice": true,
       "steps": [
         [
           "talk",

@@ -136,6 +136,7 @@ sipp/scripts/manual_test.sh -s <server> --flow <flow> [-t u1|t1|l1] [-w 5] [--on
 - **Default flow:** with no `--flow`, it runs `blind`.
 - **Placing calls:** each Enter places another call, and `q` quits. `--once` places one call and exits, which is what cron uses.
 - **Registrations:** the agents' devices register just before each call and stop 5 seconds after it, so nothing stays registered between calls. Each registration is also sized to the flow, about 4 minutes for `3way` up to 17 for `long`, so it ends on its own even if the script is killed. `-k` registers once for an hour and leaves the registrations running.
+- **Ports:** each device registers from its own fixed ports in `lab.json` (`ports` on each user, `ports.shared` for the flows that register all three from one process): 2001 uses SIP 5110-5114, 2002 uses 5130-5134, 2003 uses 5150-5154, and the shared set uses 5170-5174, with control ports +5 and media from 60300/60400/60500/60600. Each call takes the first free port in the device's set, because a stopped TCP registration holds its port for about 60s. A registration the core still holds from an earlier run therefore always points back at the same device. Before registering, the script stops any registration process an earlier run left on those ports (`-k`, or a killed run), removes the devices' old bindings (`REGISTER Contact: *`, `Expires: 0`), and refuses to start if another `manual_test.sh` run is using them. Open these ports on the box's firewall like the pool ports (20000-60000).
 - **Logs:** each run prints its work directory and log paths. Full SIP traces go to `sipp/scripts/*_messages.log`.
 - **Overrides:** `-f` uses another device CSV, `-n` calls another number, and `--media-ip` sets the address the caller advertises. The public IP is found automatically.
 - `sipp/scripts/manual_test.sh -h` lists every option.
@@ -294,6 +295,7 @@ under `sipp/scripts/`.
 | Build line says `FAILED ... HTTP 409` on a DID | The number is in another domain's DID table |
 | Build line says `FAILED ... HTTP 403` | The API key's scope is too low for that object. Domains and connections need Reseller or Super User. |
 | No agent answers | `manual_test.sh` banner `registered/active`. Is 2001 a logged-in member of queue 4000? |
+| A later agent plays an earlier agent's audio, or transfers to itself | A stale binding sent the call to the wrong agent's process. Look for `rejecting an INVITE for another extension` in the agent logs, and `[register] clearing old bindings` / `unregister exited` in the run output. |
 | Transfer, park or bridge step doesn't happen | Agent logs: `register.and.subscribe.sipp_<pid>_logs.log` (`ATT`, `PARK A`, `3WAY A`, `CHAIN`, `AGENT` lines) and `_errors.log` |
 | Caller's sections out of step | The caller log's `FLOW caller:` lines show each re-INVITE and the section it chose |
 | Agent B never dials in (park, 3way) | `pickup.log` / `join.log` in the run's work directory |
