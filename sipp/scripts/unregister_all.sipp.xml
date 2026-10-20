@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+
+<!-- ====================================================================== -->
+<!-- Remove every binding of each device in the -inf CSV:                   -->
+<!--   REGISTER  Contact: *  Expires: 0   (RFC 3261 10.2.2)                 -->
+<!-- Used by manual_test.sh before it registers its devices. Killing a      -->
+<!-- registration process leaves its binding in the core until it expires,  -->
+<!-- and the next run may get the same port for a different device; a call  -->
+<!-- for the old device is then sent to the new device's process, which     -->
+<!-- answers it with the wrong agent's scenario.                            -->
+<!-- ====================================================================== -->
+
+<scenario name="Unregister all contacts">
+
+  <send retrans="1000">
+    <![CDATA[
+
+      REGISTER sip:[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+      To: <sip:[field1]@[field2]>
+      CSeq: [cseq] REGISTER
+      Call-ID: [call_id]
+      Contact: *
+      Expires: 0
+      User-Agent: netsapiens-loadgenerator
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="407" auth="true" optional="true" next="auth"/>
+  <recv response="401" auth="true" optional="true" next="auth"/>
+  <recv response="200" next="done"/>
+
+  <label id="auth"/>
+  <send retrans="1000">
+    <![CDATA[
+
+      REGISTER sip:[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: [field0] <sip:[field1]@[field2]>;tag=[call_number]
+      To: <sip:[field1]@[field2]>
+      CSeq: [cseq] REGISTER
+      Call-ID: [call_id]
+      Contact: *
+      Expires: 0
+      [field3]
+      User-Agent: netsapiens-loadgenerator
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="200"/>
+
+  <label id="done"/>
+  <nop>
+    <action><log message="UNREGISTER [field1]@[field2]: all contacts removed"/></action>
+  </nop>
+
+  <ResponseTimeRepartition value="10, 20, 50, 100, 200, 500, 1000"/>
+  <CallLengthRepartition value="10, 100, 1000"/>
+
+</scenario>

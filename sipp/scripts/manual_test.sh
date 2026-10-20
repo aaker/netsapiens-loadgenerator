@@ -721,11 +721,34 @@ start_registration() {
     echo "[register] started (PID $pid, $n device(s))"
 }
 
+# unregister_devices: remove every binding the core still holds for the
+# devices (REGISTER Contact: * / Expires: 0). A killed registration process
+# leaves its binding until it expires, and the next run can get that port for
+# a different device - the core then sends the old device's calls to the
+# wrong agent scenario (blind2: Marcus's transfer answered by Priya's copy,
+# which replayed her audio and transferred to 2002 again). Uses the UAC's
+# ports, which are free until the call is placed. Failures only warn.
+unregister_devices() {
+    local n=$(grep -cv -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$REG_CSV")
+    local log="$WORK_DIR/unregister_$(date +%s).log"
+    echo "[register] clearing old bindings for $n device(s)"
+    sipp ${SUT}${SIP_PORT_ADD_ON} -r 10 -m "$n" -l "$n" \
+        -sf "$BASE_DIR/sipp/scripts/unregister_all.sipp.xml" \
+        -inf "$REG_CSV" \
+        -t "$TRANSPORT" $TLS_OPTIONS \
+        -i "$PRIVATEIP" -p "$UAC_SIP_PORT" -cp "$UAC_CONTROL_PORT" -mp "$UAC_MEDIA_PORT" \
+        -timeout 20s -recv_timeout 5000 -nostdin \
+        -trace_err -error_file "$log" > /dev/null 2>&1
+    local rc=$?
+    [ "$rc" -eq 0 ] || echo "  (unregister exited $rc - continuing; see $log)"
+}
+
 # register_devices: start every registration process, then wait until all
 # devices show as active calls in the stats (each registered device is one
 # long-lived 'call' in the re-REGISTER loop), or 60s.
 register_devices() {
     local set c WAITED=0 CURRENT
+    unregister_devices
     for set in "${REG_SETS[@]}"; do
         IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
         rm -f "$_stats"
