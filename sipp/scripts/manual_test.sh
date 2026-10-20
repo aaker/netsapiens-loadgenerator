@@ -16,8 +16,8 @@
 #                         meridian-voice/build-domain.js
 #   -n, --number <num>    Inbound number (DID) to call. Default: the flow's
 #                         DID in meridian-voice/lab.json. The caller ID is
-#                         the flow's caller there too (the name heard in the
-#                         audio); with -n and no lab caller, a random one.
+#                         the flow's caller there too (their company, else
+#                         their name); with -n and no lab caller, a random one.
 #                         meridian-voice/README.md documents the lab domain.
 #   -t, --transport <t>   u1 (UDP, default) | t1 (TCP) | l1 (TLS)
 #   -s, --server <id>     Multi-server mode: resolve hostname from servers.json
@@ -183,14 +183,16 @@ if ! [ "$PARK_TIME" -ge 1 ] 2>/dev/null || [ "$PARK_TIME" -gt 25 ]; then
 fi
 
 # Default number and caller ID: the flow's DID and caller in lab.json, so the
-# caller ID name matches the person in the audio.
+# caller ID matches the caller in the audio (their company's name if they
+# have one).
 CALLER_NAME=""
 CALLER_NUMBER=""
 if [ -f "$LAB_JSON" ] && command -v jq >/dev/null; then
     [ -n "$NUMBER" ] || NUMBER=$(jq -r --arg f "$FLOW" '.flows[$f].did // empty' "$LAB_JSON")
     CALLER_KEY=$(jq -r --arg f "$FLOW" '.flows[$f].caller // empty' "$LAB_JSON")
     if [ -n "$CALLER_KEY" ]; then
-        CALLER_NAME=$(jq -r --arg c "$CALLER_KEY" '.callers[$c].name' "$LAB_JSON")
+        # The company when the caller has one (what a business line shows), else the name.
+        CALLER_NAME=$(jq -r --arg c "$CALLER_KEY" '.callers[$c] | .company // .name' "$LAB_JSON")
         CALLER_NUMBER=$(jq -r --arg c "$CALLER_KEY" '.callers[$c].number' "$LAB_JSON")
     fi
 fi

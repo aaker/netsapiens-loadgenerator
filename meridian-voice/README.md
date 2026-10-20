@@ -81,17 +81,18 @@ listed in `lab.json`.
 ### Inbound numbers and callers
 
 Each flow has its own DID, routed to queue 4000. Each also has its own caller:
-the caller ID name and number match the person in the audio.
+the caller ID number is the caller's, and the caller ID name is their company
+(or their own name if a caller has no `company` in `lab.json`).
 
 | DID | Flow | Daily at (Phoenix) | Caller ID | Caller in the audio |
 |---|---|---|---|---|
-| 1 858-555-1301 | `blind` | 9:00 | Tom Becker, 1 619-555-0144 | Office manager, Lakeside Dental |
-| 1 858-555-1302 | `attended` | 10:00 | Tom Becker, 1 619-555-0144 | Lakeside Dental |
-| 1 858-555-1303 | `park` | 11:00 | Tom Becker, 1 619-555-0144 | Lakeside Dental |
-| 1 858-555-1304 | `3way` | 12:00 | Tom Becker, 1 619-555-0144 | Lakeside Dental |
-| 1 858-555-1305 | `blind2` | 13:00 | Tom Becker, 1 619-555-0144 | Lakeside Dental |
-| 1 858-555-1306 | `hold` | 14:00 | Rosa Delgado, 1 415-555-0188 | Harbor Vet Clinic |
-| 1 858-555-1307 | `long` | 15:00 | Greg Hanley, 1 503-555-0122 | Pinecrest Realty |
+| 1 858-555-1301 | `blind` | 9:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker, office manager |
+| 1 858-555-1302 | `attended` | 10:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
+| 1 858-555-1303 | `park` | 11:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
+| 1 858-555-1304 | `3way` | 12:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
+| 1 858-555-1305 | `blind2` | 13:00 | Lakeside Dental, 1 619-555-0144 | Tom Becker |
+| 1 858-555-1306 | `hold` | 14:00 | Harbor Vet Clinic, 1 415-555-0188 | Rosa Delgado |
+| 1 858-555-1307 | `long` | 15:00 | Pinecrest Realty, 1 503-555-0122 | Greg Hanley |
 
 A DID can only belong to one domain. If a number is already in another
 domain's DID table, the build reports it as failed. Free it there, or change
