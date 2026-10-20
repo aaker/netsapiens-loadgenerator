@@ -45,3 +45,8 @@
 #(sipp -timeout); the monitor runs every minute and restarts it if it exited, wedged,
 #overran the cap, or is no longer bound to 5050.
 * * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts/callback_uas_monitor.sh
+
+#Meridian Voice scripted calls (meridian-voice/README.md): one call per flow per day, 9am-3pm America/Phoenix
+#(lab.json flows.<flow>.hour). Runs hourly; daily-calls.sh picks the flow for the current Phoenix hour, so the
+#server's time zone does not matter. Set MERIDIAN_VOICE_SERVER in .env to the servers.json id hosting meridianvoice.
+0 * * * * root /usr/local/NetSapiens/netsapiens-loadgenerator/meridian-voice/daily-calls.sh >> /var/log/meridian-voice.log 2>&1

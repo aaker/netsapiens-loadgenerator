@@ -12,12 +12,13 @@
 #
 #   -f, --file <csv>      Device CSV to register (the generated format:
 #                         SEQUENTIAL header, displayName;device;domain;[authentication ...])
-#                         Default: sipp/csv/manual/devices.csv
-#   -n, --number <num>    Inbound number (DID) to call. Default: the number
-#                         in sipp/csv/manual/phonenumbers.csv whose third
-#                         field is the flow name (else the first number).
-#                         sipp/csv/manual/README.md lists the lab setup
-#                         (users, queues, DIDs) the flows expect.
+#                         Default: meridian-voice/lab/devices.csv, written by
+#                         meridian-voice/build-domain.js
+#   -n, --number <num>    Inbound number (DID) to call. Default: the flow's
+#                         DID in meridian-voice/lab.json. The caller ID is
+#                         the flow's caller there too (the name heard in the
+#                         audio); with -n and no lab caller, a random one.
+#                         meridian-voice/README.md documents the lab domain.
 #   -t, --transport <t>   u1 (UDP, default) | t1 (TCP) | l1 (TLS)
 #   -s, --server <id>     Multi-server mode: resolve hostname from servers.json
 #   -c, --count <n>       Calls per trigger (default 1)
@@ -80,6 +81,8 @@
 #                         caller's leg without audio.
 #   -w, --wait <sec>      Auto-place the first call after N seconds (default:
 #                         wait for registrations, then prompt)
+#   --once                Place one call, then exit (for cron: see
+#                         meridian-voice/daily-calls.sh)
 #   -k, --keep            Leave the registration instance running on exit
 #   --no-capture          Skip the per-packet tcpdump capture of the media port
 #
@@ -116,10 +119,12 @@ source "$BASE_DIR/sipp/scripts/version-utils.sh"
 source "$BASE_DIR/sipp/scripts/port-allocator.sh"
 
 # ---------------------------------------------------------------- arguments
-# Long-term manual test data lives in sipp/csv/manual/ (committed, unlike the
-# generated devices/ and phonenumbers/ dirs which are gitignored).
-DEVICE_CSV="$BASE_DIR/sipp/csv/manual/devices.csv"
+# The lab (domain, users, DIDs, callers) is meridian-voice/lab.json; its
+# build script writes the device CSV, which holds the SIP passwords.
+LAB_JSON="$BASE_DIR/meridian-voice/lab.json"
+DEVICE_CSV="$BASE_DIR/meridian-voice/lab/devices.csv"
 NUMBER=""
+ONCE=0
 TRANSPORT="u1"
 SERVER_ID=""
 CALL_COUNT=1
@@ -154,6 +159,7 @@ while [ $# -gt 0 ]; do
         --park-time)    PARK_TIME="$2"; shift 2 ;;
         --conf-ext)     CONF_EXT="$2"; shift 2 ;;
         --media-ip)     MEDIA_IP_OVERRIDE="$2"; shift 2 ;;
+        --once)         ONCE=1; shift ;;
         -k|--keep)      KEEP=1; shift ;;
         --no-capture)   CAPTURE=0; shift ;;
         -h|--help)      awk 'NR > 1 && !/^#/ { exit } NR > 1' "$0"; exit 0 ;;
@@ -176,22 +182,27 @@ if ! [ "$PARK_TIME" -ge 1 ] 2>/dev/null || [ "$PARK_TIME" -gt 25 ]; then
     echo "ERROR: --park-time must be 1-25 seconds (got '$PARK_TIME')"; exit 1
 fi
 
-# Default number: the committed manual DID for this flow (third field = flow
-# name), else the first one listed.
-if [ -z "$NUMBER" ]; then
-    MANUAL_NUMBERS="$BASE_DIR/sipp/csv/manual/phonenumbers.csv"
-    if [ -f "$MANUAL_NUMBERS" ]; then
-        NUMBER=$(tr -d '\r' < "$MANUAL_NUMBERS" | awk -F';' -v f="$FLOW" 'NR > 1 && $3 == f { print $1; exit }')
-        [ -n "$NUMBER" ] || NUMBER=$(grep -v -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$MANUAL_NUMBERS" | head -1 | cut -d';' -f1 | tr -d '\r')
+# Default number and caller ID: the flow's DID and caller in lab.json, so the
+# caller ID name matches the person in the audio.
+CALLER_NAME=""
+CALLER_NUMBER=""
+if [ -f "$LAB_JSON" ] && command -v jq >/dev/null; then
+    [ -n "$NUMBER" ] || NUMBER=$(jq -r --arg f "$FLOW" '.flows[$f].did // empty' "$LAB_JSON")
+    CALLER_KEY=$(jq -r --arg f "$FLOW" '.flows[$f].caller // empty' "$LAB_JSON")
+    if [ -n "$CALLER_KEY" ]; then
+        CALLER_NAME=$(jq -r --arg c "$CALLER_KEY" '.callers[$c].name' "$LAB_JSON")
+        CALLER_NUMBER=$(jq -r --arg c "$CALLER_KEY" '.callers[$c].number' "$LAB_JSON")
     fi
 fi
 
 if [ -z "$DEVICE_CSV" ] || [ -z "$NUMBER" ]; then
-    echo "ERROR: need a device CSV (-f) and a number (-n, or an entry in sipp/csv/manual/phonenumbers.csv)"
+    echo "ERROR: need a device CSV (-f) and a number (-n, or the flow's DID in meridian-voice/lab.json; requires jq)"
     exit 1
 fi
 if [ ! -f "$DEVICE_CSV" ]; then
     echo "ERROR: device CSV not found: $DEVICE_CSV"
+    [ "$DEVICE_CSV" == "$BASE_DIR/meridian-voice/lab/devices.csv" ] && \
+        echo "Build the lab domain first: node meridian-voice/build-domain.js --server <id>"
     exit 1
 fi
 if ! command -v sipp >/dev/null; then
@@ -292,6 +303,15 @@ NUM_DEVICES=$(grep -cv -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$REG_C
 NUM_CSV="$WORK_DIR/number.csv"
 printf 'SEQUENTIAL\r\n%s;manual;manual-test\r\n' "$NUMBER" > "$NUM_CSV"
 
+# Caller ID: the scenarios read it from an injection file named
+# random_caller_ids.csv (name;number;), so a one-line file of that name holds
+# the flow's caller. Without a lab caller, the shared random list.
+CALLER_CSV="$BASE_DIR/sipp/csv/random_caller_ids.csv"
+if [ -n "$CALLER_NAME" ] && [ -n "$CALLER_NUMBER" ]; then
+    CALLER_CSV="$WORK_DIR/random_caller_ids.csv"
+    printf 'RANDOM\r\n%s;%s;\r\n' "$CALLER_NAME" "$CALLER_NUMBER" > "$CALLER_CSV"
+fi
+
 # Same UAS scenario preparation as register.sh (OPUS_PCT bucket regex)
 _OPUS_REGEX=$(_opus_regex "${OPUS_PCT:-50}")
 _UAS_SCENARIO=$(make_uas_scenario \
@@ -342,7 +362,7 @@ fi
 # ----------------------------------------------------- flow-specific setup
 # Agents: A answers the queue call; B and C are the other parties. They
 # default to the first three devices in the CSV, which
-# sipp/csv/manual/README.md maps to the lab users (A must be the only member
+# meridian-voice/README.md maps to the lab users (A must be the only member
 # of the DID's queue, so the queue always delivers to A).
 DEV_EXTS=($(awk -F';' 'NR > 1 && NF >= 4 { print $2 }' "$REG_CSV"))
 AGENT_A=${DEV_EXTS[0]}
@@ -586,6 +606,7 @@ echo " Manual targeted test"
 echo "   Target:      $SUT$SIP_PORT_ADD_ON ($TRANSPORT)"
 echo "   Devices:     $NUM_DEVICES from $DEVICE_CSV"
 echo "   Number:      $NUMBER  (x$CALL_COUNT per trigger)"
+echo "   Caller ID:   ${CALLER_NAME:-random} ${CALLER_NUMBER}"
 echo "   Local IP:    $PRIVATEIP   Media IP: $MEDIA_IP"
 if [ "$FLOW" == "attended" ]; then
     echo "   Flow:        attended - agent B is $CONSULT (or $CONSULT_ALT when A is $CONSULT)"
@@ -706,7 +727,7 @@ place_call() {
     sipp ${SUT}${SIP_PORT_ADD_ON} -r 1 -m "$CALL_COUNT" -l "$CALL_COUNT" \
         -sf "$UAC_SCENARIO" \
         -inf "$NUM_CSV" \
-        -inf "$BASE_DIR/sipp/csv/random_caller_ids.csv" \
+        -inf "$CALLER_CSV" \
         -watchdog_interval 900000 -watchdog_minor_threshold 920000 -watchdog_major_threshold 9200000 \
         -t "$TRANSPORT" $TLS_OPTIONS \
         -i "$PRIVATEIP" -p "$UAC_SIP_PORT" -cp "$UAC_CONTROL_PORT" -mp "$UAC_MEDIA_PORT" \
@@ -738,10 +759,11 @@ place_call() {
     fi
 }
 
-if [ -n "$AUTO_WAIT" ]; then
-    echo "Waiting ${AUTO_WAIT}s before placing the first call..."
-    sleep "$AUTO_WAIT"
+if [ -n "$AUTO_WAIT" ] || [ "$ONCE" == "1" ]; then
+    echo "Waiting ${AUTO_WAIT:-0}s before placing the first call..."
+    sleep "${AUTO_WAIT:-0}"
     place_call
+    [ "$ONCE" == "1" ] && exit 0
 fi
 
 while true; do

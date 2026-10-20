@@ -1,0 +1,108 @@
+{
+  "domain": "meridianvoice",
+  "description": "Meridian Voice",
+  "timeZone": "America/Phoenix",
+  "areaCode": 858,
+  "mainNumber": "18585551301",
+  "emailDomain": "meridianvoice.test",
+  "recording": "yes-with-transcription-and-sentiment",
+  "transport": "t1",
+
+  "users": [
+    {"ext": "2001", "first": "Priya", "last": "Shah", "department": "Support", "title": "Tier 1 Support",
+     "role": "A", "avatar": "avatars/priya-shah.png"},
+    {"ext": "2002", "first": "Marcus", "last": "Reed", "department": "Provisioning", "title": "Provisioning and Billing",
+     "role": "B", "avatar": "avatars/marcus-reed.png"},
+    {"ext": "2003", "first": "Dana", "last": "Ortiz", "department": "Network Engineering", "title": "Network Engineering",
+     "role": "C", "avatar": "avatars/dana-ortiz.png"}
+  ],
+
+  "queues": [
+    {"queue": "4000", "name": "Support", "agents": ["2001"],
+     "note": "Every DID lands here. Only agent A, so the scripted call always starts with Priya."},
+    {"queue": "4001", "name": "Provisioning", "agents": ["2002"],
+     "note": "The blind flow's transfer target (the served queue minus one: 4000 -> 4001)."}
+  ],
+
+  "park": {"ext": "700", "description": "Support Park"},
+  "conference": {"ext": "800", "name": "Support Bridge"},
+
+  "callers": {
+    "tom": {"name": "Tom Becker", "number": "16195550144", "company": "Lakeside Dental"},
+    "rosa": {"name": "Rosa Delgado", "number": "14155550188", "company": "Harbor Vet Clinic"},
+    "greg": {"name": "Greg Hanley", "number": "15035550122", "company": "Pinecrest Realty"}
+  },
+
+  "flows": {
+    "blind": {
+      "did": "18585551301", "hour": 9, "caller": "tom",
+      "summary": "Priya talks 90s, then blind-transfers to queue 4001; Marcus finishes the call.",
+      "dispositions": {
+        "2001": {"disposition": "Transferred", "reason": "Provisioning",
+                 "notes": "Tom Becker (Lakeside Dental) needs two new front desk users and a queue change. Verified account 619-555-0144. Transferred to provisioning."},
+        "2002": {"disposition": "Resolved", "reason": "New users added",
+                 "notes": "Added Maria Delgado (x106) and James Whitfield (x107) with voicemail to email. Reception queue changed to round robin, 15s timeout. Flagged after-hours greeting for re-recording. Ticket 47215."}
+      }
+    },
+    "attended": {
+      "did": "18585551302", "hour": 10, "caller": "tom",
+      "summary": "Priya holds the caller, consults Marcus, then transfers with Replaces.",
+      "dispositions": {
+        "2001": {"disposition": "Transferred", "reason": "Supervised transfer",
+                 "notes": "Main number going to voicemail since this morning. Answering rules edited at 6 AM. Briefed Marcus and transferred."},
+        "2002": {"disposition": "Resolved", "reason": "Routing fixed",
+                 "notes": "After-hours schedule was left active all day. Restored business hours and confirmed with a test call. Customer to check who edited the portal."}
+      }
+    },
+    "park": {
+      "did": "18585551303", "hour": 11, "caller": "tom",
+      "summary": "Priya parks the caller on 700; Marcus picks up from park.",
+      "dispositions": {
+        "2001": {"disposition": "Transferred", "reason": "Parked for billing",
+                 "notes": "Invoice about $200 higher than usual. Parked on 700 for billing."},
+        "2002": {"disposition": "Resolved", "reason": "Billing credit",
+                 "notes": "10 numbers ordered instead of 2. Removed the 8 extra numbers and credited their charges. Credit shows on next invoice."}
+      }
+    },
+    "3way": {
+      "did": "18585551304", "hour": 12, "caller": "tom",
+      "summary": "Priya moves the caller onto bridge 800; Priya and Marcus join for a 3-way call.",
+      "dispositions": {
+        "2001": {"disposition": "Escalated", "reason": "Porting",
+                 "notes": "Fax line port rejected twice. Set up a 3-way call with Marcus on the porting team."},
+        "2002": {"disposition": "Resolved", "reason": "Port resubmitted",
+                 "notes": "Account number on the port form had an extra digit (44121 vs 4412). Corrected and resubmitted; new port date next Thursday."}
+      }
+    },
+    "blind2": {
+      "did": "18585551305", "hour": 13, "caller": "tom",
+      "summary": "Two blind transfers: Priya -> Marcus -> Dana.",
+      "dispositions": {
+        "2001": {"disposition": "Transferred", "reason": "New site setup",
+                 "notes": "Phones at the new Fifth Street office show no service. Transferred to provisioning."},
+        "2002": {"disposition": "Transferred", "reason": "Network issue",
+                 "notes": "Phones provisioned correctly but never checked in. Likely the new site's firewall. Transferred to network engineering."},
+        "2003": {"disposition": "Resolved", "reason": "Router SIP ALG",
+                 "notes": "Sonic Gate 400 router blocks SIP by default. Customer turned off SIP helper; phones registered. Noted on the account."}
+      }
+    },
+    "hold": {
+      "did": "18585551306", "hour": 14, "caller": "rosa",
+      "summary": "No transfer: Priya puts the caller on hold twice for 20-30s.",
+      "dispositions": {
+        "2001": {"disposition": "Resolved", "reason": "Permissions restored",
+                 "notes": "Call recordings missing from the portal since Friday. A permissions update removed recording access from the practice director role. Restored it; customer confirmed."}
+      }
+    },
+    "long": {
+      "did": "18585551307", "hour": 15, "caller": "greg",
+      "summary": "About 14 minutes: Priya holds twice and transfers to Marcus, who holds twice.",
+      "dispositions": {
+        "2001": {"disposition": "Transferred", "reason": "Provisioning",
+                 "notes": "Office move to Ridge Ave on the 28th, tech on site 8 AM, internet live the 26th. Voicemail to email blocked by the customer's spam filter: allow voicemail@meridianvoice.com. Fax port unaffected. Transferred to provisioning."},
+        "2002": {"disposition": "Resolved", "reason": "Account changes",
+                 "notes": "Summer hours from June 1 (Sat 9-1); removed the conflicting holiday schedule. Added Emma Price (x115) and Daniel Ruiz (x116). Turned on recording for the Sales group. Customer to re-record the main greeting."}
+      }
+    }
+  }
+}
