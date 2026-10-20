@@ -33,7 +33,7 @@
 # Usage:
 #   DEEPGRAM_API_KEY=xxxxxxxx ./generate-call-pcaps.sh
 #
-# Pcaps are written to sipp/scripts/ (next to the scenarios) plus reference
+# Pcaps are written to sipp/scripts/pcaps/ (the scenarios play pcaps/<name>.pcap) plus reference
 # call-{orig,orig2,term,term2}.wav copies in this directory.
 set -euo pipefail
 
@@ -53,7 +53,7 @@ GAP="${GAP:-0.45}"                                # silence between turns (both 
 TRANSFER_AT="${TRANSFER_AT:-90}"                  # transfer point on the orig timeline, seconds
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-out_dir="$(cd "$script_dir/.." && pwd)"           # sipp/scripts/
+out_dir="$(cd "$script_dir/../pcaps" && pwd)"     # sipp/scripts/pcaps/
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

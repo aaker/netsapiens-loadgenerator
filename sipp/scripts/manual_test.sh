@@ -326,7 +326,7 @@ UA_VERSION=$(get_ua_version "$BASE_DIR")
 
 # UAC scenario: the original, or a copy with the talk-time pause from --talk
 # (same substitution as domain_inbound.sh). The copy sits next to the
-# original because the pcap paths in it are relative.
+# original because its pcap paths (pcaps/<name>.pcap) are relative.
 UAC_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uac_pcap_g711a.xml"
 [ "$FULL_CALL" == "1" ] && TALK=${TALK:-70,80}
 if [ -n "$TALK" ]; then
@@ -601,7 +601,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Relative pcap names in the scenarios resolve against the CWD (cron cd's here too)
+# SIPp resolves the scenarios' pcaps/<name>.pcap against the CWD (then the
+# scenario's own directory), so copies in the work dir find them from here
 cd "$BASE_DIR/sipp/scripts" || exit 1
 ulimit -n 65536 2>/dev/null
 

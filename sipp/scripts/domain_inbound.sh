@@ -121,8 +121,8 @@ SIP_PORT=$ALLOCATED_SIP_PORT
 MEDIA_PORT=$ALLOCATED_MEDIA_PORT
 CONTROL_PORT=$ALLOCATED_CONTROL_PORT
 
-# Templated copy of the UAC scenario next to the original (pcap paths are
-# relative): talk-time pause from --talk, media IP and RTP on/off applied to
+# Templated copy of the UAC scenario next to the original (pcap paths,
+# pcaps/<name>.pcap, are relative): talk-time pause from --talk, media IP and RTP on/off applied to
 # the copy only.
 DOMAIN_CLEAN=$(echo "$DOMAIN" | tr -cd '[:alnum:]_')
 SCENARIO="$BASE_DIR/sipp/scripts/.agentsim_uac_${SERVER_ID}_${DOMAIN_CLEAN}_$$.xml"
@@ -133,7 +133,7 @@ if ! grep -q "min=\"$TALK_MIN_MS\" max=\"$TALK_MAX_MS\"" "$SCENARIO"; then
     logger -t agent-sim-boost -p user.warning "Talk-time pause not found in sipp_uac_pcap_g711a.xml; using the scenario's own talk time"
 fi
 if [ "$SEND_RTP_FINAL" != "1" ]; then
-    sed -i -e 's/^[[:space:]]*<exec play_pcap_audio="\(g711a-[a-z0-9]*\)\.pcap"\/>/      <!-- RTP_DISABLED: <exec play_pcap_audio="\1.pcap"\/> -->/g' "$SCENARIO"
+    sed -i -e 's/^[[:space:]]*<exec play_pcap_audio="\(pcaps\/g711a-[a-z0-9]*\)\.pcap"\/>/      <!-- RTP_DISABLED: <exec play_pcap_audio="\1.pcap"\/> -->/g' "$SCENARIO"
 fi
 trap 'rm -f "$SCENARIO"' EXIT
 

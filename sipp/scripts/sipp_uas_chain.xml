@@ -99,7 +99,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__AUDIO__.pcap stage=agent-__AGENT_EXT__"/>
-      <exec play_pcap_audio="__AUDIO__.pcap"/>
+      <exec play_pcap_audio="pcaps/__AUDIO__.pcap"/>
     </action>
   </nop>
   <label id="talk"/>

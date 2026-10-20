@@ -101,7 +101,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-3way-term1.pcap stage=agent-a"/>
-      <exec play_pcap_audio="g711a-3way-term1.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-3way-term1.pcap"/>
     </action>
   </nop>
   <recv request="BYE" timeout="34000" ontimeout="to_bridge" next="bye_200">
@@ -321,7 +321,7 @@
     <action>
       <log message="3WAY A: in the bridge, to-tag=[$cf_totag]"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-3way-conf-a.pcap stage=conference"/>
-      <exec play_pcap_audio="g711a-3way-conf-a.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-3way-conf-a.pcap"/>
     </action>
   </nop>
   <label id="bridge_wait"/>

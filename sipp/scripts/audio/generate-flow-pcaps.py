@@ -34,7 +34,7 @@
 #   ./generate-flow-pcaps.py flows/blind2.json            # DEEPGRAM_API_KEY from env or audio/.env
 #   ./generate-flow-pcaps.py --tts say flows/blind2.json  # placeholder audio, macOS only
 #
-# Pcaps are written to sipp/scripts/<track>.pcap and reference WAVs to
+# Pcaps are written to sipp/scripts/pcaps/<track>.pcap and reference WAVs to
 # audio/<track>.wav (8 kHz s16, telephony bandpassed).
 
 import argparse
@@ -186,11 +186,11 @@ def main():
                 ffmpeg("-i", wav, "-f", "alaw", alaw)
                 ssrc = f"0A{zlib.crc32(t.encode()) & 0xFFFFFF:06X}"
                 run(sys.executable, os.path.join(AUDIO_DIR, "wav2rtp-pcap.py"), alaw,
-                    os.path.join(SCRIPTS_DIR, f"{t}.pcap"), ssrc)
+                    os.path.join(SCRIPTS_DIR, "pcaps", f"{t}.pcap"), ssrc)
                 print(f"{t}.wav / {t}.pcap: {duration(wav):.1f}s")
     finally:
         shutil.rmtree(work)
-    print(f"Done - pcaps written to {SCRIPTS_DIR}.")
+    print(f"Done - pcaps written to {os.path.join(SCRIPTS_DIR, 'pcaps')}.")
 
 
 if __name__ == "__main__":

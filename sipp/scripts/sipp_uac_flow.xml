@@ -115,7 +115,7 @@
     <action>
       <!-- log lines only emit under -trace_logs (manual_test.sh); cron is unaffected -->
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-silence.pcap stage=pre-agent"/>
-      <exec play_pcap_audio="g711a-silence.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-silence.pcap"/>
     </action>
   </nop>
 
@@ -137,7 +137,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-silence.pcap stage=post-dtmf"/>
-      <exec play_pcap_audio="g711a-silence.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-silence.pcap"/>
     </action>
   </nop>
 
@@ -409,7 +409,7 @@
       <assign assign_to="sstart" value="0"/>
       <add assign_to="sstart" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP1__.pcap stage=section-1"/>
-      <exec play_pcap_audio="__PCAP1__.pcap"/>
+      <exec play_pcap_audio="pcaps/__PCAP1__.pcap"/>
     </action>
   </nop>
   <label id="start_2"/>
@@ -420,7 +420,7 @@
       <assign assign_to="sstart" value="0"/>
       <add assign_to="sstart" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP2__.pcap stage=section-2"/>
-      <exec play_pcap_audio="__PCAP2__.pcap"/>
+      <exec play_pcap_audio="pcaps/__PCAP2__.pcap"/>
     </action>
   </nop>
   <label id="start_3"/>
@@ -431,7 +431,7 @@
       <assign assign_to="sstart" value="0"/>
       <add assign_to="sstart" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP3__.pcap stage=section-3"/>
-      <exec play_pcap_audio="__PCAP3__.pcap"/>
+      <exec play_pcap_audio="pcaps/__PCAP3__.pcap"/>
     </action>
   </nop>
   <label id="start_4"/>
@@ -442,7 +442,7 @@
       <assign assign_to="sstart" value="0"/>
       <add assign_to="sstart" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP4__.pcap stage=section-4"/>
-      <exec play_pcap_audio="__PCAP4__.pcap"/>
+      <exec play_pcap_audio="pcaps/__PCAP4__.pcap"/>
     </action>
   </nop>
   <label id="start_5"/>
@@ -453,7 +453,7 @@
       <assign assign_to="sstart" value="0"/>
       <add assign_to="sstart" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP5__.pcap stage=section-5"/>
-      <exec play_pcap_audio="__PCAP5__.pcap"/>
+      <exec play_pcap_audio="pcaps/__PCAP5__.pcap"/>
     </action>
   </nop>
   <label id="start_6"/>
@@ -464,7 +464,7 @@
       <assign assign_to="sstart" value="0"/>
       <add assign_to="sstart" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP6__.pcap stage=section-6"/>
-      <exec play_pcap_audio="__PCAP6__.pcap"/>
+      <exec play_pcap_audio="pcaps/__PCAP6__.pcap"/>
     </action>
   </nop>
 

@@ -10,7 +10,7 @@ Usage:
 
 Defaults:
     input  = sipp/scripts/mr.telephone.man.wav
-    output = sipp/scripts/opus.pcap
+    output = sipp/scripts/pcaps/opus.pcap
 
 SIPp replaces the destination IP/port at playback time, so the dummy
 addresses in the PCAP headers don't matter.
@@ -26,7 +26,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 
 DEFAULT_INPUT = os.path.join(REPO_ROOT, "sipp", "scripts", "mr.telephone.man.wav")
-DEFAULT_OUTPUT = os.path.join(REPO_ROOT, "sipp", "scripts", "opus.pcap")
+DEFAULT_OUTPUT = os.path.join(REPO_ROOT, "sipp", "scripts", "pcaps", "opus.pcap")
 
 # RTP parameters for Opus
 OPUS_PT = 121          # payload type as declared in our SDP

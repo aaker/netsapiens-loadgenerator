@@ -179,7 +179,7 @@ def generate(name, agent):
       <assign assign_to="deadline" value="{s[2]}"/>
       <add assign_to="deadline" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play={s[1]}.pcap stage=step-{i}"/>
-      <exec play_pcap_audio="{s[1]}.pcap"/>
+      <exec play_pcap_audio="pcaps/{s[1]}.pcap"/>
     </action>
   </nop>
 

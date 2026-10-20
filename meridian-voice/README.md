@@ -189,7 +189,7 @@ rebuild the domain (or use `--skip-avatars` to leave the avatars as they are).
 
 Every flow's audio is recorded speech: Deepgram Aura voices, aligned so each
 party's track is silent while the other speaks. The pcaps live in
-`sipp/scripts/`, next to the scenarios.
+`sipp/scripts/pcaps/`; the scenarios play `pcaps/<name>.pcap`.
 
 | Flow | Generator |
 |---|---|

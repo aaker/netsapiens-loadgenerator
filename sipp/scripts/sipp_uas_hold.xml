@@ -107,7 +107,7 @@
       <assign assign_to="deadline" value="32"/>
       <add assign_to="deadline" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-hold-term1.pcap stage=step-1"/>
-      <exec play_pcap_audio="g711a-hold-term1.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-hold-term1.pcap"/>
     </action>
   </nop>
 
@@ -250,7 +250,7 @@
       <assign assign_to="deadline" value="35"/>
       <add assign_to="deadline" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-hold-term2.pcap stage=step-3"/>
-      <exec play_pcap_audio="g711a-hold-term2.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-hold-term2.pcap"/>
     </action>
   </nop>
 
@@ -393,7 +393,7 @@
       <assign assign_to="deadline" value="27"/>
       <add assign_to="deadline" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-hold-term3.pcap stage=step-5"/>
-      <exec play_pcap_audio="g711a-hold-term3.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-hold-term3.pcap"/>
     </action>
   </nop>
 

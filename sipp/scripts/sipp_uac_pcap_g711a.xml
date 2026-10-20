@@ -110,7 +110,7 @@
     <action>
       <!-- log lines only emit under -trace_logs (manual_test.sh); cron is unaffected -->
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-silence.pcap stage=pre-agent"/>
-      <exec play_pcap_audio="g711a-silence.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-silence.pcap"/>
     </action>
   </nop>
 
@@ -132,7 +132,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-silence.pcap stage=post-dtmf"/>
-      <exec play_pcap_audio="g711a-silence.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-silence.pcap"/>
     </action>
   </nop>
 
@@ -222,14 +222,14 @@
   <nop next="settle">
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-orig.pcap leg=[$reinvite_legs] stage=agent1"/>
-      <exec play_pcap_audio="g711a-orig.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-orig.pcap"/>
     </action>
   </nop>
   <label id="talk_post_transfer"/>
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-orig2.pcap leg=[$reinvite_legs] stage=post-transfer"/>
-      <exec play_pcap_audio="g711a-orig2.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-orig2.pcap"/>
     </action>
   </nop>
 

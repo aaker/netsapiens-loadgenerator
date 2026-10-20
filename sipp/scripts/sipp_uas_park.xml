@@ -97,7 +97,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-park-term.pcap stage=agent-a"/>
-      <exec play_pcap_audio="g711a-park-term.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-park-term.pcap"/>
     </action>
   </nop>
   <recv request="BYE" timeout="45000" ontimeout="park" next="bye_200">

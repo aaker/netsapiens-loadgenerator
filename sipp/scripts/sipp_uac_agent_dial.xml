@@ -151,7 +151,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__AUDIO__.pcap stage=dial-in"/>
-      <exec play_pcap_audio="__AUDIO__.pcap"/>
+      <exec play_pcap_audio="pcaps/__AUDIO__.pcap"/>
     </action>
   </nop>
   <label id="talk_wait"/>

@@ -20,7 +20,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-out_dir="$(cd "$script_dir/.." && pwd)"           # sipp/scripts/
+out_dir="$(cd "$script_dir/../pcaps" && pwd)"     # sipp/scripts/pcaps/
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

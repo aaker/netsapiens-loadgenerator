@@ -211,7 +211,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term.pcap stage=agent-answer"/>
-      <exec play_pcap_audio="g711a-term.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-term.pcap"/>
     </action>
   </nop>
   <nop next="wait_bye"/>
@@ -219,7 +219,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=opus-term.pcap stage=agent-answer"/>
-      <exec play_pcap_audio="opus-term.pcap"/>
+      <exec play_pcap_audio="pcaps/opus-term.pcap"/>
     </action>
   </nop>
   <nop next="wait_bye"/>
@@ -230,7 +230,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term2.pcap stage=agent-transferred"/>
-      <exec play_pcap_audio="g711a-term2.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-term2.pcap"/>
     </action>
   </nop>
   <nop next="wait_bye"/>
@@ -238,7 +238,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=opus-term2.pcap stage=agent-transferred"/>
-      <exec play_pcap_audio="opus-term2.pcap"/>
+      <exec play_pcap_audio="pcaps/opus-term2.pcap"/>
     </action>
   </nop>
 
@@ -651,7 +651,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-term2.pcap stage=transferred-leg"/>
-      <exec play_pcap_audio="g711a-term2.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-term2.pcap"/>
     </action>
   </nop>
   <nop next="xfer_wind_down"/>
@@ -660,7 +660,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=opus-term2.pcap stage=transferred-leg"/>
-      <exec play_pcap_audio="opus-term2.pcap"/>
+      <exec play_pcap_audio="pcaps/opus-term2.pcap"/>
     </action>
   </nop>
 

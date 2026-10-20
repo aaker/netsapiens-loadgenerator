@@ -30,7 +30,7 @@
 #   DEEPGRAM_API_KEY=xxxxxxxx ./generate-attended-pcaps.sh
 #   TTS=say ./generate-attended-pcaps.sh
 #
-# Pcaps are written to sipp/scripts/ (next to the scenarios) plus reference
+# Pcaps are written to sipp/scripts/pcaps/ (the scenarios play pcaps/<name>.pcap) plus reference
 # att-*.wav copies in this directory.
 
 set -euo pipefail
@@ -58,7 +58,7 @@ CONSULT_LEN="${CONSULT_LEN:-24}"                  # section 2 length (agent 1 se
 TALK2_LEN="${TALK2_LEN:-60}"                      # section 3 length (the caller hangs up)
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-out_dir="$(cd "$script_dir/.." && pwd)"           # sipp/scripts/
+out_dir="$(cd "$script_dir/../pcaps" && pwd)"     # sipp/scripts/pcaps/
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

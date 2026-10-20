@@ -119,7 +119,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-term.pcap stage=agent-a"/>
-      <exec play_pcap_audio="g711a-att-term.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-att-term.pcap"/>
     </action>
   </nop>
   <recv request="BYE" timeout="44000" ontimeout="a_hold" next="bye_200">
@@ -401,7 +401,7 @@
     <action>
       <log message="ATT A: consult answered by [$b_ext], to-tag=[$cx_totag]"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-consult-a.pcap stage=consult-a"/>
-      <exec play_pcap_audio="g711a-att-consult-a.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-att-consult-a.pcap"/>
     </action>
   </nop>
   <recv request="BYE" timeout="24000" ontimeout="a_refer" next="bye_200">
@@ -581,7 +581,7 @@
     <action>
       <assign assign_to="b_talking" value="0"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-consult-b.pcap stage=consult-b"/>
-      <exec play_pcap_audio="g711a-att-consult-b.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-att-consult-b.pcap"/>
     </action>
   </nop>
   <recv timeout="25000" ontimeout="b_talk" request="INVITE" optional="true" next="b_reinvite">
@@ -595,7 +595,7 @@
     <action>
       <assign assign_to="b_talking" value="1"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711a-att-term2.pcap stage=agent-b"/>
-      <exec play_pcap_audio="g711a-att-term2.pcap"/>
+      <exec play_pcap_audio="pcaps/g711a-att-term2.pcap"/>
     </action>
   </nop>
   <label id="b_talk_wait"/>

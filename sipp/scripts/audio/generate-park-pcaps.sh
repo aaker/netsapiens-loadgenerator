@@ -26,7 +26,7 @@
 #   DEEPGRAM_API_KEY=xxxxxxxx ./generate-park-pcaps.sh
 #   TTS=say ./generate-park-pcaps.sh
 #
-# Pcaps are written to sipp/scripts/ (next to the scenarios) plus reference
+# Pcaps are written to sipp/scripts/pcaps/ (the scenarios play pcaps/<name>.pcap) plus reference
 # park-*.wav copies in this directory.
 
 set -euo pipefail
@@ -54,7 +54,7 @@ PARK_AT="${PARK_AT:-45}"                          # section 1 length (agent 1 pa
 TALK2_LEN="${TALK2_LEN:-60}"                      # section 2 length (the caller hangs up)
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-out_dir="$(cd "$script_dir/.." && pwd)"           # sipp/scripts/
+out_dir="$(cd "$script_dir/../pcaps" && pwd)"     # sipp/scripts/pcaps/
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

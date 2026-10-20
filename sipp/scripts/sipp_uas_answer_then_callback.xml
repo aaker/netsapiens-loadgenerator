@@ -162,7 +162,7 @@
     <action>
       <!-- log lines only emit under -trace_logs; cron runs are unaffected -->
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711u-term.pcap leg=inbound"/>
-      <exec play_pcap_audio="g711u-term.pcap"/>
+      <exec play_pcap_audio="pcaps/g711u-term.pcap"/>
     </action>
   </nop>
 
@@ -217,7 +217,7 @@
   <nop next="in_wait">
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711u-term2.pcap leg=inbound reinvite=[$in_reinvites]"/>
-      <exec play_pcap_audio="g711u-term2.pcap"/>
+      <exec play_pcap_audio="pcaps/g711u-term2.pcap"/>
     </action>
   </nop>
 
@@ -342,7 +342,7 @@
   <nop>
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711u-orig.pcap leg=callback"/>
-      <exec play_pcap_audio="g711u-orig.pcap"/>
+      <exec play_pcap_audio="pcaps/g711u-orig.pcap"/>
     </action>
   </nop>
 
@@ -394,7 +394,7 @@
   <nop next="cb_wait">
     <action>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=g711u-orig2.pcap leg=callback reinvite=[$cb_reinvites]"/>
-      <exec play_pcap_audio="g711u-orig2.pcap"/>
+      <exec play_pcap_audio="pcaps/g711u-orig2.pcap"/>
     </action>
   </nop>
 
