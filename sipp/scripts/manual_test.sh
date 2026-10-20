@@ -631,7 +631,7 @@ cleanup() {
         unlock_port "$p" 2>/dev/null
     done
     echo "Logs/CSVs kept in $WORK_DIR (sipp error/message logs in $BASE_DIR/sipp/scripts)"
-    exit 0
+    exit "${EXIT_CODE:-0}"
 }
 trap cleanup EXIT INT TERM
 
@@ -793,6 +793,7 @@ place_call() {
         -key ua_version "$UA_VERSION" \
         -trace_stat -stf "$stats" -fd 5 -trace_err -trace_logs -trace_msg
     local rc=$?
+    LAST_CALL_RC=$rc
     echo "[call] sipp exited with status $rc (stats: $stats)"
 
     if [ -n "$tcpdump_pid" ]; then
@@ -837,7 +838,12 @@ run_call() {
 
 if [ -n "$AUTO_WAIT" ] || [ "$ONCE" == "1" ]; then
     run_call "${AUTO_WAIT:-0}"
-    [ "$ONCE" == "1" ] && exit 0
+    # --once: exit with the call's SIPp status, so daily-calls.sh can tell a
+    # failed call (e.g. a DID that isn't provisioned) from a completed one.
+    if [ "$ONCE" == "1" ]; then
+        EXIT_CODE=${LAST_CALL_RC:-1}
+        exit "$EXIT_CODE"
+    fi
 fi
 
 while true; do

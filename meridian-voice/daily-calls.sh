@@ -66,6 +66,12 @@ cd "$BASE_DIR/sipp/scripts" || exit 1
 ./manual_test.sh --once --flow "$FLOW" -s "$SERVER" -t "$TRANSPORT" -w 5 --no-capture < /dev/null
 RC=$?
 log "$FLOW call finished (manual_test.sh exit $RC)"
+if [ "$RC" -ne 0 ]; then
+    # The call failed (SIPp status != 0, e.g. the DID returned an error): no
+    # agent answered, so there is no CDR to disposition.
+    log "$FLOW call failed - skipping the wrap-up (see the caller's errors/messages logs in sipp/scripts)"
+    exit "$RC"
+fi
 
 cd "$BASE_DIR" || exit 1
 node meridian-voice/disposition-calls.js --server "$SERVER" --flow "$FLOW" --since "$START"
