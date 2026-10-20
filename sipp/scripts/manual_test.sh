@@ -84,7 +84,8 @@
 #                         wait for registrations, then prompt)
 #   --once                Place one call, then exit (for cron: see
 #                         meridian-voice/daily-calls.sh)
-#   -k, --keep            Leave the registration instance running on exit
+#   -k, --keep            Register once for an hour and leave the
+#                         registrations running on exit
 #   --no-capture          Skip the per-packet tcpdump capture of the media port
 #
 # Manual mode always enables verbose SIPp tracing: -trace_logs (the __PCAP__
@@ -106,12 +107,15 @@
 #   ./manual_test.sh -s prod1 --flow hold              # one agent, two holds
 #   ./manual_test.sh -s prod1 --flow long              # ~14 min, 4 holds and a transfer
 #
-# After the call completes you are prompted again - press Enter to place
-# another call (new sipp instance, same paths), or q to quit. On exit the
-# registration instances are stopped (unless -k) and ports are released.
+# The devices register just before each call and are stopped a few seconds
+# after it, so nothing stays registered between calls. Each registration is
+# also sized to the flow (its expected length plus -w and a 90s margin, in 45s
+# re-register steps), so it ends on its own even if this script is killed.
+# After a call you are prompted again - press Enter to register and place
+# another, or q to quit. With -k the devices register once, for an hour, and
+# stay registered after exit (the old behaviour).
 #
-# REG_LOOPS=1 ./manual_test.sh makes every registered device exit its
-# re-register loop after one iteration (~45s) instead of running the full hour.
+# REG_LOOPS=<n> overrides the number of 45s re-register loops.
 
 BASE_DIR="/usr/local/NetSapiens/netsapiens-loadgenerator"
 source "$BASE_DIR/.env"
@@ -284,6 +288,23 @@ if [ "$TRANSPORT" == "l1" ]; then
     [ -f /etc/ssl/certs/ca-certificates.crt ] && TLS_CA_PATH="-tls_ca /etc/ssl/certs/ca-certificates.crt"
     [ -f /etc/pki/tls/certs/ca-bundle.crt ] && TLS_CA_PATH="-tls_ca /etc/pki/tls/certs/ca-bundle.crt"
     TLS_OPTIONS="-tls_cert $TLS_CERT -tls_key $TLS_KEY -tls_version 1.2 $TLS_CA_PATH"
+fi
+
+# Registration lifetime: the flow's expected call length (seconds, including
+# holds at their longest) plus -w and a margin, in 45s re-register loops.
+case "$FLOW" in
+    blind)    FLOW_SECS=$([ "$FULL_CALL" == "1" ] && echo 330 || echo 780) ;;
+    attended) FLOW_SECS=150 ;;
+    park)     FLOW_SECS=$((140 + PARK_TIME)) ;;
+    3way)     FLOW_SECS=110 ;;
+    blind2)   FLOW_SECS=130 ;;
+    hold)     FLOW_SECS=165 ;;
+    long)     FLOW_SECS=900 ;;
+esac
+if [ "$KEEP" == "1" ]; then
+    REG_LOOPS=${REG_LOOPS:-78}
+else
+    REG_LOOPS=${REG_LOOPS:-$(( (FLOW_SECS + ${AUTO_WAIT:-0} + 90 + 44) / 45 ))}
 fi
 
 # ------------------------------------------------------------------- setup
@@ -635,6 +656,11 @@ for set in "${REG_SETS[@]}"; do
     IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
     echo "   Reg ports:   sip=$_sip media=$_media ctrl=$_ctrl ($(basename "$_csv"))"
 done
+if [ "$KEEP" == "1" ]; then
+    echo "   Registered:  once, up to $((REG_LOOPS * 45))s, left running on exit (-k)"
+else
+    echo "   Registered:  per call, up to $((REG_LOOPS * 45))s ($REG_LOOPS x 45s), stopped 5s after it"
+fi
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
 if [ -n "$DIAL_SCRIPT" ]; then
     echo "   Dial-in:     sip=$DIAL_SIP_PORT media=$DIAL_MEDIA_PORT ctrl=$DIAL_CONTROL_PORT (log: $DIAL_LOG)"
@@ -654,7 +680,7 @@ echo "========================================================"
 start_registration() {
     local csv="$1" sip="$2" media="$3" ctrl="$4" stats="$5" uas="$6"
     local n=$(grep -cv -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$csv")
-    local cmd="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -key reg_loops ${REG_LOOPS:-78} $REG_KEYS \
+    local cmd="sipp ${SUT}${SIP_PORT_ADD_ON} -key expires 60 -key ua_version $UA_VERSION -key reg_loops $REG_LOOPS $REG_KEYS \
 -r 5 -m $n -l $n \
 -t $TRANSPORT $TLS_OPTIONS -p $sip -cp $ctrl \
 -sf $BASE_DIR/sipp/scripts/register.and.subscribe.sipp.xml \
@@ -680,28 +706,40 @@ start_registration() {
     echo "[register] started (PID $pid, $n device(s))"
 }
 
-for set in "${REG_SETS[@]}"; do
-    IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
-    start_registration "$_csv" "$_sip" "$_media" "$_ctrl" "$_stats" "$_uas"
-done
-echo "[register] waiting for $NUM_DEVICES registrations..."
-
-# Wait until all devices show as active calls in the stats (each registered
-# device is one long-lived 'call' in the re-REGISTER loop), or 60s.
-WAITED=0
-while [ "$WAITED" -lt 60 ]; do
-    CURRENT=0
+# register_devices: start every registration process, then wait until all
+# devices show as active calls in the stats (each registered device is one
+# long-lived 'call' in the re-REGISTER loop), or 60s.
+register_devices() {
+    local set c WAITED=0 CURRENT
     for set in "${REG_SETS[@]}"; do
         IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
-        [ -f "$_stats" ] || continue
-        c=$(awk -F';' 'NR==1{for(i=1;i<=NF;i++) if($i=="CurrentCall") c=i} END{if(c) print $c}' "$_stats")
-        CURRENT=$((CURRENT + ${c:-0}))
+        rm -f "$_stats"
+        start_registration "$_csv" "$_sip" "$_media" "$_ctrl" "$_stats" "$_uas"
     done
-    echo "  registered/active: $CURRENT/$NUM_DEVICES (${WAITED}s)"
-    [ "$CURRENT" -ge "$NUM_DEVICES" ] && break
-    sleep 3; WAITED=$((WAITED + 3))
-done
-[ "$WAITED" -ge 60 ] && echo "  (timed out waiting - continuing anyway, check $STATS_PATH/manual_register_${TRANSPORT}_$$*.csv)"
+    echo "[register] waiting for $NUM_DEVICES registrations (each lasts up to $((REG_LOOPS * 45))s)..."
+    while [ "$WAITED" -lt 60 ]; do
+        CURRENT=0
+        for set in "${REG_SETS[@]}"; do
+            IFS=: read -r _csv _sip _media _ctrl _stats _uas <<< "$set"
+            [ -f "$_stats" ] || continue
+            c=$(awk -F';' 'NR==1{for(i=1;i<=NF;i++) if($i=="CurrentCall") c=i} END{if(c) print $c}' "$_stats")
+            CURRENT=$((CURRENT + ${c:-0}))
+        done
+        echo "  registered/active: $CURRENT/$NUM_DEVICES (${WAITED}s)"
+        [ "$CURRENT" -ge "$NUM_DEVICES" ] && break
+        sleep 3; WAITED=$((WAITED + 3))
+    done
+    [ "$WAITED" -ge 60 ] && echo "  (timed out waiting - continuing anyway, check $STATS_PATH/manual_register_${TRANSPORT}_$$*.csv)"
+}
+
+# stop_registrations: end the registration processes (the core drops the
+# devices when their 60s registrations expire).
+stop_registrations() {
+    [ "${#REG_PIDS[@]}" -gt 0 ] || return 0
+    echo "[register] stopping registration instance(s) (PID ${REG_PIDS[*]})"
+    kill "${REG_PIDS[@]}" 2>/dev/null
+    REG_PIDS=()
+}
 
 # --------------------------------------------- 2) inbound call (cron path)
 # Mirrors inbound.sh's sipp invocation; -r/-m pinned for single targeted calls.
@@ -764,16 +802,32 @@ place_call() {
     fi
 }
 
-if [ -n "$AUTO_WAIT" ] || [ "$ONCE" == "1" ]; then
-    echo "Waiting ${AUTO_WAIT:-0}s before placing the first call..."
-    sleep "${AUTO_WAIT:-0}"
+# run_call [wait]: register (unless -k already did), optionally wait, place
+# the call, then give the agents a few seconds to finish and stop the
+# registrations again (unless -k).
+run_call() {
+    [ "$KEEP" == "1" ] || register_devices
+    if [ -n "$1" ]; then
+        echo "Waiting ${1}s before placing the call..."
+        sleep "$1"
+    fi
     place_call
+    if [ "$KEEP" != "1" ]; then
+        sleep 5
+        stop_registrations
+    fi
+}
+
+[ "$KEEP" == "1" ] && register_devices
+
+if [ -n "$AUTO_WAIT" ] || [ "$ONCE" == "1" ]; then
+    run_call "${AUTO_WAIT:-0}"
     [ "$ONCE" == "1" ] && exit 0
 fi
 
 while true; do
     echo ""
-    read -r -p "Press Enter to place a call to $NUMBER (q to quit): " ANSWER
+    read -r -p "Press Enter to register and place a call to $NUMBER (q to quit): " ANSWER
     [ "$ANSWER" == "q" ] && break
-    place_call
+    run_call
 done

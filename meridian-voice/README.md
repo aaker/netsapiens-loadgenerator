@@ -133,6 +133,7 @@ sipp/scripts/manual_test.sh -s <server> --flow <flow> [-t u1|t1|l1] [-w 5] [--on
 
 - **Default flow:** with no `--flow`, it runs `blind`.
 - **Placing calls:** each Enter places another call, and `q` quits. `--once` places one call and exits, which is what cron uses.
+- **Registrations:** the agents' devices register just before each call and stop 5 seconds after it, so nothing stays registered between calls. Each registration is also sized to the flow, about 4 minutes for `3way` up to 17 for `long`, so it ends on its own even if the script is killed. `-k` registers once for an hour and leaves the registrations running.
 - **Logs:** each run prints its work directory and log paths. Full SIP traces go to `sipp/scripts/*_messages.log`.
 - **Overrides:** `-f` uses another device CSV, `-n` calls another number, and `--media-ip` sets the address the caller advertises. The public IP is found automatically.
 - `sipp/scripts/manual_test.sh -h` lists every option.
