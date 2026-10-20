@@ -496,7 +496,8 @@ park)
     ;;
 # blind2: two blind transfers, A -> B -> C (sipp_uas_chain.xml). The device
 # decides the role: the first three devices in the CSV are A, B and C (any
-# others answer like C).
+# others answer like C). A only takes calls from the queue: a call that comes
+# back to it (a recalled transfer) is rejected instead of transferred again.
 blind2)
     [ "${#DEV_EXTS[@]}" -ge 3 ] || { echo "ERROR: --flow blind2 needs at least 3 devices (A, B and C)"; exit 1; }
     flow_caller g711a-b2-orig1 34 g711a-b2-orig2 30 g711a-b2-orig3 44
@@ -505,9 +506,9 @@ blind2)
         ext=${DEV_EXTS[$i]}
         DEV_UAS[$i]="$WORK_DIR/uas_chain_$ext.xml"
         case $i in
-            0) link=(AUDIO=g711a-b2-term1 TALK_MS=34000 AFTER_TALK=refer NEXT_EXT=${DEV_EXTS[1]}) ;;
-            1) link=(AUDIO=g711a-b2-term2 TALK_MS=30000 AFTER_TALK=refer NEXT_EXT=${DEV_EXTS[2]}) ;;
-            *) link=(AUDIO=g711a-b2-term3 TALK_MS=44000 AFTER_TALK=wait_end NEXT_EXT=none) ;;
+            0) link=(AUDIO=g711a-b2-term1 TALK_MS=34000 AFTER_TALK=refer NEXT_EXT=${DEV_EXTS[1]} NON_QUEUE=reject) ;;
+            1) link=(AUDIO=g711a-b2-term2 TALK_MS=30000 AFTER_TALK=refer NEXT_EXT=${DEV_EXTS[2]} NON_QUEUE=answer) ;;
+            *) link=(AUDIO=g711a-b2-term3 TALK_MS=44000 AFTER_TALK=wait_end NEXT_EXT=none NON_QUEUE=answer) ;;
         esac
         fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_chain.xml" "$ext" "${DEV_UAS[$i]}" "${link[@]}"
     done

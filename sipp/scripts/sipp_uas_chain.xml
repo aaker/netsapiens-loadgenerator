@@ -10,13 +10,19 @@
 <!--   __AGENT_EXT__ / __AGENT_DOMAIN__  this device                        -->
 <!--   __AUDIO__ / __TALK_MS__           its part of the conversation (pcap -->
 <!--                                     name without .pcap, talk in ms)    -->
+<!--   __NON_QUEUE__                     a call without P-Served-Queue:     -->
+<!--                                     answer (B, C: the transfer) or     -->
+<!--                                     reject (A: a transfer that came    -->
+<!--                                     back, e.g. recalled when the next  -->
+<!--                                     agent didn't take it - answering   -->
+<!--                                     would transfer it again, a loop)   -->
 <!--   __AFTER_TALK__                    refer: blind-REFER the caller to   -->
 <!--                                     __NEXT_EXT__ when the talk ends;   -->
 <!--                                     wait_end: the last agent, wait for -->
 <!--                                     the caller's BYE (hang up 20s      -->
 <!--                                     after the talk if it never comes)  -->
-<!-- Any incoming call (from the queue or transferred in) gets the same     -->
-<!-- treatment: the device decides the role, not the call.                  -->
+<!-- The device decides the role. Every INVITE is logged with the headers   -->
+<!-- that show how it arrived (P-Served-Queue, Referred-By, Diversion).     -->
 <!-- ====================================================================== -->
 
 <scenario name="UAS transfer chain agent">
@@ -26,9 +32,20 @@
       <ereg regexp="[: ]*(.*)" search_in="hdr" header="From" assign_to="remote_from,remote_from"/>
       <ereg regexp="[: ]*([^;]*)" search_in="hdr" header="To" assign_to="local_to,local_to"/>
       <ereg regexp="sip:[^>]*" search_in="hdr" header="Contact" assign_to="remote_contact"/>
-      <log message="CHAIN __AGENT_EXT__: answering, then __AFTER_TALK__ (next=__NEXT_EXT__) callid=[call_id]"/>
+      <ereg regexp="P-Served-Queue:[^0-9]*([0-9]+)" search_in="msg" assign_to="from_queue,served_queue" checkIt="false"/>
+      <ereg regexp="Referred-By: *([^\r\n]*)" search_in="msg" assign_to="referred_by,referred_by" checkIt="false"/>
+      <ereg regexp="Diversion: *([^\r\n]*)" search_in="msg" assign_to="diversion,diversion" checkIt="false"/>
+      <log message="CHAIN __AGENT_EXT__: INVITE from=[$remote_from] queue=[$served_queue] referred-by=[$referred_by] diversion=[$diversion] callid=[call_id]"/>
     </action>
   </recv>
+
+  <nop test="from_queue" next="answer"/>
+  <nop next="__NON_QUEUE__"/>
+
+  <label id="answer"/>
+  <nop>
+    <action><log message="CHAIN __AGENT_EXT__: answering, then __AFTER_TALK__ (next=__NEXT_EXT__)"/></action>
+  </nop>
 
   <send>
     <![CDATA[
@@ -238,6 +255,30 @@
 
     ]]>
   </send>
+
+  <!-- Not a call this agent should take: refuse it rather than replay the -->
+  <!-- conversation and transfer it again.                                 -->
+  <label id="reject"/>
+  <nop>
+    <action><log message="CHAIN __AGENT_EXT__: rejecting a call that did not come from the queue (a transfer that came back?) callid=[call_id]"/></action>
+  </nop>
+  <send>
+    <![CDATA[
+
+      SIP/2.0 486 Busy Here
+      [last_Via:]
+      [last_From:]
+      [last_To:];tag=[pid]SIPpTag01[call_number]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Contact: <sip:__AGENT_EXT__@[local_ip]:[local_port];transport=[transport]>
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv request="ACK" timeout="5000" ontimeout="99" next="99">
+  </recv>
 
   <label id="99"/>
   <timewait milliseconds="4000"/>
