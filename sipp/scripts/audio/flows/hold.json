@@ -110,5 +110,40 @@
       "CALLER",
       "You too, bye."
     ]
-  ]
+  ],
+  "agents": {
+    "sipp_uas_hold.xml": {
+      "title": "Hold call agent: two holds, no transfer",
+      "steps": [
+        [
+          "talk",
+          "g711a-hold-term1",
+          32
+        ],
+        [
+          "hold",
+          20,
+          30
+        ],
+        [
+          "talk",
+          "g711a-hold-term2",
+          35
+        ],
+        [
+          "hold",
+          20,
+          30
+        ],
+        [
+          "talk",
+          "g711a-hold-term3",
+          27
+        ],
+        [
+          "end"
+        ]
+      ]
+    }
+  }
 }

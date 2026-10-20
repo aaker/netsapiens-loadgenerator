@@ -24,9 +24,11 @@
 #       {"length": 44, "tracks": {"CALLER": "g711a-b2-orig1", "AGENT1": "g711a-b2-term1"}},
 #       {"length": 70, "tracks": {...}, "offsets": {"AGENT2": 5}}
 #     ],
-#     "turns": [["AGENT1", "text"], ["CALLER", "text"], ["SECTION"], ...]
+#     "turns": [["AGENT1", "text"], ["CALLER", "text"], ["PAUSE", 6], ["SECTION"], ...],
+#     "agents": {...}                                   # see gen-agent-scenario.py
 #   }
-# "SECTION" ends the current section and starts the next.
+# "SECTION" ends the current section and starts the next. ["PAUSE", n] is n
+# seconds of dead air on every track (an awkward silence, someone typing).
 #
 # Usage:
 #   ./generate-flow-pcaps.py flows/blind2.json            # DEEPGRAM_API_KEY from env or audio/.env
@@ -137,6 +139,16 @@ def main():
             if turn[0] == "SECTION":
                 close_section()
                 sec, elapsed = sec + 1, 0.0
+                continue
+            if turn[0] == "PAUSE":
+                # Dead air on every track of the section (nobody speaks).
+                i += 1
+                print(f"[{i:02d}] PAUSE {turn[1]}s")
+                pause = os.path.join(work, f"pause_{i}.wav")
+                silence(turn[1], pause)
+                for t in lists[sec]:
+                    lists[sec][t].append(pause)
+                elapsed += turn[1]
                 continue
             who, text = turn
             tracks = sections[sec]["tracks"]

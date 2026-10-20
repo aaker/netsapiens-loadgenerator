@@ -7,7 +7,8 @@
 <!-- Same call setup as sipp_uac_pcap_g711a.xml (DID INVITE, pre-agent      -->
 <!-- silence + DTMF), then plays one pcap per section of the conversation,  -->
 <!-- each section with a different agent (or set of agents).  manual_test  -->
-<!-- fills in __SECTIONS__ (2 or 3) and __PCAPn__ / __LENn__ (seconds).     -->
+<!-- fills in __SECTIONS__ (2-6) and __PCAPn__ / __LENn__ (seconds) for    -->
+<!-- n = 1-6; sections past __SECTIONS__ are never reached.                -->
 <!--                                                                        -->
 <!-- Sections follow the re-INVITEs the core sends as the call moves        -->
 <!-- (agent connect, hold, transfer, conference join), timed against        -->
@@ -373,20 +374,32 @@
     <action>
       <test assign_to="k_is_1" variable="k" compare="equal" value="1"/>
       <test assign_to="k_is_2" variable="k" compare="equal" value="2"/>
+      <test assign_to="k_is_3" variable="k" compare="equal" value="3"/>
+      <test assign_to="k_is_4" variable="k" compare="equal" value="4"/>
+      <test assign_to="k_is_5" variable="k" compare="equal" value="5"/>
     </action>
   </nop>
   <nop test="k_is_1" next="start_1"/>
   <nop test="k_is_2" next="start_2"/>
-  <nop next="start_3"/>
+  <nop test="k_is_3" next="start_3"/>
+  <nop test="k_is_4" next="start_4"/>
+  <nop test="k_is_5" next="start_5"/>
+  <nop next="start_6"/>
 
   <label id="next_section"/>
   <nop>
     <action>
       <test assign_to="k_is_1" variable="k" compare="equal" value="1"/>
+      <test assign_to="k_is_2" variable="k" compare="equal" value="2"/>
+      <test assign_to="k_is_3" variable="k" compare="equal" value="3"/>
+      <test assign_to="k_is_4" variable="k" compare="equal" value="4"/>
     </action>
   </nop>
   <nop test="k_is_1" next="start_2"/>
-  <nop next="start_3"/>
+  <nop test="k_is_2" next="start_3"/>
+  <nop test="k_is_3" next="start_4"/>
+  <nop test="k_is_4" next="start_5"/>
+  <nop next="start_6"/>
 
   <label id="start_1"/>
   <nop next="poll">
@@ -419,6 +432,39 @@
       <add assign_to="sstart" variable="now"/>
       <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP3__.pcap stage=section-3"/>
       <exec play_pcap_audio="__PCAP3__.pcap"/>
+    </action>
+  </nop>
+  <label id="start_4"/>
+  <nop next="poll">
+    <action>
+      <assign assign_to="k" value="4"/>
+      <assign assign_to="cur_len" value="__LEN4__"/>
+      <assign assign_to="sstart" value="0"/>
+      <add assign_to="sstart" variable="now"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP4__.pcap stage=section-4"/>
+      <exec play_pcap_audio="__PCAP4__.pcap"/>
+    </action>
+  </nop>
+  <label id="start_5"/>
+  <nop next="poll">
+    <action>
+      <assign assign_to="k" value="5"/>
+      <assign assign_to="cur_len" value="__LEN5__"/>
+      <assign assign_to="sstart" value="0"/>
+      <add assign_to="sstart" variable="now"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP5__.pcap stage=section-5"/>
+      <exec play_pcap_audio="__PCAP5__.pcap"/>
+    </action>
+  </nop>
+  <label id="start_6"/>
+  <nop next="poll">
+    <action>
+      <assign assign_to="k" value="6"/>
+      <assign assign_to="cur_len" value="__LEN6__"/>
+      <assign assign_to="sstart" value="0"/>
+      <add assign_to="sstart" variable="now"/>
+      <log message="__PCAP__ call=[call_number] tick=[clock_tick]ms play=__PCAP6__.pcap stage=section-6"/>
+      <exec play_pcap_audio="__PCAP6__.pcap"/>
     </action>
   </nop>
 

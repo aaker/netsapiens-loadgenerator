@@ -56,6 +56,9 @@
 #                                     section with each agent (~2 min).
 #                           hold      no transfer: agent A puts the caller on
 #                                     hold twice, 20-30s each (~2.5 min).
+#                           long      ~14 min: agent A holds the caller twice,
+#                                     then blind-transfers to agent B, who
+#                                     holds twice more. Banter and silences.
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -97,6 +100,7 @@
 #   ./manual_test.sh -s prod1 --flow 3way              # 3-way call on the 800 bridge
 #   ./manual_test.sh -s prod1 --flow blind2            # two blind transfers, A -> B -> C
 #   ./manual_test.sh -s prod1 --flow hold              # one agent, two holds
+#   ./manual_test.sh -s prod1 --flow long              # ~14 min, 4 holds and a transfer
 #
 # After the call completes you are prompted again - press Enter to place
 # another call (new sipp instance, same paths), or q to quit. On exit the
@@ -159,12 +163,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park|3way|blind2|hold)
+    attended|park|3way|blind2|hold|long)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2 or hold (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold or long (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -381,14 +385,19 @@ fill_agent() {
         { for (j = 1; j <= n; j++) $0 = rep($0, "__" k[j] "__", ENVIRON[k[j]]); print }' "$template" > "$out"
 }
 
-# flow_caller <sections> <pcap1> <len1> <pcap2> <len2> [<pcap3> <len3>]: the
-# multi-section caller (sipp_uac_flow.xml) filled in for this flow.
+# flow_caller <pcap1> <len1> <pcap2> <len2> [... up to <pcap6> <len6>]: the
+# multi-section caller (sipp_uac_flow.xml) filled in for this flow, one
+# section per pcap/length pair. Unused sections repeat the last pair (they
+# must still name a real pcap, since SIPp loads every pcap at startup).
 flow_caller() {
-    local n="$1" p1="$2" l1="$3" p2="$4" l2="$5" p3="${6:-$4}" l3="${7:-$5}"
+    local n=$(( $# / 2 )) i pcap len
+    local -a subst=(-e "s/__SECTIONS__/$n/g")
+    for i in 1 2 3 4 5 6; do
+        if [ "$i" -le "$n" ]; then pcap=$1; len=$2; shift 2; fi
+        subst+=(-e "s/__PCAP${i}__/$pcap/g" -e "s/__LEN${i}__/$len/g")
+    done
     UAC_SCENARIO="$BASE_DIR/sipp/scripts/.manual_uac_$$.xml"
-    sed -e "s/__SECTIONS__/$n/g" -e "s/__PCAP1__/$p1/g" -e "s/__LEN1__/$l1/g" \
-        -e "s/__PCAP2__/$p2/g" -e "s/__LEN2__/$l2/g" -e "s/__PCAP3__/$p3/g" -e "s/__LEN3__/$l3/g" \
-        "$BASE_DIR/sipp/scripts/sipp_uac_flow.xml" > "$UAC_SCENARIO"
+    sed "${subst[@]}" "$BASE_DIR/sipp/scripts/sipp_uac_flow.xml" > "$UAC_SCENARIO"
 }
 
 case "$FLOW" in
@@ -430,7 +439,7 @@ park)
 # bridge with a blind REFER, runs DIAL_SCRIPT (B dials the bridge JOIN_DELAY
 # seconds later), and joins the bridge itself.
 3way)
-    flow_caller 2 g711a-3way-orig1 34 g711a-3way-orig2 46
+    flow_caller g711a-3way-orig1 34 g711a-3way-orig2 46
     DIAL_SCRIPT="$WORK_DIR/join.sh"
     DIAL_WAIT=$JOIN_DELAY; DIAL_EXT=$CONF_EXT; DIAL_AUDIO=g711a-3way-conf-b; DIAL_TALK_MS=44000
     REG_KEYS="-key conf_ext $CONF_EXT"
@@ -445,7 +454,7 @@ park)
 # others answer like C).
 blind2)
     [ "${#DEV_EXTS[@]}" -ge 3 ] || { echo "ERROR: --flow blind2 needs at least 3 devices (A, B and C)"; exit 1; }
-    flow_caller 3 g711a-b2-orig1 34 g711a-b2-orig2 30 g711a-b2-orig3 44
+    flow_caller g711a-b2-orig1 34 g711a-b2-orig2 30 g711a-b2-orig3 44
     PER_DEVICE=1
     for i in "${!DEV_EXTS[@]}"; do
         ext=${DEV_EXTS[$i]}
@@ -461,8 +470,26 @@ blind2)
 # hold: no transfer. Agent A (sipp_uas_hold.xml) holds the caller twice for a
 # random 20-30s each; a single registration process is enough.
 hold)
-    flow_caller 3 g711a-hold-orig1 32 g711a-hold-orig2 35 g711a-hold-orig3 27
+    flow_caller g711a-hold-orig1 32 g711a-hold-orig2 35 g711a-hold-orig3 27
     _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_hold.xml"
+    ;;
+# long: ~14 minutes. Agent A (the first device, sipp_uas_long_a.xml) holds
+# twice and blind-transfers to agent B (the second device,
+# sipp_uas_long_b.xml), who holds twice more. Both are generated from
+# audio/flows/long.json by gen-agent-scenario.py.
+long)
+    [ "${#DEV_EXTS[@]}" -ge 2 ] || { echo "ERROR: --flow long needs at least 2 devices (A and B)"; exit 1; }
+    flow_caller g711a-long-orig1 158 g711a-long-orig2 152 g711a-long-orig3 94 \
+                g711a-long-orig4 166 g711a-long-orig5 48 g711a-long-orig6 123
+    PER_DEVICE=1
+    for i in "${!DEV_EXTS[@]}"; do
+        DEV_UAS[$i]="$WORK_DIR/uas_long_${DEV_EXTS[$i]}.xml"
+        if [ "$i" -eq 0 ]; then
+            fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_long_a.xml" "${DEV_EXTS[$i]}" "${DEV_UAS[$i]}" NEXT_EXT="${DEV_EXTS[1]}"
+        else
+            fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_long_b.xml" "${DEV_EXTS[$i]}" "${DEV_UAS[$i]}"
+        fi
+    done
     ;;
 esac
 
@@ -570,6 +597,8 @@ elif [ "$FLOW" == "blind2" ]; then
     echo "   Flow:        blind2 - $AGENT_A -> ${DEV_EXTS[1]} -> $AGENT_C (two blind transfers)"
 elif [ "$FLOW" == "hold" ]; then
     echo "   Flow:        hold - agent A holds the caller twice, 20-30s each"
+elif [ "$FLOW" == "long" ]; then
+    echo "   Flow:        long (~14 min) - $AGENT_A holds twice, transfers to ${DEV_EXTS[1]}, who holds twice"
 elif [ "$FULL_CALL" == "1" ]; then
     echo "   Talk time:   full call - ${TALK}s to the 90s transfer, then 195s post-transfer"
 else

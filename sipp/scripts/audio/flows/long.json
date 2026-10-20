@@ -1,0 +1,734 @@
+{
+  "name": "long",
+  "voices": {
+    "CALLER": "aura-perseus-en",
+    "AGENT1": "aura-asteria-en",
+    "AGENT2": "aura-arcas-en"
+  },
+  "say_voices": {
+    "CALLER": "Fred",
+    "AGENT1": "Samantha",
+    "AGENT2": "Reed (English (US))"
+  },
+  "sections": [
+    {
+      "length": 158,
+      "tracks": {
+        "CALLER": "g711a-long-orig1",
+        "AGENT1": "g711a-long-term1"
+      }
+    },
+    {
+      "length": 152,
+      "tracks": {
+        "CALLER": "g711a-long-orig2",
+        "AGENT1": "g711a-long-term2"
+      }
+    },
+    {
+      "length": 94,
+      "tracks": {
+        "CALLER": "g711a-long-orig3",
+        "AGENT1": "g711a-long-term3"
+      }
+    },
+    {
+      "length": 166,
+      "tracks": {
+        "CALLER": "g711a-long-orig4",
+        "AGENT2": "g711a-long-term4"
+      }
+    },
+    {
+      "length": 48,
+      "tracks": {
+        "CALLER": "g711a-long-orig5",
+        "AGENT2": "g711a-long-term5"
+      }
+    },
+    {
+      "length": 123,
+      "tracks": {
+        "CALLER": "g711a-long-orig6",
+        "AGENT2": "g711a-long-term6"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT1",
+      "Thank you for calling Meridian Voice Support, this is Priya. How can I help you today?"
+    ],
+    [
+      "CALLER",
+      "Hi Priya, Greg Hanley over at Pinecrest Realty. How's your morning going?"
+    ],
+    [
+      "AGENT1",
+      "Pretty good, thanks for asking. It's finally sunny here, so nobody's complaining. How about you?"
+    ],
+    [
+      "CALLER",
+      "Oh, it's raining sideways here. Classic October. Anyway, I've got a bit of a list today, if that's all right."
+    ],
+    [
+      "AGENT1",
+      "Of course. Let's work through it. What's first?"
+    ],
+    [
+      "CALLER",
+      "So, we're moving offices at the end of next month, to the new building on Ridge Avenue. I want to make sure the phones come with us, and that nothing goes down on moving day."
+    ],
+    [
+      "AGENT1",
+      "Got it, a move. And what else is on the list?"
+    ],
+    [
+      "CALLER",
+      "Two of our agents, Linda and Raj, stopped getting their voicemails by email last week. Our office manager wants to change the hours on the main greeting for the summer. Oh, and we have two interns starting in June."
+    ],
+    [
+      "AGENT1",
+      "Okay, that's four things. The move, voicemail to email, the greeting hours, and two new users. Let me pull up your account first. Can you confirm the main number?"
+    ],
+    [
+      "CALLER",
+      "Sure, it's five oh three, five five five, zero one two two."
+    ],
+    [
+      "AGENT1",
+      "Thank you. One moment. The system's a little slow this morning."
+    ],
+    [
+      "PAUSE",
+      7
+    ],
+    [
+      "CALLER",
+      "Take your time."
+    ],
+    [
+      "PAUSE",
+      4
+    ],
+    [
+      "AGENT1",
+      "Sorry about that. Still loading."
+    ],
+    [
+      "PAUSE",
+      5
+    ],
+    [
+      "CALLER",
+      "No worries. I've got coffee. Lots of coffee."
+    ],
+    [
+      "AGENT1",
+      "Ha, that makes two of us. Okay, here we go. I have Pinecrest Realty, with fourteen users on the account."
+    ],
+    [
+      "CALLER",
+      "Fourteen, that sounds right. Fifteen if you count the dog, but he doesn't answer the phone."
+    ],
+    [
+      "AGENT1",
+      "Ha. What kind of dog?"
+    ],
+    [
+      "CALLER",
+      "A beagle named Biscuit. He sits by the front door and greets every client. Honestly, he's better at it than some of our staff."
+    ],
+    [
+      "AGENT1",
+      "Every office needs a Biscuit. Okay, back to the move. Are you keeping the same phone numbers and extensions at the new office?"
+    ],
+    [
+      "CALLER",
+      "That's my big question. Will everything stay the same? People have the extensions memorized, and I don't want to reprint business cards."
+    ],
+    [
+      "AGENT1",
+      "Yes, everything stays the same. The numbers belong to your account, not the building. The phones will just work once they're plugged in at the new office."
+    ],
+    [
+      "CALLER",
+      "Oh, that's a relief. What about the phone in the conference room? It's one of those big triangle ones."
+    ],
+    [
+      "AGENT1",
+      "That one too, as long as it's plugged into the network. It's set up the same way as the desk phones."
+    ],
+    [
+      "AGENT1",
+      "That's probably for the best. So, there's a move request already open from two weeks ago, but it hasn't been assigned to anyone yet. Let me put you on a quick hold while I look at the details of that ticket."
+    ],
+    [
+      "CALLER",
+      "Sounds good."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT1",
+      "Thanks for holding, Greg. Sorry that took a minute."
+    ],
+    [
+      "CALLER",
+      "No problem. Your hold music is very relaxing, by the way. I almost fell asleep."
+    ],
+    [
+      "AGENT1",
+      "You're not the first person to say that. Okay, the move ticket. The install date is set for the twenty eighth, and our technician will be on site at eight in the morning."
+    ],
+    [
+      "CALLER",
+      "Eight a m. Okay. The movers are coming the day before, so the desks should be in place."
+    ],
+    [
+      "AGENT1",
+      "Good. Is there anything the technician needs to get into the building? Some buildings need a badge or an escort."
+    ],
+    [
+      "CALLER",
+      "Oh, yes. The building has a security desk in the lobby. Have them ask for me, and I'll come down."
+    ],
+    [
+      "AGENT1",
+      "Okay. I'll add your name and cell number to the ticket. What's the best cell number?"
+    ],
+    [
+      "CALLER",
+      "Five oh three, five five five, zero nine eight one."
+    ],
+    [
+      "PAUSE",
+      5
+    ],
+    [
+      "AGENT1",
+      "Got it. It's on the ticket."
+    ],
+    [
+      "CALLER",
+      "Thanks. The new building has a great coffee shop on the ground floor, by the way. I'll buy the technician a coffee."
+    ],
+    [
+      "AGENT1",
+      "They'll love you for that. Our technicians run on coffee."
+    ],
+    [
+      "AGENT1",
+      "Perfect. One thing to check. Has the internet service at the new building been installed yet?"
+    ],
+    [
+      "CALLER",
+      "Um. Good question. I think so? Let me look at my email."
+    ],
+    [
+      "PAUSE",
+      6
+    ],
+    [
+      "CALLER",
+      "Okay, yes. It says the internet will be active on the twenty sixth."
+    ],
+    [
+      "AGENT1",
+      "Great, that gives us two days of buffer. I'll add that to the ticket."
+    ],
+    [
+      "PAUSE",
+      4
+    ],
+    [
+      "AGENT1",
+      "Okay, it's in. Now, voicemail to email for Linda and Raj. Let me look at their settings."
+    ],
+    [
+      "PAUSE",
+      5
+    ],
+    [
+      "AGENT1",
+      "Their email addresses are correct, and the setting is on. The messages are being sent, so it may be your email filter catching them."
+    ],
+    [
+      "CALLER",
+      "Huh. Our IT guy did change something with the spam filter last week."
+    ],
+    [
+      "AGENT1",
+      "That would do it. Ask him to allow messages from voicemail at meridian voice dot com. That should fix it right away."
+    ],
+    [
+      "CALLER",
+      "Voicemail at meridian voice dot com. Got it, I wrote it down."
+    ],
+    [
+      "CALLER",
+      "Will they lose the messages they missed last week?"
+    ],
+    [
+      "AGENT1",
+      "No, the messages are still in their mailboxes. They can listen from their desk phones or in the portal. Only the email copies were blocked."
+    ],
+    [
+      "CALLER",
+      "Okay, good. Linda was worried she missed a closing."
+    ],
+    [
+      "AGENT1",
+      "For the greeting hours and the new users, I'll need our provisioning team. But first I want to check the port request for your fax line, since it's tied to the move. I need to ask a colleague about it. Can I put you on hold one more time?"
+    ],
+    [
+      "CALLER",
+      "Go for it."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT1",
+      "Thanks again for holding, Greg."
+    ],
+    [
+      "CALLER",
+      "Still here. Still raining."
+    ],
+    [
+      "AGENT1",
+      "At least it's good weather for packing boxes."
+    ],
+    [
+      "CALLER",
+      "That's what I keep telling myself. My kids think the moving boxes are a fort."
+    ],
+    [
+      "AGENT1",
+      "Mine would too. Save a few for them."
+    ],
+    [
+      "AGENT1",
+      "Ha. So, the fax line. The port is scheduled for the same week, and my colleague confirmed it won't affect the move. It'll keep working the whole time."
+    ],
+    [
+      "CALLER",
+      "Oh, good. That fax line is older than some of our agents."
+    ],
+    [
+      "AGENT1",
+      "Do people still send you a lot of faxes?"
+    ],
+    [
+      "CALLER",
+      "You'd be surprised. Title companies and some of the older lenders still fax everything. We get maybe ten a week."
+    ],
+    [
+      "AGENT1",
+      "Fair enough. As long as it works, right? Is there anything else for me before I transfer you?"
+    ],
+    [
+      "CALLER",
+      "Actually, one more. Our sales manager asked about recording calls for training. Is that something we have?"
+    ],
+    [
+      "AGENT1",
+      "Call recording is included in your plan, it's just not turned on. Marcus can turn it on for you too."
+    ],
+    [
+      "CALLER",
+      "Oh, great. Add that to Marcus's list, then."
+    ],
+    [
+      "AGENT1",
+      "I believe it. Now, for the greeting hours and the two interns, I'm going to transfer you to Marcus in provisioning. He can make those changes while you're on the phone."
+    ],
+    [
+      "CALLER",
+      "Marcus. Is he the one who helped us last spring? He was great."
+    ],
+    [
+      "AGENT1",
+      "That's probably him. Fair warning, he's a big baseball fan, so if you mention the Mariners, you'll be on the phone for a while."
+    ],
+    [
+      "CALLER",
+      "Well, now I have to mention them."
+    ],
+    [
+      "AGENT1",
+      "Ha, good luck. Okay, I'm transferring you now. Thanks for calling, Greg, and good luck with the move."
+    ],
+    [
+      "CALLER",
+      "Thanks Priya, you've been a big help."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT2",
+      "Provisioning, this is Marcus. Hi Greg, Priya said you need a few changes."
+    ],
+    [
+      "CALLER",
+      "Hi Marcus. Yes, a couple of things. But first, how about those Mariners?"
+    ],
+    [
+      "AGENT2",
+      "Oh, don't get me started. That last game, bottom of the ninth? I was yelling at my TV."
+    ],
+    [
+      "CALLER",
+      "Me too! My wife thought something was wrong."
+    ],
+    [
+      "AGENT2",
+      "Do you think they have a shot at the playoffs this year?"
+    ],
+    [
+      "CALLER",
+      "If the bullpen holds up, maybe. I've been burned before, though."
+    ],
+    [
+      "AGENT2",
+      "Haven't we all. Every year I say I won't get my hopes up, and every year I do."
+    ],
+    [
+      "AGENT2",
+      "Ha. Okay, okay, I'll focus. What can I do for you?"
+    ],
+    [
+      "CALLER",
+      "Two things. Our main greeting needs new hours for the summer, and we have two interns starting in June who need phones."
+    ],
+    [
+      "AGENT2",
+      "Let's start with the hours. What should they be?"
+    ],
+    [
+      "CALLER",
+      "Monday through Friday, eight to six. And on Saturdays, nine to one. We used to be closed on Saturdays."
+    ],
+    [
+      "AGENT2",
+      "Monday through Friday, eight to six, Saturday nine to one. Let me open the schedule."
+    ],
+    [
+      "PAUSE",
+      6
+    ],
+    [
+      "AGENT2",
+      "Okay. Hmm."
+    ],
+    [
+      "PAUSE",
+      4
+    ],
+    [
+      "CALLER",
+      "Everything okay?"
+    ],
+    [
+      "AGENT2",
+      "Yes, sorry. Your account has an old holiday schedule that overlaps with the new one. I'm just removing it so they don't conflict."
+    ],
+    [
+      "PAUSE",
+      5
+    ],
+    [
+      "AGENT2",
+      "There. The new hours are saved. Starting June first, calls on Saturdays from nine to one will ring the front desk."
+    ],
+    [
+      "CALLER",
+      "Perfect. Sorry, hang on, the dog is barking at the mail carrier again."
+    ],
+    [
+      "PAUSE",
+      4
+    ],
+    [
+      "CALLER",
+      "Okay, sorry about that. Biscuit takes his job very seriously."
+    ],
+    [
+      "AGENT2",
+      "Ha, no problem. My cat ignores the mail carrier completely. Now, the interns. Do you have their names?"
+    ],
+    [
+      "CALLER",
+      "Yes. Emma Price, and Daniel Ruiz. R U I Z."
+    ],
+    [
+      "AGENT2",
+      "Emma Price and Daniel Ruiz. I see extensions one fifteen and one sixteen are open. Should I use those?"
+    ],
+    [
+      "CALLER",
+      "That works."
+    ],
+    [
+      "AGENT2",
+      "Priya also mentioned call recording for your sales team. Which users should be recorded?"
+    ],
+    [
+      "CALLER",
+      "The six sales agents. I can email you the list if that's easier."
+    ],
+    [
+      "AGENT2",
+      "Let me check, I might be able to see who's in the sales group already."
+    ],
+    [
+      "PAUSE",
+      6
+    ],
+    [
+      "AGENT2",
+      "Yes, here it is. There's a group called Sales with six people in it. I'll turn recording on for that group."
+    ],
+    [
+      "PAUSE",
+      4
+    ],
+    [
+      "AGENT2",
+      "Done. Recordings will show up in the portal under call history, and they're kept for ninety days."
+    ],
+    [
+      "CALLER",
+      "Ninety days is plenty. Our sales manager is going to be thrilled."
+    ],
+    [
+      "AGENT2",
+      "Okay. Creating the extensions and voicemail boxes takes a minute. Let me put you on a short hold while I set them up."
+    ],
+    [
+      "CALLER",
+      "Sure thing."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT2",
+      "Thanks for holding, Greg. Both users are ready. Emma is on one fifteen, and Daniel is on one sixteen."
+    ],
+    [
+      "CALLER",
+      "Great. Do they need new phones?"
+    ],
+    [
+      "AGENT2",
+      "If you have any spare desk phones, plug them in and they'll set themselves up. Otherwise they can use the mobile app with their logins."
+    ],
+    [
+      "CALLER",
+      "We have a box of old phones in the closet. I'll dig two out."
+    ],
+    [
+      "AGENT2",
+      "That will work. Their temporary voicemail PIN is the last four digits of the extension, and they'll be asked to change it."
+    ],
+    [
+      "CALLER",
+      "Okay. Let me just write that down."
+    ],
+    [
+      "PAUSE",
+      5
+    ],
+    [
+      "CALLER",
+      "Okay, got it."
+    ],
+    [
+      "AGENT2",
+      "Last thing on my side. I want to double check that the recording group is saving calls properly. Can I put you on a quick hold?"
+    ],
+    [
+      "CALLER",
+      "Sure, I'm not going anywhere."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT2",
+      "Thanks for holding, Greg. I made a test call on one of the sales lines, and the recording showed up in the portal right away."
+    ],
+    [
+      "CALLER",
+      "Nice. Can the agents listen to their own recordings?"
+    ],
+    [
+      "AGENT2",
+      "By default, only managers can. If you want agents to hear their own calls, I can change that."
+    ],
+    [
+      "CALLER",
+      "Let's leave it with the managers for now. Our sales manager can decide."
+    ],
+    [
+      "AGENT2",
+      "Sounds good."
+    ],
+    [
+      "AGENT2",
+      "One more thing before you go. Can you call your main number from your cell? I want to make sure the new hours are working."
+    ],
+    [
+      "CALLER",
+      "Sure, one second."
+    ],
+    [
+      "PAUSE",
+      6
+    ],
+    [
+      "CALLER",
+      "Okay, it's ringing. And here's the greeting. Wait, it still says we're closed on Saturdays."
+    ],
+    [
+      "AGENT2",
+      "Right, the hours are set, but the greeting is a recording. It still has the old message. You'll need to record a new one that mentions Saturdays."
+    ],
+    [
+      "CALLER",
+      "Oh, of course. How do I do that?"
+    ],
+    [
+      "AGENT2",
+      "From any desk phone, you can record a new greeting in the auto attendant menu. I'll put the steps in the summary email."
+    ],
+    [
+      "CALLER",
+      "Perfect. I'll get our office manager to record it. She has the nice phone voice."
+    ],
+    [
+      "AGENT2",
+      "Every office has one. Any big plans for the weekend?"
+    ],
+    [
+      "CALLER",
+      "Packing boxes, mostly. The move is going to take over my life for the next month."
+    ],
+    [
+      "AGENT2",
+      "Good luck. Make sure Biscuit gets a good spot by the new front door."
+    ],
+    [
+      "CALLER",
+      "Ha. He'll pick his own spot, trust me."
+    ],
+    [
+      "AGENT2",
+      "So, to recap. New greeting hours start June first, with Saturdays from nine to one. Emma and Daniel are on one fifteen and one sixteen. And Priya told me the move is set for the twenty eighth."
+    ],
+    [
+      "CALLER",
+      "Oh, and one last, um. Actually, no. I forgot what I was going to ask."
+    ],
+    [
+      "PAUSE",
+      4
+    ],
+    [
+      "CALLER",
+      "Nope, it's gone. If I remember, I'll call back."
+    ],
+    [
+      "AGENT2",
+      "Ha, that happens to me all the time."
+    ],
+    [
+      "CALLER",
+      "That's everything. Thanks, Marcus."
+    ],
+    [
+      "AGENT2",
+      "You're welcome. You'll get a summary email in a few minutes. And go Mariners."
+    ],
+    [
+      "CALLER",
+      "Go Mariners. Have a good one."
+    ],
+    [
+      "AGENT2",
+      "You too, Greg. Bye now."
+    ]
+  ],
+  "agents": {
+    "sipp_uas_long_a.xml": {
+      "title": "Long call agent A: two holds, then a blind transfer",
+      "steps": [
+        [
+          "talk",
+          "g711a-long-term1",
+          158
+        ],
+        [
+          "hold",
+          15,
+          25
+        ],
+        [
+          "talk",
+          "g711a-long-term2",
+          152
+        ],
+        [
+          "hold",
+          20,
+          30
+        ],
+        [
+          "talk",
+          "g711a-long-term3",
+          94
+        ],
+        [
+          "transfer"
+        ]
+      ]
+    },
+    "sipp_uas_long_b.xml": {
+      "title": "Long call agent B: takes the transfer, two holds",
+      "steps": [
+        [
+          "talk",
+          "g711a-long-term4",
+          166
+        ],
+        [
+          "hold",
+          20,
+          30
+        ],
+        [
+          "talk",
+          "g711a-long-term5",
+          48
+        ],
+        [
+          "hold",
+          20,
+          30
+        ],
+        [
+          "talk",
+          "g711a-long-term6",
+          123
+        ],
+        [
+          "end"
+        ]
+      ]
+    }
+  }
+}

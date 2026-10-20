@@ -41,3 +41,4 @@ sipp/scripts/.manual_uac_*.xml
 servers.json
 
 coverage/
+sipp/scripts/audio/g711a-long-*.wav
