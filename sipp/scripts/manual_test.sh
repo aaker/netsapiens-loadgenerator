@@ -68,6 +68,11 @@
 #                                     direct number (no queue); the agent
 #                                     answers and talks. In the lab that is
 #                                     2004, recorded without transcription.
+#                           directblind ~50s: the caller dials agent A's
+#                                     direct number; A blind-transfers to
+#                                     agent B (lab: 2004 Owen -> 2005
+#                                     Jordan, both recorded without
+#                                     transcription). Only A and B register.
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -115,6 +120,7 @@
 #   ./manual_test.sh -s prod1 --flow long              # ~14 min, 4 holds and a transfer
 #   ./manual_test.sh -s prod1 --flow upset             # upset caller, bad sentiment
 #   ./manual_test.sh -s prod1 --flow direct            # direct number to 2004, recorded, not transcribed
+#   ./manual_test.sh -s prod1 --flow directblind       # 2004's direct number, blind transfer to 2005
 #
 # The devices register just before each call and are stopped a few seconds
 # after it, so nothing stays registered between calls. Each registration is
@@ -183,12 +189,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park|3way|blind2|hold|long|upset|direct)
+    attended|park|3way|blind2|hold|long|upset|direct|directblind)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long, upset or direct (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long, upset, direct or directblind (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -311,6 +317,7 @@ case "$FLOW" in
     long)     FLOW_SECS=900 ;;
     upset)    FLOW_SECS=150 ;;
     direct)   FLOW_SECS=70 ;;
+    directblind) FLOW_SECS=80 ;;
 esac
 if [ "$KEEP" == "1" ]; then
     REG_LOOPS=${REG_LOOPS:-78}
@@ -447,14 +454,17 @@ fill_agent() {
 # section per pcap/length pair. Unused sections repeat the last pair (they
 # must still name a real pcap, since SIPp loads every pcap at startup).
 # FLOW_DIRECT=1: the call goes straight to a user (no queue), so the
-# answer starts section 1 and re-INVITEs never restart it.
+# answer starts section 1. FLOW_RESTART_WINDOW (default 35) is how long into
+# a section a re-INVITE restarts it; a transfer needs it (the core re-INVITEs
+# when the caller leaves for the next agent, then again when that agent
+# answers), a one-agent direct call sets 0 so nothing can restart it.
 flow_caller() {
     local n=$(( $# / 2 )) i pcap len
-    local -a subst=(-e "s/__SECTIONS__/$n/g")
+    local -a subst=(-e "s/__SECTIONS__/$n/g" -e "s/__RESTART_WINDOW__/${FLOW_RESTART_WINDOW:-35}/g")
     if [ "${FLOW_DIRECT:-0}" == "1" ]; then
-        subst+=(-e "s/__ON_ANSWER__/direct_start/g" -e "s/__RESTART_WINDOW__/0/g")
+        subst+=(-e "s/__ON_ANSWER__/direct_start/g")
     else
-        subst+=(-e "s/__ON_ANSWER__/pre_agent/g" -e "s/__RESTART_WINDOW__/35/g")
+        subst+=(-e "s/__ON_ANSWER__/pre_agent/g")
     fi
     for i in 1 2 3 4 5 6; do
         if [ "$i" -le "$n" ]; then pcap=$1; len=$2; shift 2; fi
@@ -553,8 +563,38 @@ upset)
 # that answer. One registration process; the call reaches whichever device
 # owns the number.
 direct)
-    FLOW_DIRECT=1 flow_caller g711a-direct-orig1 52
+    FLOW_DIRECT=1 FLOW_RESTART_WINDOW=0 flow_caller g711a-direct-orig1 52
     _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_direct.xml"
+    ;;
+# directblind: the caller dials agent A's direct number (to-user, no queue);
+# A (sipp_uas_dblind_a.xml) talks 20s and blind-transfers to B
+# (sipp_uas_dblind_b.xml), who talks 25s. A and B are lab.json
+# flows.directblind.agents (2004 Owen -> 2005 Jordan), else the first two
+# devices. Only A and B register, each in its own process (A's copy needs
+# __NEXT_EXT__; the other devices have no part in this call).
+directblind)
+    read -r XA XB < <(jq -r '.flows.directblind.agents // [] | join(" ")' "$LAB_JSON" 2>/dev/null)
+    XA=${XA:-${DEV_EXTS[0]}}; XB=${XB:-${DEV_EXTS[1]:-}}
+    [ -n "$XB" ] && [ "$XA" != "$XB" ] || { echo "ERROR: --flow directblind needs two devices (A and B)"; exit 1; }
+    FLOW_DIRECT=1 flow_caller g711a-dblind-orig1 20 g711a-dblind-orig2 25
+    PER_DEVICE=1
+    have_a=0; have_b=0
+    for i in "${!DEV_EXTS[@]}"; do
+        ext=${DEV_EXTS[$i]}
+        DEV_UAS[$i]=""
+        if [ "$ext" == "$XA" ]; then
+            DEV_UAS[$i]="$WORK_DIR/uas_dblind_$ext.xml"
+            fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_dblind_a.xml" "$ext" "${DEV_UAS[$i]}" NEXT_EXT="$XB"
+            have_a=1
+        elif [ "$ext" == "$XB" ]; then
+            DEV_UAS[$i]="$WORK_DIR/uas_dblind_$ext.xml"
+            fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_dblind_b.xml" "$ext" "${DEV_UAS[$i]}"
+            have_b=1
+        fi
+    done
+    if [ "$have_a" != "1" ] || [ "$have_b" != "1" ]; then
+        echo "ERROR: --flow directblind: $XA and $XB must both be devices in $DEVICE_CSV (rerun build-domain.js)"; exit 1
+    fi
     ;;
 # long: ~14 minutes. Agent A (the first device, sipp_uas_long_a.xml) holds
 # twice and blind-transfers to agent B (the second device,
@@ -646,8 +686,11 @@ if [ "$PER_DEVICE" == "1" ]; then
     for i in "${!DEV_EXTS[@]}"; do
         ext=${DEV_EXTS[$i]}
         [ "$ext" == "$DIAL_ONLY_EXT" ] && continue
+        # A device with no scenario has no part in this flow (directblind).
+        [ -n "${DEV_UAS[$i]}" ] || continue
         add_reg_set "$WORK_DIR/device_$ext.csv" "$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv" "${DEV_UAS[$i]}" "$ext"
     done
+    NUM_DEVICES=${#REG_SETS[@]}
 else
     # The shared set only fits the lab's own device list.
     key=""
@@ -813,6 +856,8 @@ elif [ "$FLOW" == "upset" ]; then
     echo "   Flow:        upset - an angry caller; agent A holds once and can't fix it"
 elif [ "$FLOW" == "direct" ]; then
     echo "   Flow:        direct - $NUMBER rings its user directly (no queue); recorded, not transcribed"
+elif [ "$FLOW" == "directblind" ]; then
+    echo "   Flow:        directblind - $NUMBER rings $XA directly, who blind-transfers to $XB"
 elif [ "$FLOW" == "long" ]; then
     echo "   Flow:        long (~14 min) - $AGENT_A holds twice, transfers to ${DEV_EXTS[1]}, who holds twice"
 elif [ "$FULL_CALL" == "1" ]; then

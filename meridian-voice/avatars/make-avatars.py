@@ -27,6 +27,9 @@ AGENTS = {
     'owen-hale': dict(bg='#4c1d95', skin='#e8b896', skin_shade='#d39f7c', hair='#8a5a2b',
                       hair_style='short', shirt='#fde68a', collar='#f5d36a', glasses=True,
                       lips='#b0645a'),
+    'jordan-blake': dict(bg='#166534', skin='#8d5a3b', skin_shade='#77492f', hair='#2a1a12',
+                         hair_style='curly', shirt='#fbcfe8', collar='#f3b4d6', glasses=False,
+                         lips='#6e3a2c'),
 }
 
 

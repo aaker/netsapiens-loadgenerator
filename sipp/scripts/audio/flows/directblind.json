@@ -1,0 +1,104 @@
+{
+  "name": "directblind",
+  "voices": {
+    "CALLER": "aura-orion-en",
+    "AGENT1": "aura-orpheus-en",
+    "AGENT2": "aura-stella-en"
+  },
+  "say_voices": {
+    "CALLER": "Fred",
+    "AGENT1": "Daniel",
+    "AGENT2": "Tessa"
+  },
+  "sections": [
+    {
+      "length": 20,
+      "tracks": {
+        "CALLER": "g711a-dblind-orig1",
+        "AGENT1": "g711a-dblind-term1"
+      }
+    },
+    {
+      "length": 25,
+      "tracks": {
+        "CALLER": "g711a-dblind-orig2",
+        "AGENT2": "g711a-dblind-term2"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT1",
+      "Good afternoon, this is Owen Hale at Meridian Voice."
+    ],
+    [
+      "CALLER",
+      "Hi Owen, it's Paul Grant from Grant Law Office. Our last invoice has a charge for two numbers we cancelled in March."
+    ],
+    [
+      "AGENT1",
+      "Thanks, Paul. Billing can credit that for you. I'm going to transfer you to Jordan Blake on our billing team now."
+    ],
+    [
+      "CALLER",
+      "Sounds good, thanks."
+    ],
+    [
+      "SECTION"
+    ],
+    [
+      "AGENT2",
+      "Hi Paul, this is Jordan in billing. Owen said you were charged for two cancelled numbers."
+    ],
+    [
+      "CALLER",
+      "That's right. They were cancelled on March twelfth, but they're still on the invoice."
+    ],
+    [
+      "AGENT2",
+      "I see them. I've removed both numbers and added a credit of twenty four dollars to your account. It will show on your next invoice."
+    ],
+    [
+      "CALLER",
+      "Great, thank you, Jordan."
+    ],
+    [
+      "AGENT2",
+      "You're welcome. Have a good day."
+    ],
+    [
+      "CALLER",
+      "You too. Bye."
+    ]
+  ],
+  "agents": {
+    "sipp_uas_dblind_a.xml": {
+      "title": "Direct-line blind transfer, agent A (Owen): answers his line, then blind-transfers",
+      "perDevice": true,
+      "steps": [
+        [
+          "talk",
+          "g711a-dblind-term1",
+          20
+        ],
+        [
+          "transfer"
+        ]
+      ]
+    },
+    "sipp_uas_dblind_b.xml": {
+      "title": "Direct-line blind transfer, agent B (Jordan): takes the transfer and finishes",
+      "perDevice": true,
+      "steps": [
+        [
+          "talk",
+          "g711a-dblind-term2",
+          25
+        ],
+        [
+          "end"
+        ]
+      ]
+    }
+  }
+}

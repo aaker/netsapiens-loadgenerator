@@ -56,6 +56,19 @@
       "directNumber": "18585551309",
       "note": "Not a queue agent: customers call his direct number (to-user). Recorded without transcription ('yes'), to test transcribing a recording after the call.",
       "avatar": "avatars/owen-hale.png"
+    },
+    {
+      "ext": "2005",
+      "ports": { "sip": 5200, "control": 5205, "media": 60800 },
+      "first": "Jordan",
+      "last": "Blake",
+      "department": "Billing",
+      "title": "Billing Specialist",
+      "role": "directblind B",
+      "scope": "Basic User",
+      "recording": "yes",
+      "note": "Not a queue agent: takes Owen's blind transfers in the directblind flow. Recorded without transcription, like Owen.",
+      "avatar": "avatars/jordan-blake.png"
     }
   ],
   "queues": [
@@ -298,6 +311,12 @@
       "cnam": "SUNRISE BAKERY",
       "number": "14805550136"
     },
+    "paul": {
+      "name": "Paul Grant",
+      "company": "Grant Law Office",
+      "cnam": "GRANT LAW",
+      "number": "17025550158"
+    },
     "frank": {
       "name": "Frank Russo",
       "company": "Russo Plumbing",
@@ -308,7 +327,7 @@
   "flows": {
     "blind": {
       "did": "18585551301",
-      "hour": 9,
+      "time": "09:00",
       "caller": "tom",
       "summary": "Priya talks 90s, then blind-transfers to queue 4001; Marcus finishes the call.",
       "dispositions": {
@@ -326,7 +345,7 @@
     },
     "attended": {
       "did": "18585551302",
-      "hour": 10,
+      "time": "09:30",
       "caller": "nora",
       "summary": "Priya holds the caller, consults Marcus, then transfers with Replaces.",
       "dispositions": {
@@ -344,7 +363,7 @@
     },
     "park": {
       "did": "18585551303",
-      "hour": 11,
+      "time": "10:00",
       "caller": "victor",
       "summary": "Priya parks the caller on 700; Marcus picks up from park.",
       "dispositions": {
@@ -362,7 +381,7 @@
     },
     "3way": {
       "did": "18585551304",
-      "hour": 12,
+      "time": "10:30",
       "caller": "alicia",
       "summary": "Priya moves the caller onto bridge 800; Priya and Marcus join for a 3-way call.",
       "dispositions": {
@@ -380,7 +399,7 @@
     },
     "blind2": {
       "did": "18585551305",
-      "hour": 13,
+      "time": "11:00",
       "caller": "derek",
       "summary": "Two blind transfers: Priya -> Marcus -> Dana.",
       "dispositions": {
@@ -403,7 +422,7 @@
     },
     "hold": {
       "did": "18585551306",
-      "hour": 14,
+      "time": "11:30",
       "caller": "rosa",
       "summary": "No transfer: Priya puts the caller on hold twice for 20-30s.",
       "dispositions": {
@@ -416,7 +435,7 @@
     },
     "long": {
       "did": "18585551307",
-      "hour": 15,
+      "time": "12:30",
       "caller": "greg",
       "summary": "About 14 minutes: Priya holds twice and transfers to Marcus, who holds twice.",
       "dispositions": {
@@ -434,7 +453,7 @@
     },
     "direct": {
       "did": "18585551309",
-      "hour": 8,
+      "time": "08:00",
       "caller": "lena",
       "summary": "Under a minute: Lena calls Owen's direct number about a phone order. Owen is recorded without transcription.",
       "dispositions": {
@@ -445,9 +464,28 @@
         }
       }
     },
+    "directblind": {
+      "did": "18585551309",
+      "time": "08:30",
+      "agents": ["2004", "2005"],
+      "caller": "paul",
+      "summary": "About 50s: Paul calls Owen's direct number about cancelled numbers still billed; Owen blind-transfers him to Jordan in billing, who credits the account. Both agents are recorded without transcription.",
+      "dispositions": {
+        "2004": {
+          "disposition": "Transferred",
+          "reason": "Billing or Payment",
+          "notes": "Invoice still bills two numbers cancelled in March. Transferred to Jordan in billing for the credit."
+        },
+        "2005": {
+          "disposition": "Resolved",
+          "reason": "Billing or Payment",
+          "notes": "Removed the two numbers cancelled March 12 and credited $24. Credit shows on the next invoice."
+        }
+      }
+    },
     "upset": {
       "did": "18585551308",
-      "hour": 16,
+      "time": "12:00",
       "caller": "frank",
       "summary": "Bad sentiment: an angry repeat caller; Priya holds once, can't fix the dropped calls or give a credit, and he hangs up unhappy.",
       "dispositions": {

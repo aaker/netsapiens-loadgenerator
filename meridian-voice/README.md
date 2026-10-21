@@ -45,7 +45,7 @@ registers.
 | Dial policy | US and Canada |
 | Dial plan | `meridianvoice`, chained to `<Cloud PBX Features>` so devices can dial extensions, the park and the bridge |
 | Park rule | `sip:700@*` -> `Directed-Parktrieve` in the domain's dial plan (destination `[*]@<OwnDomain>`, source host `<OwnDomain>`): dialed from an idle phone it retrieves the call parked on 700 |
-| Call recording | 2001-2003: `yes-with-transcription-and-sentiment`. 2004: `yes` (recorded, not transcribed) |
+| Call recording | 2001-2003: `yes-with-transcription-and-sentiment`. 2004-2005: `yes` (recorded, not transcribed) |
 
 Calls come in from the `inbound-carrier` connection (`sip*@inbound-carrier`,
 Inbound DID dial plan), which the build creates if it is missing.
@@ -58,8 +58,9 @@ Inbound DID dial plan), which the build creates if it is missing.
 | 2002 | Marcus Reed | **Agent B**: provisioning and billing. Takes transfers, parks and consults. | Provisioning | ![](avatars/marcus-reed.png) |
 | 2003 | Dana Ortiz | **Agent C**: network engineering. The last hop of `blind2`. | Network Engineering | ![](avatars/dana-ortiz.png) |
 | 2004 | Owen Hale | Account manager. Not in a queue: customers call his direct number, 1 858-555-1309 (also his caller ID). Recorded without transcription. | Account Management | ![](avatars/owen-hale.png) |
+| 2005 | Jordan Blake | Billing specialist. Not in a queue: takes Owen's blind transfers in `directblind`. Recorded without transcription. | Billing | ![](avatars/jordan-blake.png) |
 
-2001-2003 are Call Center Agents and 2004 is a Basic User, all with emails `first.last@meridianvoice.test`.
+2001-2003 are Call Center Agents and 2004-2005 are Basic Users, all with emails `first.last@meridianvoice.test`.
 Each has one device named after the extension (`sip:2001@meridianvoice`). Its
 SIP password is derived from the server's API key, so every rebuild gives the
 same one. `manual_test.sh` registers each device with that password.
@@ -90,15 +91,16 @@ The audio uses the caller's own name and company.
 
 | DID | Flow | Daily at (Phoenix) | Caller ID | Caller in the audio |
 |---|---|---|---|---|
-| 1 858-555-1301 | `blind` | 9:00 | LAKESIDE DENTAL, 1 619-555-0144 | Tom Becker, office manager, Lakeside Dental |
-| 1 858-555-1302 | `attended` | 10:00 | BRIGHT SMILE, 1 858-555-0161 | Nora Fields, Bright Smile Ortho |
-| 1 858-555-1303 | `park` | 11:00 | CHEN AUTO BODY, 1 626-555-0173 | Victor Chen, Chen Auto Body |
-| 1 858-555-1304 | `3way` | 12:00 | ALPINE TITLE CO, 1 720-555-0129 | Alicia Moreno, Alpine Title Co |
-| 1 858-555-1305 | `blind2` | 13:00 | WALSH BUILDERS, 1 602-555-0147 | Derek Walsh, Walsh Builders |
-| 1 858-555-1306 | `hold` | 14:00 | HARBOR VET, 1 415-555-0188 | Rosa Delgado, Harbor Vet Clinic |
-| 1 858-555-1307 | `long` | 15:00 | PINECREST RLTY, 1 503-555-0122 | Greg Hanley, Pinecrest Realty |
-| 1 858-555-1308 | `upset` | 16:00 | RUSSO PLUMBING, 1 312-555-0190 | Frank Russo, Russo Plumbing |
 | 1 858-555-1309 | `direct` (Owen's direct line, to-user 2004, not the queue) | 8:00 | SUNRISE BAKERY, 1 480-555-0136 | Lena Brooks, Sunrise Bakery |
+| 1 858-555-1309 | `directblind` (Owen's direct line; he blind-transfers to Jordan, 2005) | 8:30 | GRANT LAW, 1 702-555-0158 | Paul Grant, Grant Law Office |
+| 1 858-555-1301 | `blind` | 9:00 | LAKESIDE DENTAL, 1 619-555-0144 | Tom Becker, office manager, Lakeside Dental |
+| 1 858-555-1302 | `attended` | 9:30 | BRIGHT SMILE, 1 858-555-0161 | Nora Fields, Bright Smile Ortho |
+| 1 858-555-1303 | `park` | 10:00 | CHEN AUTO BODY, 1 626-555-0173 | Victor Chen, Chen Auto Body |
+| 1 858-555-1304 | `3way` | 10:30 | ALPINE TITLE CO, 1 720-555-0129 | Alicia Moreno, Alpine Title Co |
+| 1 858-555-1305 | `blind2` | 11:00 | WALSH BUILDERS, 1 602-555-0147 | Derek Walsh, Walsh Builders |
+| 1 858-555-1306 | `hold` | 11:30 | HARBOR VET, 1 415-555-0188 | Rosa Delgado, Harbor Vet Clinic |
+| 1 858-555-1308 | `upset` | 12:00 | RUSSO PLUMBING, 1 312-555-0190 | Frank Russo, Russo Plumbing |
+| 1 858-555-1307 | `long` | 12:30 | PINECREST RLTY, 1 503-555-0122 | Greg Hanley, Pinecrest Realty |
 
 Every flow has a different caller number, so `disposition-calls.js`, which
 finds a call's CDRs by caller number, can't pick up another flow's call.
@@ -122,11 +124,12 @@ that part of the conversation runs 44 seconds.
 | `hold` | No transfer. Priya and Rosa talk 32s, Priya holds her for a random 20-30s, they talk 35s, she holds again for 20-30s, then they talk 27s. | 2001 | ~2.5 min |
 | `long` | Priya and Greg cover an office move, voicemail-to-email and more, with small talk and awkward silences. She holds twice (15-25s, 20-30s) and blind-transfers to Marcus, who holds twice more (20-30s each). | 2001, 2002 | ~14 min |
 | `direct` | Under a minute. Lena calls Owen's direct number about a phone order; he confirms it and gives the order number. No queue, no hold, no transfer. Owen is recorded without transcription. | 2004 | ~55s |
+| `directblind` | About 50s. Paul calls Owen's direct number about two cancelled numbers still on his invoice. Owen talks 20s and blind-transfers him to Jordan, who removes them and credits $24 (25s). Only Owen and Jordan register, each in their own process. | 2004, 2005 | ~50s |
 | `upset` | Bad sentiment. Frank, an angry repeat caller, reports dropped calls for the third time. Priya holds him for 15-25s, finds nothing, can only escalate with a 1-2 day callback and can't give a credit. He threatens to switch providers and hangs up unhappy. | 2001 | ~2.5 min |
 
 The scripts are in `sipp/scripts/audio/`: `call-script.md` (blind),
 `attended-call-script.md`, `park-call-script.md`, and `flows/*.json` for
-`3way`, `blind2`, `hold`, `long`, `upset` and `direct` (`direct-call-script.md` is the readable version).
+`3way`, `blind2`, `hold`, `long`, `upset`, `direct` and `directblind` (`direct-call-script.md` is the readable version of `direct`).
 
 ### Testing transcription after the call
 
@@ -146,7 +149,10 @@ calls are recorded but not sent for transcription:
 `node meridian-voice/disposition-calls.js --server <server> --flow direct --since <epoch>`
 writes Owen's disposition and prints the CDR's recording and intelligence fields.
 Cron runs `direct` every day at 8:00 Phoenix time, so there is a fresh
-untranscribed recording each morning.
+untranscribed recording each morning. `directblind` follows at 8:30: the same
+direct line, but Owen blind-transfers the caller to Jordan Blake (2005), also
+recorded without transcription, so the recording spans a transfer between two
+untranscribed agents.
 
 ## Placing calls
 
@@ -160,20 +166,22 @@ sipp/scripts/manual_test.sh -s <server> --flow <flow> [-t u1|t1|l1] [-w 5] [--on
 - **Default flow:** with no `--flow`, it runs `blind`.
 - **Placing calls:** each Enter places another call, and `q` quits. `--once` places one call and exits, which is what cron uses.
 - **Registrations:** the agents' devices register just before each call and stop 5 seconds after it, so nothing stays registered between calls. Each registration is also sized to the flow, about 4 minutes for `3way` up to 17 for `long`, so it ends on its own even if the script is killed. `-k` registers once for an hour and leaves the registrations running.
-- **Ports:** each device registers from its own fixed ports in `lab.json` (`ports` on each user, `ports.shared` for the flows that register all three from one process): 2001 uses SIP 5110-5114, 2002 uses 5130-5134, 2003 uses 5150-5154, 2004 uses 5190-5194 (media 60700), and the shared set uses 5170-5174, with control ports +5 and media from 60300/60400/60500/60600. Each call takes the first free port in the device's set, because a stopped TCP registration holds its port for about 60s. A registration the core still holds from an earlier run therefore always points back at the same device. Before registering, the script stops any registration process an earlier run left on those ports (`-k`, or a killed run), removes the devices' old bindings (`REGISTER Contact: *`, `Expires: 0`), and refuses to start if another `manual_test.sh` run is using them. Open these ports on the box's firewall like the pool ports (20000-60000).
+- **Ports:** each device registers from its own fixed ports in `lab.json` (`ports` on each user, `ports.shared` for the flows that register all three from one process): 2001 uses SIP 5110-5114, 2002 uses 5130-5134, 2003 uses 5150-5154, 2004 uses 5190-5194 (media 60700), 2005 uses 5200-5204 (media 60800), and the shared set uses 5170-5174, with control ports +5 and media from 60300/60400/60500/60600. Each call takes the first free port in the device's set, because a stopped TCP registration holds its port for about 60s. A registration the core still holds from an earlier run therefore always points back at the same device. Before registering, the script stops any registration process an earlier run left on those ports (`-k`, or a killed run), removes the devices' old bindings (`REGISTER Contact: *`, `Expires: 0`), and refuses to start if another `manual_test.sh` run is using them. Open these ports on the box's firewall like the pool ports (20000-60000).
 - **Logs:** each run prints its work directory and log paths. Full SIP traces go to `sipp/scripts/*_messages.log`.
 - **Overrides:** `-f` uses another device CSV, `-n` calls another number, and `--media-ip` sets the address the caller advertises. The public IP is found automatically.
 - `sipp/scripts/manual_test.sh -h` lists every option.
 
 ## Daily calls
 
-`cron/start_sipp` runs `meridian-voice/daily-calls.sh` at the top of every hour:
+`cron/start_sipp` runs `meridian-voice/daily-calls.sh` every 30 minutes, at :00 and :30:
 
-1. It reads the current hour in the lab's time zone (America/Phoenix) and finds the flow scheduled for that hour. In other hours it exits quietly.
+1. It reads the current time in the lab's time zone (America/Phoenix), rounded down to the half hour, and finds the flow whose `time` in `lab.json` is that slot. At other times it exits quietly.
 2. It runs `manual_test.sh --once` for that flow, using the transport in `lab.json` (`t1`).
 3. It runs `disposition-calls.js` for the call that just finished.
 
-The schedule runs one flow an hour from 8am to 4pm. The Phoenix clock is used
+The schedule runs one flow every 30 minutes from 8:00 to 12:30. `long` (a
+14-minute call plus the CDR wait and wrap-up) has the last slot: a run that
+is still going when the next slot starts makes that slot skip its flow. The Phoenix clock is used
 whatever the box's own time zone, and Phoenix has no daylight saving, so the
 times never shift. The server comes from `MERIDIAN_VOICE_SERVER` in `.env`.
 
@@ -293,10 +301,10 @@ length, the generator warns, and the length must change in the spec and in
 
 | Path | What |
 |---|---|
-| `lab.json` | The lab: domain, users, queues, park, bridge, callers, and per flow its DID, daily hour, caller and each agent's disposition |
+| `lab.json` | The lab: domain, users, queues, park, bridge, callers, and per flow its DID, daily time, caller and each agent's disposition |
 | `build-domain.js` | Builds or updates the domain from `lab.json` and writes `lab/devices.csv` |
 | `disposition-calls.js` | The agents' post-call wrap-up on the CDRs |
-| `daily-calls.sh` | Cron entry point: this hour's flow, then its wrap-up |
+| `daily-calls.sh` | Cron entry point: this half hour's flow, then its wrap-up |
 | `lab/devices.csv` | Generated: the devices and SIP passwords `manual_test.sh` registers. Gitignored. |
 | `avatars/` | Agent portraits and the scripts that draw them |
 
@@ -305,7 +313,7 @@ length, the generator warns, and the length must change in the spec and in
 Edit `lab.json`, then rerun `build-domain.js`.
 
 - **New DID or caller:** takes effect on the next call.
-- **Different hour:** takes effect on the next cron run.
+- **Different time:** set the flow's `time` to a half-hour slot (`"HH:00"` or `"HH:30"`); it takes effect on the next cron run.
 - **Adding a user:** add them to `users`. The build creates the user and device and writes the new CSV.
 - **Changing a queue's agents:** the build adds the new ones and removes any that aren't listed.
 
