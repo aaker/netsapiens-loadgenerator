@@ -9,13 +9,17 @@
 //   - the inbound-carrier connection (shared by every load test; skipped if present)
 //   - the domain, and a dial rule chaining its dial plan to <Cloud PBX Features>
 //   - users 2001-2003 as Call Center Agents, with call recording, transcription
-//     and sentiment (lab.json "recording"), and their avatars
+//     and sentiment (lab.json "recording"), and their avatars; 2004 (Owen) as a
+//     Basic User recorded without transcription (his own "recording"/"scope")
+//   - each user's direct number ("directNumber", routed to-user), which is
+//     also their caller ID number
 //   - one device per user (device name = extension) with a SIP password
 //     derived from the server's API key, so every rebuild gives the same one
 //   - queues 4000/4001 (and their system users) with exactly the agents in
 //     lab.json, logged in
 //   - park 700, conference bridge 800 (no PIN, no prompts)
-//   - one DID per call flow, routed to queue 4000
+//   - one DID per call flow, routed to queue 4000 (except a flow that calls a
+//     user's direct number)
 //   - the call-center disposition and call-reason codes in lab.json
 //     (callcenterCodes), which disposition-calls.js writes after each call
 // Then writes lab/devices.csv (gitignored: it holds the SIP passwords), which
@@ -160,10 +164,11 @@ async function buildUsers() {
             'name-last-name': u.last,
             email: `${u.first}.${u.last}@${lab.emailDomain}`.toLowerCase(),
             department: u.department,
-            'user-scope': 'Call Center Agent',
+            'user-scope': u.scope || 'Call Center Agent',
             'time-zone': lab.timeZone,
-            'recording-configuration': lab.recording
+            'recording-configuration': u.recording || lab.recording
         };
+        if (u.directNumber) user['caller-id-number'] = u.directNumber;
         await upsert(`user ${u.ext} (${u.first} ${u.last})`, `domains/${enc(D)}/users`,
             { user: u.ext, ...user }, `domains/${enc(D)}/users/${enc(u.ext)}`, user);
 
@@ -297,7 +302,23 @@ async function buildFeatures() {
         { conference: lab.conference.ext, ...conf },
         `domains/${enc(D)}/conferences/${enc(lab.conference.ext)}`, conf);
 
+    // Direct numbers: straight to the user, no queue.
+    const direct = new Set();
+    for (const u of lab.users.filter(x => x.directNumber)) {
+        direct.add(u.directNumber);
+        const did = {
+            'dial-rule-application': 'to-user',
+            'dial-rule-translation-destination-user': u.ext,
+            'dial-rule-translation-destination-host': D,
+            'dial-rule-description': `${u.first} ${u.last} direct line`,
+            enabled: 'yes'
+        };
+        await upsert(`DID ${u.directNumber} -> user ${u.ext} (${u.first} ${u.last})`, `domains/${enc(D)}/phonenumbers`,
+            { phonenumber: u.directNumber, ...did }, `domains/${enc(D)}/phonenumbers/${enc(u.directNumber)}`, did);
+    }
+
     for (const [flow, f] of Object.entries(lab.flows)) {
+        if (direct.has(f.did)) continue;
         const did = {
             'dial-rule-application': 'to-callqueue',
             'dial-rule-translation-destination-user': lab.queues[0].queue,

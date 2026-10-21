@@ -42,6 +42,20 @@
       "title": "Network Engineering",
       "role": "C",
       "avatar": "avatars/dana-ortiz.png"
+    },
+    {
+      "ext": "2004",
+      "ports": { "sip": 5190, "control": 5195, "media": 60700 },
+      "first": "Owen",
+      "last": "Hale",
+      "department": "Account Management",
+      "title": "Account Manager",
+      "role": "direct",
+      "scope": "Basic User",
+      "recording": "yes",
+      "directNumber": "18585551309",
+      "note": "Not a queue agent: customers call his direct number (to-user). Recorded without transcription ('yes'), to test transcribing a recording after the call.",
+      "avatar": "avatars/owen-hale.png"
     }
   ],
   "queues": [
@@ -278,6 +292,12 @@
       "cnam": "PINECREST RLTY",
       "number": "15035550122"
     },
+    "lena": {
+      "name": "Lena Brooks",
+      "company": "Sunrise Bakery",
+      "cnam": "SUNRISE BAKERY",
+      "number": "14805550136"
+    },
     "frank": {
       "name": "Frank Russo",
       "company": "Russo Plumbing",
@@ -409,6 +429,18 @@
           "disposition": "Resolved",
           "reason": "Account Changes",
           "notes": "Summer hours from June 1 (Sat 9-1); removed the conflicting holiday schedule. Added Emma Price (x115) and Daniel Ruiz (x116). Turned on recording for the Sales group. Customer to re-record the main greeting."
+        }
+      }
+    },
+    "direct": {
+      "did": "18585551309",
+      "caller": "lena",
+      "summary": "Under a minute: Lena calls Owen's direct number about a phone order. Owen is recorded without transcription; not scheduled (run it by hand).",
+      "dispositions": {
+        "2004": {
+          "disposition": "Resolved",
+          "reason": "Order Status",
+          "notes": "Confirmed back-office desk phone on ext 104, added to the counter ring group. Ships tomorrow, arrives Thursday. Order 44712."
         }
       }
     },

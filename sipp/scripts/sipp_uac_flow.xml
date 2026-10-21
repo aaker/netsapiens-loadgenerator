@@ -7,8 +7,13 @@
 <!-- Same call setup as sipp_uac_pcap_g711a.xml (DID INVITE, pre-agent      -->
 <!-- silence + DTMF), then plays one pcap per section of the conversation,  -->
 <!-- each section with a different agent (or set of agents).  manual_test  -->
-<!-- fills in __SECTIONS__ (2-6) and __PCAPn__ / __LENn__ (seconds) for    -->
+<!-- fills in __SECTIONS__ (1-6) and __PCAPn__ / __LENn__ (seconds) for    -->
 <!-- n = 1-6; sections past __SECTIONS__ are never reached.                -->
+<!-- After the answer it jumps to pre_agent for a queue call (the steps    -->
+<!-- below), or to direct_start for a call straight to a user: the agent's  -->
+<!-- own 200 OK starts section 1 (no MOH, no agent-connect re-INVITE). The  -->
+<!-- section restart window is 35s for a queue call and 0 for a direct      -->
+<!-- one, so a media re-point re-INVITE can't restart the caller's audio.   -->
 <!--                                                                        -->
 <!-- Sections follow the re-INVITEs the core sends as the call moves        -->
 <!-- (agent connect, hold, transfer, conference join), timed against        -->
@@ -108,6 +113,9 @@
     ]]>
   </send>
 
+  <nop next="__ON_ANSWER__"/>
+
+  <label id="pre_agent"/>
   <!-- Pre-agent stage (AA/MOH): the platform expects media from us, but   -->
   <!-- no agent is listening yet, so stream SILENCE rather than real       -->
   <!-- speech.  Caller speech starts at talk_leg when an agent connects.   -->
@@ -283,7 +291,7 @@
       <assign assign_to="elapsed" value="0"/>
       <add assign_to="elapsed" variable="now"/>
       <subtract assign_to="elapsed" variable="sstart"/>
-      <test assign_to="in_window" variable="elapsed" compare="less_than" value="35"/>
+      <test assign_to="in_window" variable="elapsed" compare="less_than" value="__RESTART_WINDOW__"/>
       <assign assign_to="to_end" value="0"/>
       <add assign_to="to_end" variable="elapsed"/>
       <subtract assign_to="to_end" variable="cur_len"/>
@@ -400,6 +408,23 @@
   <nop test="k_is_3" next="start_4"/>
   <nop test="k_is_4" next="start_5"/>
   <nop next="start_6"/>
+
+  <!-- Direct call: the answer starts section 1 right away. -->
+  <label id="direct_start"/>
+  <nop next="start_1">
+    <action>
+      <assign assign_to="k" value="0"/>
+      <assign assign_to="cur_len" value="0"/>
+      <gettimeofday assign_to="t_s,t_us"/>
+      <assign assign_to="now" value="0"/>
+      <add assign_to="now" variable="t_s"/>
+      <assign assign_to="t_frac" value="0"/>
+      <add assign_to="t_frac" variable="t_us"/>
+      <divide assign_to="t_frac" value="1000000"/>
+      <add assign_to="now" variable="t_frac"/>
+      <log message="FLOW caller: direct call answered - starting section 1"/>
+    </action>
+  </nop>
 
   <label id="start_1"/>
   <nop next="poll">

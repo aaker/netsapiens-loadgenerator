@@ -1,0 +1,77 @@
+{
+  "name": "direct",
+  "voices": {
+    "CALLER": "aura-hera-en",
+    "AGENT1": "aura-orpheus-en"
+  },
+  "say_voices": {
+    "CALLER": "Karen",
+    "AGENT1": "Daniel"
+  },
+  "sections": [
+    {
+      "length": 52,
+      "tracks": {
+        "CALLER": "g711a-direct-orig1",
+        "AGENT1": "g711a-direct-term1"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT1",
+      "Good morning, this is Owen Hale at Meridian Voice."
+    ],
+    [
+      "CALLER",
+      "Hi Owen, it's Lena Brooks from Sunrise Bakery. I'm calling about the extra phone we talked about last week."
+    ],
+    [
+      "AGENT1",
+      "Of course, Lena. I have the order here. One desk phone for your back office, on extension one oh four."
+    ],
+    [
+      "CALLER",
+      "That's right. Can it ring along with the front counter when we're busy?"
+    ],
+    [
+      "AGENT1",
+      "Yes. I'll add it to the counter ring group, so both phones ring together."
+    ],
+    [
+      "CALLER",
+      "Perfect. When will it arrive?"
+    ],
+    [
+      "AGENT1",
+      "It ships tomorrow and should be there Thursday. Your order number is four four seven one two."
+    ],
+    [
+      "CALLER",
+      "Four four seven one two. Got it. Thanks, Owen."
+    ],
+    [
+      "AGENT1",
+      "You're welcome, Lena. Have a great day."
+    ],
+    [
+      "CALLER",
+      "You too. Bye."
+    ]
+  ],
+  "agents": {
+    "sipp_uas_direct.xml": {
+      "title": "Direct call agent: answers his own line and talks, no transfer",
+      "steps": [
+        [
+          "talk",
+          "g711a-direct-term1",
+          52
+        ],
+        [
+          "end"
+        ]
+      ]
+    }
+  }
+}

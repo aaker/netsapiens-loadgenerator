@@ -24,6 +24,9 @@ AGENTS = {
     'dana-ortiz': dict(bg='#9a3412', skin='#d29a72', skin_shade='#bb835d', hair='#4a2c1d',
                        hair_style='curly', shirt='#a7f3d0', collar='#86dcb6', glasses=True,
                        lips='#a6524a'),
+    'owen-hale': dict(bg='#4c1d95', skin='#e8b896', skin_shade='#d39f7c', hair='#8a5a2b',
+                      hair_style='short', shirt='#fde68a', collar='#f5d36a', glasses=True,
+                      lips='#b0645a'),
 }
 
 

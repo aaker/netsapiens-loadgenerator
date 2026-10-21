@@ -64,6 +64,10 @@
 #                           upset     ~2.5 min: an angry repeat caller; agent
 #                                     A holds once, can't fix it, and the
 #                                     caller hangs up unhappy (bad sentiment).
+#                           direct    <1 min: the caller dials an agent's own
+#                                     direct number (no queue); the agent
+#                                     answers and talks. In the lab that is
+#                                     2004, recorded without transcription.
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -110,6 +114,7 @@
 #   ./manual_test.sh -s prod1 --flow hold              # one agent, two holds
 #   ./manual_test.sh -s prod1 --flow long              # ~14 min, 4 holds and a transfer
 #   ./manual_test.sh -s prod1 --flow upset             # upset caller, bad sentiment
+#   ./manual_test.sh -s prod1 --flow direct            # direct number to 2004, recorded, not transcribed
 #
 # The devices register just before each call and are stopped a few seconds
 # after it, so nothing stays registered between calls. Each registration is
@@ -178,12 +183,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park|3way|blind2|hold|long|upset)
+    attended|park|3way|blind2|hold|long|upset|direct)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long or upset (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long, upset or direct (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -305,6 +310,7 @@ case "$FLOW" in
     hold)     FLOW_SECS=165 ;;
     long)     FLOW_SECS=900 ;;
     upset)    FLOW_SECS=150 ;;
+    direct)   FLOW_SECS=70 ;;
 esac
 if [ "$KEEP" == "1" ]; then
     REG_LOOPS=${REG_LOOPS:-78}
@@ -440,9 +446,16 @@ fill_agent() {
 # multi-section caller (sipp_uac_flow.xml) filled in for this flow, one
 # section per pcap/length pair. Unused sections repeat the last pair (they
 # must still name a real pcap, since SIPp loads every pcap at startup).
+# FLOW_DIRECT=1: the call goes straight to a user (no queue), so the
+# answer starts section 1 and re-INVITEs never restart it.
 flow_caller() {
     local n=$(( $# / 2 )) i pcap len
     local -a subst=(-e "s/__SECTIONS__/$n/g")
+    if [ "${FLOW_DIRECT:-0}" == "1" ]; then
+        subst+=(-e "s/__ON_ANSWER__/direct_start/g" -e "s/__RESTART_WINDOW__/0/g")
+    else
+        subst+=(-e "s/__ON_ANSWER__/pre_agent/g" -e "s/__RESTART_WINDOW__/35/g")
+    fi
     for i in 1 2 3 4 5 6; do
         if [ "$i" -le "$n" ]; then pcap=$1; len=$2; shift 2; fi
         subst+=(-e "s/__PCAP${i}__/$pcap/g" -e "s/__LEN${i}__/$len/g")
@@ -533,6 +546,15 @@ hold)
 upset)
     flow_caller g711a-upset-orig1 38 g711a-upset-orig2 72
     _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_upset.xml"
+    ;;
+# direct: a call to an agent's own direct number (lab.json flows.direct.did,
+# to-user, no queue). The agent (sipp_uas_direct.xml, generated from
+# audio/flows/direct.json) answers and talks; the caller's section starts on
+# that answer. One registration process; the call reaches whichever device
+# owns the number.
+direct)
+    FLOW_DIRECT=1 flow_caller g711a-direct-orig1 52
+    _UAS_SCENARIO="$BASE_DIR/sipp/scripts/sipp_uas_direct.xml"
     ;;
 # long: ~14 minutes. Agent A (the first device, sipp_uas_long_a.xml) holds
 # twice and blind-transfers to agent B (the second device,
@@ -789,6 +811,8 @@ elif [ "$FLOW" == "hold" ]; then
     echo "   Flow:        hold - agent A holds the caller twice, 20-30s each"
 elif [ "$FLOW" == "upset" ]; then
     echo "   Flow:        upset - an angry caller; agent A holds once and can't fix it"
+elif [ "$FLOW" == "direct" ]; then
+    echo "   Flow:        direct - $NUMBER rings its user directly (no queue); recorded, not transcribed"
 elif [ "$FLOW" == "long" ]; then
     echo "   Flow:        long (~14 min) - $AGENT_A holds twice, transfers to ${DEV_EXTS[1]}, who holds twice"
 elif [ "$FULL_CALL" == "1" ]; then

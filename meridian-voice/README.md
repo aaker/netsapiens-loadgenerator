@@ -1,8 +1,8 @@
 # Meridian Voice test lab
 
 Meridian Voice is a fictional support line used to test real call-center
-behaviour on a NetSapiens core. Its domain, `meridianvoice`, has three agents,
-two queues, a park, a conference bridge and one inbound number per call flow.
+behaviour on a NetSapiens core. Its domain, `meridianvoice`, has three queue agents
+and an account manager with a direct line, two queues, a park, a conference bridge and one inbound number per call flow.
 Each flow is a scripted conversation with recorded voices: transfers, holds, a
 park, a 3-way call and a 14-minute call. The same calls run once a day from
 cron, and after each call the agents write a disposition and notes on its CDR.
@@ -45,7 +45,7 @@ registers.
 | Dial policy | US and Canada |
 | Dial plan | `meridianvoice`, chained to `<Cloud PBX Features>` so devices can dial extensions, the park and the bridge |
 | Park rule | `sip:700@*` -> `Directed-Parktrieve` in the domain's dial plan (destination `[*]@<OwnDomain>`, source host `<OwnDomain>`): dialed from an idle phone it retrieves the call parked on 700 |
-| Call recording | Every user: `yes-with-transcription-and-sentiment` |
+| Call recording | 2001-2003: `yes-with-transcription-and-sentiment`. 2004: `yes` (recorded, not transcribed) |
 
 Calls come in from the `inbound-carrier` connection (`sip*@inbound-carrier`,
 Inbound DID dial plan), which the build creates if it is missing.
@@ -57,8 +57,9 @@ Inbound DID dial plan), which the build creates if it is missing.
 | 2001 | Priya Shah | **Agent A**: tier-1 support. Answers every call. | Support | ![](avatars/priya-shah.png) |
 | 2002 | Marcus Reed | **Agent B**: provisioning and billing. Takes transfers, parks and consults. | Provisioning | ![](avatars/marcus-reed.png) |
 | 2003 | Dana Ortiz | **Agent C**: network engineering. The last hop of `blind2`. | Network Engineering | ![](avatars/dana-ortiz.png) |
+| 2004 | Owen Hale | Account manager. Not in a queue: customers call his direct number, 1 858-555-1309 (also his caller ID). Recorded without transcription. | Account Management | ![](avatars/owen-hale.png) |
 
-All three are Call Center Agents, with emails `first.last@meridianvoice.test`.
+2001-2003 are Call Center Agents and 2004 is a Basic User, all with emails `first.last@meridianvoice.test`.
 Each has one device named after the extension (`sip:2001@meridianvoice`). Its
 SIP password is derived from the server's API key, so every rebuild gives the
 same one. `manual_test.sh` registers each device with that password.
@@ -81,7 +82,7 @@ listed in `lab.json`.
 
 ### Inbound numbers and callers
 
-Each flow has its own DID, routed to queue 4000, and its own caller. The
+Each flow has its own DID, routed to queue 4000 (except `direct`, which calls Owen's direct number), and its own caller. The
 caller ID number is the caller's own. The caller ID name is their `cnam` in
 `lab.json`: upper case, at most 15 characters, like carrier CNAM.
 `manual_test.sh` falls back to the company or name, uppercased and cut to 15.
@@ -97,6 +98,7 @@ The audio uses the caller's own name and company.
 | 1 858-555-1306 | `hold` | 14:00 | HARBOR VET, 1 415-555-0188 | Rosa Delgado, Harbor Vet Clinic |
 | 1 858-555-1307 | `long` | 15:00 | PINECREST RLTY, 1 503-555-0122 | Greg Hanley, Pinecrest Realty |
 | 1 858-555-1308 | `upset` | 16:00 | RUSSO PLUMBING, 1 312-555-0190 | Frank Russo, Russo Plumbing |
+| 1 858-555-1309 | `direct` (Owen's direct line, to-user 2004, not the queue) | not scheduled | SUNRISE BAKERY, 1 480-555-0136 | Lena Brooks, Sunrise Bakery |
 
 Every flow has a different caller number, so `disposition-calls.js`, which
 finds a call's CDRs by caller number, can't pick up another flow's call.
@@ -119,11 +121,32 @@ that part of the conversation runs 44 seconds.
 | `blind2` | Priya talks 34s and blind-transfers to Marcus. Marcus talks 30s and blind-transfers to Dana, who talks 44s. | 2001, 2002, 2003 | ~2 min |
 | `hold` | No transfer. Priya and Rosa talk 32s, Priya holds her for a random 20-30s, they talk 35s, she holds again for 20-30s, then they talk 27s. | 2001 | ~2.5 min |
 | `long` | Priya and Greg cover an office move, voicemail-to-email and more, with small talk and awkward silences. She holds twice (15-25s, 20-30s) and blind-transfers to Marcus, who holds twice more (20-30s each). | 2001, 2002 | ~14 min |
+| `direct` | Under a minute. Lena calls Owen's direct number about a phone order; he confirms it and gives the order number. No queue, no hold, no transfer. Owen is recorded without transcription. | 2004 | ~55s |
 | `upset` | Bad sentiment. Frank, an angry repeat caller, reports dropped calls for the third time. Priya holds him for 15-25s, finds nothing, can only escalate with a 1-2 day callback and can't give a credit. He threatens to switch providers and hangs up unhappy. | 2001 | ~2.5 min |
 
 The scripts are in `sipp/scripts/audio/`: `call-script.md` (blind),
 `attended-call-script.md`, `park-call-script.md`, and `flows/*.json` for
-`3way`, `blind2`, `hold`, `long` and `upset`.
+`3way`, `blind2`, `hold`, `long`, `upset` and `direct` (`direct-call-script.md` is the readable version).
+
+### Testing transcription after the call
+
+`direct` exists to test recording without transcription, then transcribing
+the recording afterwards. Owen (2004) is the only user set to `yes`, so his
+calls are recorded but not sent for transcription:
+
+1. Place the call: `sipp/scripts/manual_test.sh -s <server> --flow direct --once`
+2. Check the CDR: `call-recording-status` should show a recording, and
+   `call-intelligence-job-id` should be empty (no transcription ran).
+3. Request the transcription for that recording (portal, or the feature under
+   test). API v2 has no endpoint to start one; it only reads a finished one
+   (`GET /domains/{domain}/transcriptions?id=<job id>&date=<YYYYMM>&callid=...`).
+4. Check that the CDR now has a `call-intelligence-job-id`, and read the
+   transcript. It should match `sipp/scripts/audio/direct-call-script.md`.
+
+`node meridian-voice/disposition-calls.js --server <server> --flow direct --since <epoch>`
+writes Owen's disposition and prints the CDR's recording and intelligence fields.
+`direct` has no `hour`, so cron never runs it; add `"hour": <h>` to
+`flows.direct` in `lab.json` to make it daily.
 
 ## Placing calls
 
@@ -137,7 +160,7 @@ sipp/scripts/manual_test.sh -s <server> --flow <flow> [-t u1|t1|l1] [-w 5] [--on
 - **Default flow:** with no `--flow`, it runs `blind`.
 - **Placing calls:** each Enter places another call, and `q` quits. `--once` places one call and exits, which is what cron uses.
 - **Registrations:** the agents' devices register just before each call and stop 5 seconds after it, so nothing stays registered between calls. Each registration is also sized to the flow, about 4 minutes for `3way` up to 17 for `long`, so it ends on its own even if the script is killed. `-k` registers once for an hour and leaves the registrations running.
-- **Ports:** each device registers from its own fixed ports in `lab.json` (`ports` on each user, `ports.shared` for the flows that register all three from one process): 2001 uses SIP 5110-5114, 2002 uses 5130-5134, 2003 uses 5150-5154, and the shared set uses 5170-5174, with control ports +5 and media from 60300/60400/60500/60600. Each call takes the first free port in the device's set, because a stopped TCP registration holds its port for about 60s. A registration the core still holds from an earlier run therefore always points back at the same device. Before registering, the script stops any registration process an earlier run left on those ports (`-k`, or a killed run), removes the devices' old bindings (`REGISTER Contact: *`, `Expires: 0`), and refuses to start if another `manual_test.sh` run is using them. Open these ports on the box's firewall like the pool ports (20000-60000).
+- **Ports:** each device registers from its own fixed ports in `lab.json` (`ports` on each user, `ports.shared` for the flows that register all three from one process): 2001 uses SIP 5110-5114, 2002 uses 5130-5134, 2003 uses 5150-5154, 2004 uses 5190-5194 (media 60700), and the shared set uses 5170-5174, with control ports +5 and media from 60300/60400/60500/60600. Each call takes the first free port in the device's set, because a stopped TCP registration holds its port for about 60s. A registration the core still holds from an earlier run therefore always points back at the same device. Before registering, the script stops any registration process an earlier run left on those ports (`-k`, or a killed run), removes the devices' old bindings (`REGISTER Contact: *`, `Expires: 0`), and refuses to start if another `manual_test.sh` run is using them. Open these ports on the box's firewall like the pool ports (20000-60000).
 - **Logs:** each run prints its work directory and log paths. Full SIP traces go to `sipp/scripts/*_messages.log`.
 - **Overrides:** `-f` uses another device CSV, `-n` calls another number, and `--media-ip` sets the address the caller advertises. The public IP is found automatically.
 - `sipp/scripts/manual_test.sh -h` lists every option.
