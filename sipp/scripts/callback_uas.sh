@@ -186,7 +186,10 @@ SIPP_CMD="sipp \
 -trace_stat -stf $STATS_FILE -fd 15 -bg"
 
 echo "SIPP command: $SIPP_CMD"
-SIPP_OUTPUT=$($SIPP_CMD 2>&1)
+# Run SIPp from sipp/scripts: the scenarios play pcaps/<name>.pcap, which
+# SIPp 3.7 resolves against the working directory only (the -oocsf copy in
+# /tmp has no pcaps/ next to it either). Cron starts this from anywhere.
+SIPP_OUTPUT=$(cd "$BASE_DIR/sipp/scripts" && $SIPP_CMD 2>&1)
 SIPP_EXIT=$?
 SIPP_PID=$(echo "$SIPP_OUTPUT" | grep -oP 'Background mode - PID=\[\K[0-9]+(?=\])')
 

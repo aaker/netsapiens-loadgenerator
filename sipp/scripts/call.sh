@@ -130,7 +130,10 @@ echo "SIPP command: $SIPP_CMD"
 logger -t sipp-call -p user.info "Starting calls: server=$SERVER_ID scenario=call transport=$TRANSPORT file=$LOG_FILE users=$MAX_USERS sip_port=$PORT media_port=$MEDIA_PORT control_port=$CONTROL_PORT"
 
 # Execute sipp command (runs in background with -bg flag)
-SIPP_OUTPUT=$($SIPP_CMD 2>&1)
+# Run SIPp from sipp/scripts: the scenarios play pcaps/<name>.pcap, which
+# SIPp 3.7 resolves against the working directory only (the -oocsf copy in
+# /tmp has no pcaps/ next to it either). Cron starts this from anywhere.
+SIPP_OUTPUT=$(cd "$BASE_DIR/sipp/scripts" && $SIPP_CMD 2>&1)
 SIPP_EXIT=$?
 
 # Extract the actual sipp PID from the "Background mode - PID=[XXXXX]" message

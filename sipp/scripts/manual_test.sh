@@ -787,8 +787,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# SIPp resolves the scenarios' pcaps/<name>.pcap against the CWD (then the
-# scenario's own directory), so copies in the work dir find them from here
+# SIPp 3.7 resolves the scenarios' pcaps/<name>.pcap against the CWD only
+# (3.8 also tries the scenario's own directory), so run everything from here
 cd "$BASE_DIR/sipp/scripts" || exit 1
 ulimit -n 65536 2>/dev/null
 

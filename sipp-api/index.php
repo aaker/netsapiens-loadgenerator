@@ -108,7 +108,9 @@ $scenerio = $current_dir . "/../sipp/scripts/" . $scenerio;
 $rua = "/usr/local/NetSapiens/netsapiens-loadgenerator/sipp/csv/random_user_agents.csv";
 
 $random = random_int(100, 999);
-$sipp_command = "sudo /usr/bin/sipp $destination $custom -sf $scenerio  -m $m  -inf $full_path -inf $rua -key expires 60 -mp 9$random  -nostdin $async ";
+// Run from sipp/scripts: the scenarios play pcaps/<name>.pcap, which SIPp
+// resolves against the working directory.
+$sipp_command = "cd /usr/local/NetSapiens/netsapiens-loadgenerator/sipp/scripts && sudo /usr/bin/sipp $destination $custom -sf $scenerio  -m $m  -inf $full_path -inf $rua -key expires 60 -mp 9$random  -nostdin $async ";
 
 // Execute the command
 //exec($sipp_command , $output, $return_var);
