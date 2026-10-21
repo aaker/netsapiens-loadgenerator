@@ -434,8 +434,9 @@
     },
     "direct": {
       "did": "18585551309",
+      "hour": 8,
       "caller": "lena",
-      "summary": "Under a minute: Lena calls Owen's direct number about a phone order. Owen is recorded without transcription; not scheduled (run it by hand).",
+      "summary": "Under a minute: Lena calls Owen's direct number about a phone order. Owen is recorded without transcription.",
       "dispositions": {
         "2004": {
           "disposition": "Resolved",

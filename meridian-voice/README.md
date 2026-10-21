@@ -98,7 +98,7 @@ The audio uses the caller's own name and company.
 | 1 858-555-1306 | `hold` | 14:00 | HARBOR VET, 1 415-555-0188 | Rosa Delgado, Harbor Vet Clinic |
 | 1 858-555-1307 | `long` | 15:00 | PINECREST RLTY, 1 503-555-0122 | Greg Hanley, Pinecrest Realty |
 | 1 858-555-1308 | `upset` | 16:00 | RUSSO PLUMBING, 1 312-555-0190 | Frank Russo, Russo Plumbing |
-| 1 858-555-1309 | `direct` (Owen's direct line, to-user 2004, not the queue) | not scheduled | SUNRISE BAKERY, 1 480-555-0136 | Lena Brooks, Sunrise Bakery |
+| 1 858-555-1309 | `direct` (Owen's direct line, to-user 2004, not the queue) | 8:00 | SUNRISE BAKERY, 1 480-555-0136 | Lena Brooks, Sunrise Bakery |
 
 Every flow has a different caller number, so `disposition-calls.js`, which
 finds a call's CDRs by caller number, can't pick up another flow's call.
@@ -145,8 +145,8 @@ calls are recorded but not sent for transcription:
 
 `node meridian-voice/disposition-calls.js --server <server> --flow direct --since <epoch>`
 writes Owen's disposition and prints the CDR's recording and intelligence fields.
-`direct` has no `hour`, so cron never runs it; add `"hour": <h>` to
-`flows.direct` in `lab.json` to make it daily.
+Cron runs `direct` every day at 8:00 Phoenix time, so there is a fresh
+untranscribed recording each morning.
 
 ## Placing calls
 
@@ -173,7 +173,7 @@ sipp/scripts/manual_test.sh -s <server> --flow <flow> [-t u1|t1|l1] [-w 5] [--on
 2. It runs `manual_test.sh --once` for that flow, using the transport in `lab.json` (`t1`).
 3. It runs `disposition-calls.js` for the call that just finished.
 
-The schedule runs one flow an hour from 9am to 4pm. The Phoenix clock is used
+The schedule runs one flow an hour from 8am to 4pm. The Phoenix clock is used
 whatever the box's own time zone, and Phoenix has no daylight saving, so the
 times never shift. The server comes from `MERIDIAN_VOICE_SERVER` in `.env`.
 

@@ -175,7 +175,7 @@ The `meridianvoice` test domain the scripted `manual_test.sh` flows run against;
 - Inbound: 5-minute cycles per timezone, running 24/7 (volume shaped only by `cps_multiplier`), rotating UDP/TCP/TLS transport on staggered minutes
 - Each timezone has offset minute patterns to distribute load
 - Callback UAS: `callback_uas_monitor.sh` every minute (keeps the single port-5050 answer-then-callback instance running for all servers; the instance itself recycles every 6 hours)
-- Meridian Voice: `meridian-voice/daily-calls.sh` hourly at :00; it runs one scripted flow per hour from 9am to 4pm America/Phoenix (`lab.json` `hour`)
+- Meridian Voice: `meridian-voice/daily-calls.sh` hourly at :00; it runs one scripted flow per hour from 8am to 4pm America/Phoenix (`lab.json` `hour`)
 
 `cron/start_sockettester` - Runs socket.io tester hourly 10:00-17:00
 

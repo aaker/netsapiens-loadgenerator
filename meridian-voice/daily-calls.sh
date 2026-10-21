@@ -4,7 +4,7 @@
 #
 # Cron runs this at the top of every hour (cron/start_sipp). It reads the
 # current hour in the lab's time zone (lab.json "timeZone", America/Phoenix)
-# and runs the flow whose "hour" matches - 9am blind, 10am attended, ... 4pm
+# and runs the flow whose "hour" matches - 8am direct, 9am blind, ... 4pm
 # upset - so it does not depend on the time zone the box's cron runs in. In
 # other hours it exits quietly.
 #
