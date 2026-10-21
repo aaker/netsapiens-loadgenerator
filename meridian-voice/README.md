@@ -116,16 +116,16 @@ that part of the conversation runs 44 seconds.
 
 | Flow | What happens | Agents | Length |
 |---|---|---|---|
+| `direct` | Under a minute. Lena calls Owen's direct number about a phone order; he confirms it and gives the order number. No queue, no hold, no transfer. Owen is recorded without transcription. | 2004 | ~55s |
+| `directblind` | About 50s. Paul calls Owen's direct number about two cancelled numbers still on his invoice. Owen talks 20s and blind-transfers him to Jordan, who removes them and credits $24 (25s). Only Owen and Jordan register, each in their own process. | 2004, 2005 | ~50s |
 | `blind` | Priya talks 90s, then blind-transfers the caller to queue 4001. Marcus takes the rest. | 2001, 2002 | ~5 min |
 | `attended` | Priya talks 44s and puts the caller on hold. She calls Marcus and they talk 24s, then she transfers the caller to him (REFER with Replaces). Marcus and the caller talk 60s. | 2001, 2002 | ~2.5 min |
 | `park` | Priya talks 45s and parks the caller on 700. After 15s Marcus dials 700, picks up, and talks 60s. | 2001, 2002 | ~2 min |
 | `3way` | Priya talks 34s, moves the caller onto bridge 800 and joins it herself. Marcus dials in 5s later, and all three talk 46s. | 2001, 2002 | ~1.5 min |
 | `blind2` | Priya talks 34s and blind-transfers to Marcus. Marcus talks 30s and blind-transfers to Dana, who talks 44s. | 2001, 2002, 2003 | ~2 min |
 | `hold` | No transfer. Priya and Rosa talk 32s, Priya holds her for a random 20-30s, they talk 35s, she holds again for 20-30s, then they talk 27s. | 2001 | ~2.5 min |
-| `long` | Priya and Greg cover an office move, voicemail-to-email and more, with small talk and awkward silences. She holds twice (15-25s, 20-30s) and blind-transfers to Marcus, who holds twice more (20-30s each). | 2001, 2002 | ~14 min |
-| `direct` | Under a minute. Lena calls Owen's direct number about a phone order; he confirms it and gives the order number. No queue, no hold, no transfer. Owen is recorded without transcription. | 2004 | ~55s |
-| `directblind` | About 50s. Paul calls Owen's direct number about two cancelled numbers still on his invoice. Owen talks 20s and blind-transfers him to Jordan, who removes them and credits $24 (25s). Only Owen and Jordan register, each in their own process. | 2004, 2005 | ~50s |
 | `upset` | Bad sentiment. Frank, an angry repeat caller, reports dropped calls for the third time. Priya holds him for 15-25s, finds nothing, can only escalate with a 1-2 day callback and can't give a credit. He threatens to switch providers and hangs up unhappy. | 2001 | ~2.5 min |
+| `long` | Priya and Greg cover an office move, voicemail-to-email and more, with small talk and awkward silences. She holds twice (15-25s, 20-30s) and blind-transfers to Marcus, who holds twice more (20-30s each). | 2001, 2002 | ~14 min |
 
 The scripts are in `sipp/scripts/audio/`: `call-script.md` (blind),
 `attended-call-script.md`, `park-call-script.md`, and `flows/*.json` for
@@ -252,14 +252,16 @@ What each agent writes after each flow's call:
 
 | Flow | Agent | Disposition | Call reason |
 |---|---|---|---|
+| `direct` | 2004 | Resolved | Order Status |
+| `directblind` | 2004 / 2005 | Transferred / Resolved | Billing or Payment |
 | `blind` | 2001 / 2002 | Transferred / Resolved | New User Setup |
 | `attended` | 2001 / 2002 | Transferred / Resolved | Call Routing |
 | `park` | 2001 / 2002 | Transferred / Resolved | Billing or Payment |
 | `3way` | 2001 / 2002 | Escalated / Resolved | Number Porting |
 | `blind2` | 2001 / 2002 / 2003 | Transferred / Transferred / Resolved | Technical Support / Network or Connectivity / Network or Connectivity |
 | `hold` | 2001 | Resolved | Call Recording |
-| `long` | 2001 / 2002 | Transferred / Resolved | Office Move / Account Changes |
 | `upset` | 2001 | Not Resolved | Complaint |
+| `long` | 2001 / 2002 | Transferred / Resolved | Office Move / Account Changes |
 
 The details of each call, such as what was fixed, extensions and ticket
 numbers, go in the notes.
@@ -286,9 +288,9 @@ party's track is silent while the other speaks. The pcaps live in
 | `blind` | `sipp/scripts/audio/generate-call-pcaps.sh` |
 | `attended` | `sipp/scripts/audio/generate-attended-pcaps.sh` |
 | `park` | `sipp/scripts/audio/generate-park-pcaps.sh` |
-| `3way`, `blind2`, `hold`, `long` | `sipp/scripts/audio/generate-flow-pcaps.py sipp/scripts/audio/flows/<flow>.json` |
+| `3way`, `blind2`, `hold`, `long`, `upset`, `direct`, `directblind` | `sipp/scripts/audio/generate-flow-pcaps.py sipp/scripts/audio/flows/<flow>.json` |
 
-The JSON specs also define the scripted agents for `hold` and `long`. After
+The JSON specs also define the scripted agents for `hold`, `long`, `upset`, `direct` and `directblind`. After
 editing one, run `sipp/scripts/gen-agent-scenario.py` on it.
 
 The generators read `DEEPGRAM_API_KEY` from `sipp/scripts/audio/.env`. On

@@ -325,6 +325,38 @@
     }
   },
   "flows": {
+    "direct": {
+      "did": "18585551309",
+      "time": "08:00",
+      "caller": "lena",
+      "summary": "Under a minute: Lena calls Owen's direct number about a phone order. Owen is recorded without transcription.",
+      "dispositions": {
+        "2004": {
+          "disposition": "Resolved",
+          "reason": "Order Status",
+          "notes": "Confirmed back-office desk phone on ext 104, added to the counter ring group. Ships tomorrow, arrives Thursday. Order 44712."
+        }
+      }
+    },
+    "directblind": {
+      "did": "18585551309",
+      "time": "08:30",
+      "agents": ["2004", "2005"],
+      "caller": "paul",
+      "summary": "About 50s: Paul calls Owen's direct number about cancelled numbers still billed; Owen blind-transfers him to Jordan in billing, who credits the account. Both agents are recorded without transcription.",
+      "dispositions": {
+        "2004": {
+          "disposition": "Transferred",
+          "reason": "Billing or Payment",
+          "notes": "Invoice still bills two numbers cancelled in March. Transferred to Jordan in billing for the credit."
+        },
+        "2005": {
+          "disposition": "Resolved",
+          "reason": "Billing or Payment",
+          "notes": "Removed the two numbers cancelled March 12 and credited $24. Credit shows on the next invoice."
+        }
+      }
+    },
     "blind": {
       "did": "18585551301",
       "time": "09:00",
@@ -433,6 +465,19 @@
         }
       }
     },
+    "upset": {
+      "did": "18585551308",
+      "time": "12:00",
+      "caller": "frank",
+      "summary": "Bad sentiment: an angry repeat caller; Priya holds once, can't fix the dropped calls or give a credit, and he hangs up unhappy.",
+      "dispositions": {
+        "2001": {
+          "disposition": "Not Resolved",
+          "reason": "Complaint",
+          "notes": "Third call about dropped calls mid-conversation. No errors in our call logs; customer says internet is fine. Escalated to network team (callback in 1-2 business days). Customer requested a service credit - noted, not approved. Customer very frustrated, threatened to switch providers if not fixed by Friday."
+        }
+      }
+    },
     "long": {
       "did": "18585551307",
       "time": "12:30",
@@ -448,51 +493,6 @@
           "disposition": "Resolved",
           "reason": "Account Changes",
           "notes": "Summer hours from June 1 (Sat 9-1); removed the conflicting holiday schedule. Added Emma Price (x115) and Daniel Ruiz (x116). Turned on recording for the Sales group. Customer to re-record the main greeting."
-        }
-      }
-    },
-    "direct": {
-      "did": "18585551309",
-      "time": "08:00",
-      "caller": "lena",
-      "summary": "Under a minute: Lena calls Owen's direct number about a phone order. Owen is recorded without transcription.",
-      "dispositions": {
-        "2004": {
-          "disposition": "Resolved",
-          "reason": "Order Status",
-          "notes": "Confirmed back-office desk phone on ext 104, added to the counter ring group. Ships tomorrow, arrives Thursday. Order 44712."
-        }
-      }
-    },
-    "directblind": {
-      "did": "18585551309",
-      "time": "08:30",
-      "agents": ["2004", "2005"],
-      "caller": "paul",
-      "summary": "About 50s: Paul calls Owen's direct number about cancelled numbers still billed; Owen blind-transfers him to Jordan in billing, who credits the account. Both agents are recorded without transcription.",
-      "dispositions": {
-        "2004": {
-          "disposition": "Transferred",
-          "reason": "Billing or Payment",
-          "notes": "Invoice still bills two numbers cancelled in March. Transferred to Jordan in billing for the credit."
-        },
-        "2005": {
-          "disposition": "Resolved",
-          "reason": "Billing or Payment",
-          "notes": "Removed the two numbers cancelled March 12 and credited $24. Credit shows on the next invoice."
-        }
-      }
-    },
-    "upset": {
-      "did": "18585551308",
-      "time": "12:00",
-      "caller": "frank",
-      "summary": "Bad sentiment: an angry repeat caller; Priya holds once, can't fix the dropped calls or give a credit, and he hangs up unhappy.",
-      "dispositions": {
-        "2001": {
-          "disposition": "Not Resolved",
-          "reason": "Complaint",
-          "notes": "Third call about dropped calls mid-conversation. No errors in our call logs; customer says internet is fine. Escalated to network team (callback in 1-2 business days). Customer requested a service credit - noted, not approved. Customer very frustrated, threatened to switch providers if not fixed by Friday."
         }
       }
     }
