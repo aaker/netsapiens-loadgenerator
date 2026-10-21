@@ -17,7 +17,9 @@
 //     derived from the server's API key, so every rebuild gives the same one
 //   - queues 4000/4001 (and their system users) with exactly the agents in
 //     lab.json, logged in
-//   - park 700, conference bridge 800 (no PIN, no prompts)
+//   - park 700 (plus a Directed-Parktrieve rule), conference bridge 800 (no
+//     PIN, no prompts), and lab.json "dialRules" in the domain's dial plan
+//     (11-digit numbers go off-net: to-connection, no on-net DID lookup)
 //   - one DID per call flow, routed to queue 4000 (except a flow that calls a
 //     user's direct number)
 //   - the call-center disposition and call-reason codes in lab.json
@@ -236,34 +238,18 @@ async function buildQueues() {
     }
 }
 
-// Directed-Parktrieve on the park extension, in the domain's own dial plan
-// (the platform's Cloud PBX Features plan is admin-only): dialed from an idle
-// device it retrieves the call parked there; from a call it parks it. The
-// rule is more specific than the chain rule's "*", so it wins for this
-// number. A rule with the same match fields answers 409; then it is updated
-// by its dialrule id.
-async function buildParkRule() {
+// upsertDialRule: create a rule in the domain's own dial plan, or on 409 (a
+// rule with the same match fields) update it by its dialrule id. Rules in
+// this plan are tried before its "*" chain to <Cloud PBX Features>.
+async function upsertDialRule(label, match, rule) {
     const rulesPath = `domains/${enc(D)}/dialplans/${enc(D)}/dialrules`;
-    const match = `sip:${lab.park.ext}@*`;
-    const rule = {
-        enabled: 'yes',
-        'dial-rule-application': 'Directed-Parktrieve',
-        'dial-rule-parameter': '',
-        'dial-rule-translation-destination-scheme': 'sip:',
-        'dial-rule-translation-destination-user': '[*]',
-        'dial-rule-translation-destination-host': '<OwnDomain>',
-        'dial-rule-translation-source-name': '[*]',
-        'dial-rule-translation-source-user': '[*]',
-        'dial-rule-translation-source-host': '<OwnDomain>',
-        'dial-rule-description': `Retrieve parked calls (${lab.park.ext})`
-    };
-    const label = `park retrieve rule ${match} (Directed-Parktrieve)`;
+    const body = { 'dial-rule-matching-to-uri': match, 'dial-rule-matching-from-uri': '*', enabled: 'yes', ...rule };
     if (DRY_RUN) {
-        log(`DRY RUN ${label}: POST ${rulesPath} ${JSON.stringify({ 'dial-rule-matching-to-uri': match, 'dial-rule-matching-from-uri': '*', ...rule })}`);
+        log(`DRY RUN ${label}: POST ${rulesPath} ${JSON.stringify(body)}`);
         return;
     }
     try {
-        await client.apiPostJson(rulesPath, { synchronous: 'yes', 'dial-rule-matching-to-uri': match, 'dial-rule-matching-from-uri': '*', ...rule });
+        await client.apiPostJson(rulesPath, { synchronous: 'yes', ...body });
         log(`created ${label}`);
         return;
     } catch (e) {
@@ -277,7 +263,7 @@ async function buildParkRule() {
         const res = await client.apiGet(rulesPath, { 'dial-rule-matching-to-uri': match });
         const existing = (res.data || []).find(r => r['dial-rule-matching-from-uri'] === '*') || (res.data || [])[0];
         if (!existing?.dialrule) throw new Error(`409 on create, but no rule matching ${match} found`);
-        await client.apiPutJson(`${rulesPath}/${enc(existing.dialrule)}`, rule);
+        await client.apiPutJson(`${rulesPath}/${enc(existing.dialrule)}`, { enabled: 'yes', ...rule });
         log(`updated ${label}`);
     } catch (e) {
         failures++;
@@ -285,10 +271,39 @@ async function buildParkRule() {
     }
 }
 
+// Directed-Parktrieve on the park extension (the platform's Cloud PBX
+// Features plan is admin-only): dialed from an idle device it retrieves the
+// call parked there; from a call it parks it.
+async function buildParkRule() {
+    await upsertDialRule(`park retrieve rule sip:${lab.park.ext}@* (Directed-Parktrieve)`, `sip:${lab.park.ext}@*`, {
+        'dial-rule-application': 'Directed-Parktrieve',
+        'dial-rule-parameter': '',
+        'dial-rule-translation-destination-scheme': 'sip:',
+        'dial-rule-translation-destination-user': '[*]',
+        'dial-rule-translation-destination-host': '<OwnDomain>',
+        'dial-rule-translation-source-name': '[*]',
+        'dial-rule-translation-source-user': '[*]',
+        'dial-rule-translation-source-host': '<OwnDomain>',
+        'dial-rule-description': `Retrieve parked calls (${lab.park.ext})`
+    });
+}
+
+// lab.json dialRules: extra rules for the domain's dial plan, e.g. 11-digit
+// numbers straight to-connection (off-net), skipping the platform's
+// "<DID Table> <To Connection>" lookup that delivers a number another
+// domain on this core owns on-net (domain bleed-through).
+async function buildDialRules() {
+    for (const r of lab.dialRules || []) {
+        const { match, ...rule } = r;
+        await upsertDialRule(`dial rule ${match} (${rule['dial-rule-application']})`, match, rule);
+    }
+}
+
 async function buildFeatures() {
     await upsert(`park ${lab.park.ext}`, `domains/${enc(D)}/parks`,
         { park: lab.park.ext, description: lab.park.description }, null);
     await buildParkRule();
+    await buildDialRules();
 
     const conf = {
         'conference-name': lab.conference.name,

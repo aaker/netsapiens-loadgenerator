@@ -44,6 +44,7 @@ registers.
 | Area code / main number | 858 / 1 858-555-1301 |
 | Dial policy | US and Canada |
 | Dial plan | `meridianvoice`, chained to `<Cloud PBX Features>` so devices can dial extensions, the park and the bridge |
+| Off-net rule | `sip:1[2-9][0-9][0-9][2-9][0-9][0-9][0-9][0-9][0-9][0-9]@*` -> `to-connection` in the domain's dial plan (`lab.json` `dialRules`; destination `[*]@<OwnDomain>`, caller ID `<OwnCidName>`/`<OwnCidNmbr>`). 11-digit calls from the lab go off-net without the platform's `<DID Table>` lookup, so a number another domain on this core owns is not delivered on-net (no domain bleed-through) |
 | Park rule | `sip:700@*` -> `Directed-Parktrieve` in the domain's dial plan (destination `[*]@<OwnDomain>`, source host `<OwnDomain>`): dialed from an idle phone it retrieves the call parked on 700 |
 | Call recording | 2001-2003: `yes-with-transcription-and-sentiment`. 2004-2005: `yes` (recorded, not transcribed) |
 
