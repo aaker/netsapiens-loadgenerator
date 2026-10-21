@@ -296,6 +296,7 @@ under `sipp/scripts/`.
 | Build line says `FAILED ... HTTP 409` on a DID | The number is in another domain's DID table |
 | Build line says `FAILED ... HTTP 403` | The API key's scope is too low for that object. Domains and connections need Reseller or Super User. |
 | No agent answers | `manual_test.sh` banner `registered/active`. Is 2001 a logged-in member of queue 4000? |
+| After a park pickup, Priya's audio plays over Marcus | The core re-INVITEs the retriever at its registered contact. In `park` and `3way`, Marcus registers only from his dial-in (`DIAL: 2002 registered` in the dial-in's logs); a second registration of 2002 elsewhere would take that re-INVITE. |
 | A later agent plays an earlier agent's audio, or transfers to itself | A stale binding sent the call to the wrong agent's process. Look for `rejecting an INVITE for another extension` in the agent logs, and `[register] clearing old bindings` / `unregister exited` in the run output. |
 | Transfer, park or bridge step doesn't happen | Agent logs: `register.and.subscribe.sipp_<pid>_logs.log` (`ATT`, `PARK A`, `3WAY A`, `CHAIN`, `AGENT` lines) and `_errors.log` |
 | Caller's sections out of step | The caller log's `FLOW caller:` lines show each re-INVITE and the section it chose |

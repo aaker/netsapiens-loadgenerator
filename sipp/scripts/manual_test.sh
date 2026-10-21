@@ -401,6 +401,7 @@ AGENT_C=${DEV_EXTS[2]:-}
 PER_DEVICE=0           # 1: each device registers in its own SIPp process
 DEV_UAS=()             # PER_DEVICE: agent scenario per device, same order as DEV_EXTS
 DIAL_SCRIPT=""         # park/3way: script agent A runs to start agent B's dial-in
+DIAL_ONLY_EXT=""       # park/3way: B, which registers only from its dial-in (see below)
 
 # device_csv <ext>: write a one-line SEQUENTIAL CSV for one device; echo its path.
 device_csv() {
@@ -484,6 +485,7 @@ park)
     _UAS_SCENARIO="$WORK_DIR/uas_park.xml"
     sed -e "s#__PICKUP_SCRIPT__#$DIAL_SCRIPT#g" "$BASE_DIR/sipp/scripts/sipp_uas_park.xml" > "$_UAS_SCENARIO"
     REG_KEYS="-key park_ext $PARK_EXT"
+    DIAL_ONLY_EXT=$CONSULT
     ;;
 # 3way: agent A (sipp_uas_3way.xml) moves the caller onto the conference
 # bridge with a blind REFER, runs DIAL_SCRIPT (B dials the bridge JOIN_DELAY
@@ -493,6 +495,7 @@ park)
     DIAL_SCRIPT="$WORK_DIR/join.sh"
     DIAL_WAIT=$JOIN_DELAY; DIAL_EXT=$CONF_EXT; DIAL_AUDIO=g711a-3way-conf-b; DIAL_TALK_MS=44000
     REG_KEYS="-key conf_ext $CONF_EXT"
+    DIAL_ONLY_EXT=$CONSULT
     PER_DEVICE=1
     for i in "${!DEV_EXTS[@]}"; do
         DEV_UAS[$i]="$WORK_DIR/uas_3way_${DEV_EXTS[$i]}.xml"
@@ -604,16 +607,30 @@ add_reg_set() {
         ALL_PORTS="$ALL_PORTS $ALLOCATED_SIP_PORT $ALLOCATED_MEDIA_PORT $ALLOCATED_CONTROL_PORT"
     fi
 }
+# park/3way: agent B only dials, and its dial-in (sipp_uac_agent_dial.xml)
+# registers B from its own socket. The core sends the call's later requests
+# (the park retrieve's re-INVITE, the BYE) to B's registered contact; with B
+# also registered from the registration process, they went there instead and
+# that scenario answered them as agent A (Priya's audio over the call). So B
+# is left out of the registration process(es) here. A must stay registered.
+[ "$DIAL_ONLY_EXT" == "$AGENT_A" ] && DIAL_ONLY_EXT=""
+SHARED_REG_CSV=$REG_CSV
+if [ -n "$DIAL_ONLY_EXT" ]; then
+    SHARED_REG_CSV="$WORK_DIR/devices_registered.csv"
+    awk -F';' -v e="$DIAL_ONLY_EXT" 'NR == 1 || $2 != e' "$REG_CSV" > "$SHARED_REG_CSV"
+    NUM_DEVICES=$((NUM_DEVICES - 1))
+fi
 if [ "$PER_DEVICE" == "1" ]; then
     for i in "${!DEV_EXTS[@]}"; do
         ext=${DEV_EXTS[$i]}
+        [ "$ext" == "$DIAL_ONLY_EXT" ] && continue
         add_reg_set "$WORK_DIR/device_$ext.csv" "$STATS_PATH/manual_register_${TRANSPORT}_$$_$ext.csv" "${DEV_UAS[$i]}" "$ext"
     done
 else
     # The shared set only fits the lab's own device list.
     key=""
     [ "$DEVICE_CSV" == "$BASE_DIR/meridian-voice/lab/devices.csv" ] && key=shared
-    add_reg_set "$REG_CSV" "$STATS_PATH/manual_register_${TRANSPORT}_$$.csv" "$_UAS_SCENARIO" "$key"
+    add_reg_set "$SHARED_REG_CSV" "$STATS_PATH/manual_register_${TRANSPORT}_$$.csv" "$_UAS_SCENARIO" "$key"
 fi
 
 # port_pids <port>: PIDs with a socket on that local port.
@@ -682,20 +699,35 @@ allocate_ports 1 1 1 || exit 1
 UAC_SIP_PORT=$ALLOCATED_SIP_PORT; UAC_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; UAC_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
 ALL_PORTS="$ALL_PORTS $UAC_SIP_PORT $UAC_MEDIA_PORT $UAC_CONTROL_PORT"
 
-# park/3way: agent B's dial-in (sipp_uac_agent_dial.xml) gets its own port
-# set, and DIAL_SCRIPT runs it after DIAL_WAIT seconds. Agent A's SIPp runs the
-# script (<exec command>, in the background) at the moment it parks the caller
-# or moves them onto the bridge. The dial-in is a main scenario, so it can read
-# B's device CSV for the 407 challenge.
+# park/3way: DIAL_SCRIPT runs agent B's dial-in (sipp_uac_agent_dial.xml)
+# after DIAL_WAIT seconds. Agent A's SIPp runs the script (<exec command>, in
+# the background) at the moment it parks the caller or moves them onto the
+# bridge. The dial-in is a main scenario, so it can read B's device CSV for
+# the 407 challenges; it registers B, dials, and unregisters at the end. Its
+# ports are B's lab ports (the first free slot, picked for every call by
+# write_dial_script), or one set from the pool for devices not in lab.json.
 if [ -n "$DIAL_SCRIPT" ]; then
-    allocate_ports 1 1 1 || exit 1
-    DIAL_SIP_PORT=$ALLOCATED_SIP_PORT; DIAL_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; DIAL_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
-    ALL_PORTS="$ALL_PORTS $DIAL_SIP_PORT $DIAL_MEDIA_PORT $DIAL_CONTROL_PORT"
+    if [ -z "$(lab_port_base "$CONSULT")" ]; then
+        allocate_ports 1 1 1 || exit 1
+        DIAL_SIP_PORT=$ALLOCATED_SIP_PORT; DIAL_MEDIA_PORT=$ALLOCATED_MEDIA_PORT; DIAL_CONTROL_PORT=$ALLOCATED_CONTROL_PORT
+        ALL_PORTS="$ALL_PORTS $DIAL_SIP_PORT $DIAL_MEDIA_PORT $DIAL_CONTROL_PORT"
+    fi
     DIAL_CSV=$(device_csv "$CONSULT") || exit 1
     DIAL_UAC="$WORK_DIR/dial_${FLOW}.xml"
     sed -e "s/__AUDIO__/$DIAL_AUDIO/g" -e "s/__TALK_MS__/$DIAL_TALK_MS/g" \
         "$BASE_DIR/sipp/scripts/sipp_uac_agent_dial.xml" > "$DIAL_UAC"
     DIAL_LOG="$WORK_DIR/$(basename "$DIAL_SCRIPT" .sh).log"
+fi
+
+# write_dial_script: (re)write DIAL_SCRIPT before a call, on B's first free
+# lab slot (a previous call's dial-in may leave its port in TIME_WAIT).
+write_dial_script() {
+    [ -n "$DIAL_SCRIPT" ] || return 0
+    if [ -n "$(lab_port_base "$CONSULT")" ]; then
+        pick_lab_slot "$CONSULT" || exit 1
+        DIAL_SIP_PORT=$SLOT_SIP; DIAL_MEDIA_PORT=$SLOT_MEDIA; DIAL_CONTROL_PORT=$SLOT_CTRL
+        echo "[dial] $CONSULT will dial $DIAL_EXT from sip=$DIAL_SIP_PORT media=$DIAL_MEDIA_PORT ctrl=$DIAL_CONTROL_PORT"
+    fi
     cat > "$DIAL_SCRIPT" <<DIAL
 #!/bin/bash
 # Run by agent A's SIPp ($FLOW flow): wait ${DIAL_WAIT}s, then have agent B
@@ -711,7 +743,7 @@ sipp ${SUT}${SIP_PORT_ADD_ON} -sf "$DIAL_UAC" \\
     -trace_err -trace_logs -trace_msg -bg >> "$DIAL_LOG" 2>&1
 DIAL
     chmod +x "$DIAL_SCRIPT"
-fi
+}
 
 REG_PIDS=()
 
@@ -781,7 +813,11 @@ else
 fi
 echo "   Call ports:  sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT"
 if [ -n "$DIAL_SCRIPT" ]; then
-    echo "   Dial-in:     sip=$DIAL_SIP_PORT media=$DIAL_MEDIA_PORT ctrl=$DIAL_CONTROL_PORT (log: $DIAL_LOG)"
+    if [ -n "$DIAL_SIP_PORT" ]; then
+        echo "   Dial-in:     $CONSULT registers and dials from sip=$DIAL_SIP_PORT media=$DIAL_MEDIA_PORT ctrl=$DIAL_CONTROL_PORT (log: $DIAL_LOG)"
+    else
+        echo "   Dial-in:     $CONSULT registers and dials from its lab.json ports (first free slot per call; log: $DIAL_LOG)"
+    fi
 fi
 echo "   Work dir:    $WORK_DIR"
 if [ "$CAPTURE" == "1" ]; then
@@ -957,6 +993,7 @@ place_call() {
 # registrations again (unless -k).
 run_call() {
     [ "$KEEP" == "1" ] || register_devices
+    write_dial_script
     if [ -n "$1" ]; then
         echo "Waiting ${1}s before placing the call..."
         sleep "$1"

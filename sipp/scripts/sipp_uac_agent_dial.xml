@@ -12,10 +12,78 @@
 <!-- in __AUDIO__ and __TALK_MS__ and runs it from a script:                -->
 <!--   park  agent B picks up the parked caller (dial_ext = park extension) -->
 <!--   3way  agent B joins the conference bridge (dial_ext = bridge)        -->
+<!--                                                                        -->
+<!-- It first REGISTERs the device from this socket (Call-ID               -->
+<!-- reg///<call>, so SIPp matches the responses to this call) and          -->
+<!-- unregisters this contact at the end. A real phone registers and dials  -->
+<!-- from one socket, and the core sends the call's later requests to the   -->
+<!-- registered contact: after a park retrieve it re-INVITEs the retriever  -->
+<!-- there. Registered from another process (manual_test.sh's registration  -->
+<!-- run), that re-INVITE reached the wrong scenario, which answered it     -->
+<!-- with agent A's audio. manual_test.sh doesn't register B otherwise in   -->
+<!-- the flows that use this scenario. A failed REGISTER still dials.       -->
 <!-- ====================================================================== -->
 
 <scenario name="UAC agent dial-in">
 
+  <nop>
+    <action><log message="DIAL: [field1]@[field2] registering from [local_ip]:[local_port]"/></action>
+  </nop>
+  <send retrans="500">
+    <![CDATA[
+
+      REGISTER sip:[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=r[call_number]
+      To: <sip:[field1]@[field2]>
+      Call-ID: reg///[call_id]
+      CSeq: 1 REGISTER
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Expires: 300
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="407" optional="true" auth="true" timeout="10000" ontimeout="dial" next="reg_auth">
+  </recv>
+  <recv response="401" optional="true" auth="true" timeout="10000" ontimeout="dial" next="reg_auth">
+  </recv>
+  <recv response="200" timeout="10000" ontimeout="dial" next="registered">
+  </recv>
+
+  <label id="reg_auth"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REGISTER sip:[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=r[call_number]
+      To: <sip:[field1]@[field2]>
+      Call-ID: reg///[call_id]
+      CSeq: 2 REGISTER
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Expires: 300
+      [field3]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="200" timeout="10000" ontimeout="dial">
+  </recv>
+
+  <label id="registered"/>
+  <nop>
+    <action>
+      <assignstr assign_to="registered" value="yes"/>
+      <log message="DIAL: [field1] registered"/>
+    </action>
+  </nop>
+
+  <label id="dial"/>
   <nop>
     <action><log message="DIAL: [field1]@[field2] calling [dial_ext]"/></action>
   </nop>
@@ -228,7 +296,66 @@
     ]]>
   </send>
 
+  <!-- Unregister this contact (only if the REGISTER above succeeded). -->
   <label id="done"/>
+  <nop>
+    <action><strcmp assign_to="was_registered" variable="registered" value="yes"/>
+      <test assign_to="do_unreg" variable="was_registered" compare="equal" value="0"/></action>
+  </nop>
+  <nop test="do_unreg" next="unreg"/>
+  <nop next="end"/>
+
+  <label id="unreg"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REGISTER sip:[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=r[call_number]
+      To: <sip:[field1]@[field2]>
+      Call-ID: reg///[call_id]
+      CSeq: 3 REGISTER
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Expires: 0
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="407" optional="true" auth="true" timeout="5000" ontimeout="end" next="unreg_auth">
+  </recv>
+  <recv response="401" optional="true" auth="true" timeout="5000" ontimeout="end" next="unreg_auth">
+  </recv>
+  <recv response="200" timeout="5000" ontimeout="end" next="end">
+  </recv>
+
+  <label id="unreg_auth"/>
+  <send retrans="500">
+    <![CDATA[
+
+      REGISTER sip:[field2] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: "[field0]" <sip:[field1]@[field2]>;tag=r[call_number]
+      To: <sip:[field1]@[field2]>
+      Call-ID: reg///[call_id]
+      CSeq: 4 REGISTER
+      Contact: <sip:[field1]@[local_ip]:[local_port];transport=[transport]>
+      Expires: 0
+      [field3]
+      User-Agent: netsapiens-loadgenerator ([ua_version])
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+  <recv response="200" timeout="5000" ontimeout="end">
+  </recv>
+
+  <label id="end"/>
+  <nop>
+    <action><log message="DIAL: [field1] done"/></action>
+  </nop>
 
   <ResponseTimeRepartition value="10, 20, 30, 40, 50, 100, 150, 200"/>
   <CallLengthRepartition value="10, 50, 100, 500, 1000, 5000, 10000"/>
