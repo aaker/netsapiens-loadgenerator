@@ -889,8 +889,12 @@ start_registration() {
 # leaves its binding until it expires, and the next run can get that port for
 # a different device - the core then sends the old device's calls to the
 # wrong agent scenario (blind2: Marcus's transfer answered by Priya's copy,
-# which replayed her audio and transferred to 2002 again). Uses the UAC's
-# ports, which are free until the call is placed. Failures only warn.
+# which replayed her audio and transferred to 2002 again). The SIP port is
+# one the system picks (no -p): a fixed port would sit in TIME_WAIT towards
+# the core for ~60s after this SIPp exits, and the caller, placed seconds
+# later from that port over TCP, could not connect (OPTIONS never sent, call
+# failed after 60s). Control and media use the UAC's (UDP, free until the
+# call). Failures only warn; the log has every SIP message.
 unregister_devices() {
     local n=$(grep -cv -e '^SEQUENTIAL' -e '^RANDOM' -e '^[[:space:]]*$' "$REG_CSV")
     local log="$WORK_DIR/unregister_$(date +%s).log"
@@ -899,11 +903,11 @@ unregister_devices() {
         -sf "$BASE_DIR/sipp/scripts/unregister_all.sipp.xml" \
         -inf "$REG_CSV" \
         -t "$TRANSPORT" $TLS_OPTIONS \
-        -i "$PRIVATEIP" -p "$UAC_SIP_PORT" -cp "$UAC_CONTROL_PORT" -mp "$UAC_MEDIA_PORT" \
+        -i "$PRIVATEIP" -cp "$UAC_CONTROL_PORT" -mp "$UAC_MEDIA_PORT" \
         -timeout 20s -recv_timeout 5000 -nostdin \
-        -trace_err -error_file "$log" > /dev/null 2>&1
+        -trace_err -error_file "$log" -trace_msg -message_file "${log%.log}_messages.log" > /dev/null 2>&1
     local rc=$?
-    [ "$rc" -eq 0 ] || echo "  (unregister exited $rc - continuing; see $log)"
+    [ "$rc" -eq 0 ] || echo "  (unregister exited $rc - continuing; see $log and ${log%.log}_messages.log)"
 }
 
 # register_devices: start every registration process, then wait until all
