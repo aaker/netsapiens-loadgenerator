@@ -1,0 +1,43 @@
+{
+  "name": "outbound",
+  "voices": {
+    "CALLER": "aura-orpheus-en"
+  },
+  "say_voices": {
+    "CALLER": "Daniel"
+  },
+  "sections": [
+    {
+      "length": 40,
+      "tracks": {
+        "CALLER": "g711a-outbound-orig1"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "PAUSE",
+      5
+    ],
+    [
+      "CALLER",
+      "Hi, this is Owen Hale from Meridian Voice. I'm calling to check on a support ticket we opened last week."
+    ],
+    [
+      "PAUSE",
+      9
+    ],
+    [
+      "CALLER",
+      "Okay. And are your support lines open on Saturdays?"
+    ],
+    [
+      "PAUSE",
+      8
+    ],
+    [
+      "CALLER",
+      "Great, that's all I needed. Thanks for your help. Goodbye."
+    ]
+  ]
+}

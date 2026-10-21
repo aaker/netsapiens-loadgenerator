@@ -479,9 +479,8 @@
       }
     },
     "outbound": {
-      "dial": "18583893763",
       "agent": "2004",
-      "summary": "Outbound: Owen (2004, recorded without transcription) registers and dials 18583893763, the core's 'Loadgenerator Callback' route to the load generator's answer-then-callback UAS (port 5050). The UAS plays the tier-1 agent's 90s; Owen's device plays the matching caller half. Not scheduled; no wrap-up. The UAS calls Owen's caller ID back 65s after the call."
+      "summary": "Outbound: Owen (2004, recorded without transcription) registers and dials a random load-test number of the server (sipp/csv/servers/<id>/phonenumbers/*.csv). A load-test agent answers with the tier-1 agent's audio; Owen asks a basic question about a ticket and Saturday support hours, then hangs up (40s). Not scheduled; no wrap-up."
     },
     "long": {
       "did": "18585551307",

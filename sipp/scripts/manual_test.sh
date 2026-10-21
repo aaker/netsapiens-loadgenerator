@@ -73,10 +73,10 @@
 #                                     agent B (lab: 2004 Owen -> 2005
 #                                     Jordan, both recorded without
 #                                     transcription). Only A and B register.
-#                           outbound  ~95s: a registered agent (lab: 2004)
-#                                     dials the flow's "dial" number
-#                                     (18583893763, routed to the
-#                                     answer-then-callback UAS).
+#                           outbound  ~40s: a registered agent (lab: 2004)
+#                                     dials a random load-test number of
+#                                     the server (phonenumbers CSVs), or
+#                                     -n, and asks a basic question.
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -125,7 +125,7 @@
 #   ./manual_test.sh -s prod1 --flow upset             # upset caller, bad sentiment
 #   ./manual_test.sh -s prod1 --flow direct            # direct number to 2004, recorded, not transcribed
 #   ./manual_test.sh -s prod1 --flow directblind       # 2004's direct number, blind transfer to 2005
-#   ./manual_test.sh -s prod1 --flow outbound          # 2004 dials 18583893763 (the callback UAS)
+#   ./manual_test.sh -s prod1 --flow outbound          # 2004 dials a random load-test number
 #
 # The devices register just before each call and are stopped a few seconds
 # after it, so nothing stays registered between calls. Each registration is
@@ -213,8 +213,7 @@ fi
 CALLER_NAME=""
 CALLER_NUMBER=""
 if [ -f "$LAB_JSON" ] && command -v jq >/dev/null; then
-    # outbound: "dial" is the number the agent calls (not a DID of ours).
-    [ -n "$NUMBER" ] || NUMBER=$(jq -r --arg f "$FLOW" '.flows[$f].did // .flows[$f].dial // empty' "$LAB_JSON")
+    [ -n "$NUMBER" ] || NUMBER=$(jq -r --arg f "$FLOW" '.flows[$f].did // empty' "$LAB_JSON")
     CALLER_KEY=$(jq -r --arg f "$FLOW" '.flows[$f].caller // empty' "$LAB_JSON")
     if [ -n "$CALLER_KEY" ]; then
         # Caller ID name: the caller's cnam, else their company, else their
@@ -224,6 +223,9 @@ if [ -f "$LAB_JSON" ] && command -v jq >/dev/null; then
     fi
 fi
 
+# outbound: each call dials a random load-test number of this server (see
+# place_outbound) unless -n names one.
+[ "$FLOW" == "outbound" ] && [ -z "$NUMBER" ] && NUMBER=random
 if [ -z "$DEVICE_CSV" ] || [ -z "$NUMBER" ]; then
     echo "ERROR: need a device CSV (-f) and a number (-n, or the flow's DID in meridian-voice/lab.json; requires jq)"
     exit 1
@@ -605,20 +607,20 @@ directblind)
     fi
     ;;
 # outbound: a registered agent (lab.json flows.outbound.agent, else the first
-# device) dials $NUMBER (flows.outbound.dial, 18583893763: the core's
-# "Loadgenerator Callback" route to the answer-then-callback UAS on port
-# 5050). The UAS answers with g711u-term (the tier-1 agent's 90s), so the
-# agent plays the matching caller half, g711a-orig, and hangs up after 92s.
-# The agent's dial-in (sipp_uac_agent_dial.xml) registers the device itself
-# and is the call, so no registration process runs. The UAS calls the
-# agent's caller ID back 65s after the call; nothing answers that here.
+# device) dials a random load-test number of this server
+# (sipp/csv/servers/<id>/phonenumbers/*.csv, picked per call), or -n. The
+# load-test agents answer those with the tier-1 agent's audio; this agent
+# plays a short caller part (g711a-outbound-orig1: a basic question, 40s) and
+# hangs up. Its dial-in (sipp_uac_agent_dial.xml) registers the device itself
+# and is the call, so no registration process runs.
 outbound)
     OUTBOUND=1
     OUT_EXT=$(jq -r '.flows.outbound.agent // empty' "$LAB_JSON" 2>/dev/null)
     OUT_EXT=${OUT_EXT:-${DEV_EXTS[0]}}
     OUT_CSV=$(device_csv "$OUT_EXT") || exit 1
     OUT_UAC="$WORK_DIR/outbound_$OUT_EXT.xml"
-    sed -e "s/__AUDIO__/g711a-orig/g" -e "s/__TALK_MS__/92000/g" \
+    OUT_NUM_DIR="$BASE_DIR/sipp/csv/servers/${SERVER_ID:-default}/phonenumbers"
+    sed -e "s/__AUDIO__/g711a-outbound-orig1/g" -e "s/__TALK_MS__/40000/g" \
         "$BASE_DIR/sipp/scripts/sipp_uac_agent_dial.xml" > "$OUT_UAC"
     PER_DEVICE=1
     for i in "${!DEV_EXTS[@]}"; do DEV_UAS[$i]=""; done
@@ -890,7 +892,7 @@ elif [ "$FLOW" == "direct" ]; then
 elif [ "$FLOW" == "directblind" ]; then
     echo "   Flow:        directblind - $NUMBER rings $XA directly, who blind-transfers to $XB"
 elif [ "$FLOW" == "outbound" ]; then
-    echo "   Flow:        outbound - $OUT_EXT registers and dials $NUMBER (callback UAS answers)"
+    echo "   Flow:        outbound - $OUT_EXT registers and dials $([ "$NUMBER" == "random" ] && echo "a random number from $OUT_NUM_DIR" || echo "$NUMBER")"
 elif [ "$FLOW" == "long" ]; then
     echo "   Flow:        long (~14 min) - $AGENT_A holds twice, transfers to ${DEV_EXTS[1]}, who holds twice"
 elif [ "$FULL_CALL" == "1" ]; then
@@ -1043,12 +1045,24 @@ place_outbound() {
         pick_lab_slot "$OUT_EXT" || { LAST_CALL_RC=1; return; }
         sip=$SLOT_SIP; media=$SLOT_MEDIA; ctrl=$SLOT_CTRL
     fi
+    local dial=$NUMBER pick
+    if [ "$NUMBER" == "random" ]; then
+        # One random number;domain line from every timezone file.
+        pick=$(awk -F';' 'BEGIN { srand() } FNR > 1 && $1 ~ /^[0-9]+$/ { a[n++] = $1 " (" $2 ")" }
+                          END { if (n) print a[int(rand() * n)] }' "$OUT_NUM_DIR"/*.csv 2>/dev/null)
+        if [ -z "$pick" ]; then
+            echo "ERROR: no phone numbers in $OUT_NUM_DIR (run server.js for this server)"; LAST_CALL_RC=1; return
+        fi
+        dial=${pick%% *}
+        echo ""
+        echo "[call] random load-test number: $pick"
+    fi
     echo ""
-    echo "[call] $OUT_EXT registers and dials $NUMBER via $SUT (sip=$sip media=$media ctrl=$ctrl) ..."
+    echo "[call] $OUT_EXT registers and dials $dial via $SUT (sip=$sip media=$media ctrl=$ctrl) ..."
     sipp ${SUT}${SIP_PORT_ADD_ON} -sf "$OUT_UAC" -inf "$OUT_CSV" -m 1 -l 1 \
         -t "$TRANSPORT" $TLS_OPTIONS \
         -i "$PRIVATEIP" -p "$sip" -cp "$ctrl" -mp "$media" -mi "$PRIVATEIP" \
-        -key dial_ext "$NUMBER" -key ua_version "$UA_VERSION" -recv_timeout 60000 \
+        -key dial_ext "$dial" -key ua_version "$UA_VERSION" -recv_timeout 60000 \
         -trace_stat -stf "$stats" -fd 5 -trace_err -trace_logs -trace_msg
     LAST_CALL_RC=$?
     echo "[call] sipp exited with status $LAST_CALL_RC (stats: $stats)"
