@@ -73,6 +73,10 @@
 #                                     agent B (lab: 2004 Owen -> 2005
 #                                     Jordan, both recorded without
 #                                     transcription). Only A and B register.
+#                           outbound  ~95s: a registered agent (lab: 2004)
+#                                     dials the flow's "dial" number
+#                                     (18583893763, routed to the
+#                                     answer-then-callback UAS).
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -121,6 +125,7 @@
 #   ./manual_test.sh -s prod1 --flow upset             # upset caller, bad sentiment
 #   ./manual_test.sh -s prod1 --flow direct            # direct number to 2004, recorded, not transcribed
 #   ./manual_test.sh -s prod1 --flow directblind       # 2004's direct number, blind transfer to 2005
+#   ./manual_test.sh -s prod1 --flow outbound          # 2004 dials 18583893763 (the callback UAS)
 #
 # The devices register just before each call and are stopped a few seconds
 # after it, so nothing stays registered between calls. Each registration is
@@ -189,12 +194,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park|3way|blind2|hold|long|upset|direct|directblind)
+    attended|park|3way|blind2|hold|long|upset|direct|directblind|outbound)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long, upset, direct or directblind (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long, upset, direct, directblind or outbound (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -208,7 +213,8 @@ fi
 CALLER_NAME=""
 CALLER_NUMBER=""
 if [ -f "$LAB_JSON" ] && command -v jq >/dev/null; then
-    [ -n "$NUMBER" ] || NUMBER=$(jq -r --arg f "$FLOW" '.flows[$f].did // empty' "$LAB_JSON")
+    # outbound: "dial" is the number the agent calls (not a DID of ours).
+    [ -n "$NUMBER" ] || NUMBER=$(jq -r --arg f "$FLOW" '.flows[$f].did // .flows[$f].dial // empty' "$LAB_JSON")
     CALLER_KEY=$(jq -r --arg f "$FLOW" '.flows[$f].caller // empty' "$LAB_JSON")
     if [ -n "$CALLER_KEY" ]; then
         # Caller ID name: the caller's cnam, else their company, else their
@@ -318,6 +324,7 @@ case "$FLOW" in
     upset)    FLOW_SECS=150 ;;
     direct)   FLOW_SECS=70 ;;
     directblind) FLOW_SECS=80 ;;
+    outbound) FLOW_SECS=100 ;;
 esac
 if [ "$KEEP" == "1" ]; then
     REG_LOOPS=${REG_LOOPS:-78}
@@ -415,6 +422,7 @@ PER_DEVICE=0           # 1: each device registers in its own SIPp process
 DEV_UAS=()             # PER_DEVICE: agent scenario per device, same order as DEV_EXTS
 DIAL_SCRIPT=""         # park/3way: script agent A runs to start agent B's dial-in
 DIAL_ONLY_EXT=""       # park/3way: B, which registers only from its dial-in (see below)
+OUTBOUND=0             # outbound: the call is the agent's dial-in, not the inbound UAC
 
 # device_csv <ext>: write a one-line SEQUENTIAL CSV for one device; echo its path.
 device_csv() {
@@ -595,6 +603,25 @@ directblind)
     if [ "$have_a" != "1" ] || [ "$have_b" != "1" ]; then
         echo "ERROR: --flow directblind: $XA and $XB must both be devices in $DEVICE_CSV (rerun build-domain.js)"; exit 1
     fi
+    ;;
+# outbound: a registered agent (lab.json flows.outbound.agent, else the first
+# device) dials $NUMBER (flows.outbound.dial, 18583893763: the core's
+# "Loadgenerator Callback" route to the answer-then-callback UAS on port
+# 5050). The UAS answers with g711u-term (the tier-1 agent's 90s), so the
+# agent plays the matching caller half, g711a-orig, and hangs up after 92s.
+# The agent's dial-in (sipp_uac_agent_dial.xml) registers the device itself
+# and is the call, so no registration process runs. The UAS calls the
+# agent's caller ID back 65s after the call; nothing answers that here.
+outbound)
+    OUTBOUND=1
+    OUT_EXT=$(jq -r '.flows.outbound.agent // empty' "$LAB_JSON" 2>/dev/null)
+    OUT_EXT=${OUT_EXT:-${DEV_EXTS[0]}}
+    OUT_CSV=$(device_csv "$OUT_EXT") || exit 1
+    OUT_UAC="$WORK_DIR/outbound_$OUT_EXT.xml"
+    sed -e "s/__AUDIO__/g711a-orig/g" -e "s/__TALK_MS__/92000/g" \
+        "$BASE_DIR/sipp/scripts/sipp_uac_agent_dial.xml" > "$OUT_UAC"
+    PER_DEVICE=1
+    for i in "${!DEV_EXTS[@]}"; do DEV_UAS[$i]=""; done
     ;;
 # long: ~14 minutes. Agent A (the first device, sipp_uas_long_a.xml) holds
 # twice and blind-transfers to agent B (the second device,
@@ -840,7 +867,11 @@ echo " Manual targeted test"
 echo "   Target:      $SUT$SIP_PORT_ADD_ON ($TRANSPORT)"
 echo "   Devices:     $NUM_DEVICES from $DEVICE_CSV"
 echo "   Number:      $NUMBER  (x$CALL_COUNT per trigger)"
-echo "   Caller ID:   ${CALLER_NAME:-random} ${CALLER_NUMBER}"
+if [ "$OUTBOUND" == "1" ]; then
+    echo "   Caller ID:   $OUT_EXT's own (outbound)"
+else
+    echo "   Caller ID:   ${CALLER_NAME:-random} ${CALLER_NUMBER}"
+fi
 echo "   Local IP:    $PRIVATEIP   Media IP: $MEDIA_IP"
 if [ "$FLOW" == "attended" ]; then
     echo "   Flow:        attended - agent B is $CONSULT (or $CONSULT_ALT when A is $CONSULT)"
@@ -858,6 +889,8 @@ elif [ "$FLOW" == "direct" ]; then
     echo "   Flow:        direct - $NUMBER rings its user directly (no queue); recorded, not transcribed"
 elif [ "$FLOW" == "directblind" ]; then
     echo "   Flow:        directblind - $NUMBER rings $XA directly, who blind-transfers to $XB"
+elif [ "$FLOW" == "outbound" ]; then
+    echo "   Flow:        outbound - $OUT_EXT registers and dials $NUMBER (callback UAS answers)"
 elif [ "$FLOW" == "long" ]; then
     echo "   Flow:        long (~14 min) - $AGENT_A holds twice, transfers to ${DEV_EXTS[1]}, who holds twice"
 elif [ "$FULL_CALL" == "1" ]; then
@@ -1001,7 +1034,31 @@ stop_registrations() {
 
 # --------------------------------------------- 2) inbound call (cron path)
 # Mirrors inbound.sh's sipp invocation; -r/-m pinned for single targeted calls.
+# place_outbound: the agent's dial-in is the call. It runs in the foreground
+# from the agent's first free lab port slot (the UAC's pool ports otherwise).
+place_outbound() {
+    local ts=$(date +%s) sip=$UAC_SIP_PORT media=$UAC_MEDIA_PORT ctrl=$UAC_CONTROL_PORT
+    local stats="$STATS_PATH/manual_outbound_${TRANSPORT}_$$_${ts}.csv"
+    if [ -n "$(lab_port_base "$OUT_EXT")" ]; then
+        pick_lab_slot "$OUT_EXT" || { LAST_CALL_RC=1; return; }
+        sip=$SLOT_SIP; media=$SLOT_MEDIA; ctrl=$SLOT_CTRL
+    fi
+    echo ""
+    echo "[call] $OUT_EXT registers and dials $NUMBER via $SUT (sip=$sip media=$media ctrl=$ctrl) ..."
+    sipp ${SUT}${SIP_PORT_ADD_ON} -sf "$OUT_UAC" -inf "$OUT_CSV" -m 1 -l 1 \
+        -t "$TRANSPORT" $TLS_OPTIONS \
+        -i "$PRIVATEIP" -p "$sip" -cp "$ctrl" -mp "$media" -mi "$PRIVATEIP" \
+        -key dial_ext "$NUMBER" -key ua_version "$UA_VERSION" -recv_timeout 60000 \
+        -trace_stat -stf "$stats" -fd 5 -trace_err -trace_logs -trace_msg
+    LAST_CALL_RC=$?
+    echo "[call] sipp exited with status $LAST_CALL_RC (stats: $stats)"
+}
+
 place_call() {
+    if [ "$OUTBOUND" == "1" ]; then
+        place_outbound
+        return
+    fi
     local ts=$(date +%s)
     local stats="$STATS_PATH/manual_inbound_${TRANSPORT}_$$_${ts}.csv"
     local cap="$WORK_DIR/media_${ts}.pcap"

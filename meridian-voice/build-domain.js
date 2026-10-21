@@ -318,7 +318,7 @@ async function buildFeatures() {
     }
 
     for (const [flow, f] of Object.entries(lab.flows)) {
-        if (direct.has(f.did)) continue;
+        if (!f.did || direct.has(f.did)) continue;   // outbound flows have no DID
         const did = {
             'dial-rule-application': 'to-callqueue',
             'dial-rule-translation-destination-user': lab.queues[0].queue,
@@ -344,7 +344,7 @@ function checkFlowCodes() {
         if (c.name.length > 32) problems.push(`code "${c.name}" is longer than 32 characters (the CDR field limit)`);
     }
     for (const [flow, f] of Object.entries(lab.flows)) {
-        for (const [ext, e] of Object.entries(f.dispositions)) {
+        for (const [ext, e] of Object.entries(f.dispositions || {})) {
             if (!disp.has(e.disposition)) problems.push(`${flow}/${ext}: disposition "${e.disposition}" is not in callcenterCodes.dispositions`);
             if (!reasons.has(e.reason)) problems.push(`${flow}/${ext}: reason "${e.reason}" is not in callcenterCodes.callReasons`);
         }

@@ -76,6 +76,9 @@ if [ "$RC" -ne 0 ]; then
     exit "$RC"
 fi
 
+if [ "$(jq -r --arg f "$FLOW" '.flows[$f].dispositions // empty | length' "$LAB")" == "" ]; then
+    log "$FLOW has no dispositions - no wrap-up"; exit 0
+fi
 cd "$BASE_DIR" || exit 1
 node meridian-voice/disposition-calls.js --server "$SERVER" --flow "$FLOW" --since "$START"
 log "$FLOW wrap-up finished (exit $?)"

@@ -478,6 +478,11 @@
         }
       }
     },
+    "outbound": {
+      "dial": "18583893763",
+      "agent": "2004",
+      "summary": "Outbound: Owen (2004, recorded without transcription) registers and dials 18583893763, the core's 'Loadgenerator Callback' route to the load generator's answer-then-callback UAS (port 5050). The UAS plays the tier-1 agent's 90s; Owen's device plays the matching caller half. Not scheduled; no wrap-up. The UAS calls Owen's caller ID back 65s after the call."
+    },
     "long": {
       "did": "18585551307",
       "time": "12:30",

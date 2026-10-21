@@ -55,6 +55,10 @@ if (!flow || !SINCE) {
     console.error(`usage: disposition-calls.js --server <id> --flow <${Object.keys(lab.flows).join('|')}> --since <epoch seconds>`);
     process.exit(2);
 }
+if (!flow.dispositions || !flow.caller) {
+    console.log(`${FLOW}: no dispositions in lab.json for this flow - nothing to wrap up`);
+    process.exit(0);
+}
 const callerNumber = lab.callers[flow.caller].number;
 const expected = Object.keys(flow.dispositions);
 

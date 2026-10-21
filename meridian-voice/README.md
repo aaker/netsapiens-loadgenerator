@@ -125,6 +125,7 @@ that part of the conversation runs 44 seconds.
 | `blind2` | Priya talks 34s and blind-transfers to Marcus. Marcus talks 30s and blind-transfers to Dana, who talks 44s. | 2001, 2002, 2003 | ~2 min |
 | `hold` | No transfer. Priya and Rosa talk 32s, Priya holds her for a random 20-30s, they talk 35s, she holds again for 20-30s, then they talk 27s. | 2001 | ~2.5 min |
 | `upset` | Bad sentiment. Frank, an angry repeat caller, reports dropped calls for the third time. Priya holds him for 15-25s, finds nothing, can only escalate with a 1-2 day callback and can't give a credit. He threatens to switch providers and hangs up unhappy. | 2001 | ~2.5 min |
+| `outbound` | Owen's device registers and dials 18583893763, which the core's "Loadgenerator Callback" route sends to the load generator's answer-then-callback UAS (port 5050, `sipp/scripts/callback_uas.sh`). The UAS plays the tier-1 agent's 90s and Owen's device plays the matching caller half, then hangs up. 65s later the UAS calls Owen's caller ID (his direct line) back; nothing answers that. Not scheduled, no wrap-up. | 2004 | ~95s |
 | `long` | Priya and Greg cover an office move, voicemail-to-email and more, with small talk and awkward silences. She holds twice (15-25s, 20-30s) and blind-transfers to Marcus, who holds twice more (20-30s each). | 2001, 2002 | ~14 min |
 
 The scripts are in `sipp/scripts/audio/`: `call-script.md` (blind),
