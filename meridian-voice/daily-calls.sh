@@ -2,11 +2,12 @@
 # daily-calls.sh - place one Meridian Voice scripted call, then do the agents'
 # wrap-up (dispositions and notes on the CDRs).
 #
-# Cron runs this at the top of every hour (cron/start_sipp). It reads the
-# current hour in the lab's time zone (lab.json "timeZone", America/Phoenix)
-# and runs the flow whose "hour" matches - 8am direct, 9am blind, ... 4pm
-# upset - so it does not depend on the time zone the box's cron runs in. In
-# other hours it exits quietly.
+# Cron runs this every 30 minutes, at :00 and :30 (cron/start_sipp). It
+# reads the current time in the lab's time zone (lab.json "timeZone",
+# America/Phoenix), rounded down to the half hour, and runs the flow whose
+# "time" matches - 08:00 direct, 08:30 directblind, ... 12:30 long - so it
+# does not depend on the time zone the box's cron runs in. At other times it
+# exits quietly.
 #
 # Usage:
 #   daily-calls.sh                       # cron: this hour's flow, if any
@@ -40,8 +41,9 @@ if ! command -v jq >/dev/null; then
     log "jq is required"; exit 1
 fi
 if [ -z "$FLOW" ]; then
-    HOUR=$(TZ="$(jq -r '.timeZone' "$LAB")" date +%-H)
-    FLOW=$(jq -r --argjson h "$HOUR" '.flows | to_entries[] | select(.value.hour == $h) | .key' "$LAB" | head -1)
+    read -r HOUR MIN < <(TZ="$(jq -r '.timeZone' "$LAB")" date '+%H %-M')
+    SLOT=$(printf '%s:%02d' "$HOUR" $(( MIN < 30 ? 0 : 30 )))
+    FLOW=$(jq -r --arg t "$SLOT" '.flows | to_entries[] | select(.value.time == $t) | .key' "$LAB" | head -1)
     [ -n "$FLOW" ] || exit 0
 fi
 if [ "$(jq -r --arg f "$FLOW" '.flows[$f] // empty | length' "$LAB")" == "" ]; then
@@ -51,8 +53,9 @@ if [ -z "$SERVER" ]; then
     log "no server: set MERIDIAN_VOICE_SERVER in .env or pass --server"; exit 2
 fi
 
-# One run at a time: the long call takes ~14 minutes, well inside the hour,
-# but a manual run could overlap the cron one.
+# One run at a time. A slot is 30 minutes; the long call (~14 minutes) plus
+# its wrap-up can run past that, which is why it has the last slot. A manual
+# run could also overlap a cron one.
 exec 9>/tmp/meridian-voice-daily.lock
 if ! flock -n 9; then
     log "another run is in progress - skipping $FLOW"; exit 0
