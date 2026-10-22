@@ -178,7 +178,7 @@ sipp/scripts/manual_test.sh -s <server> --flow <flow> [-t u1|t1|l1] [-w 5] [--on
 `cron/start_sipp` runs `meridian-voice/daily-calls.sh` every 30 minutes, at :00 and :30:
 
 1. It reads the current time in the lab's time zone (America/Phoenix), rounded down to the half hour, and finds the flow whose `time` in `lab.json` is that slot. At other times it exits quietly.
-2. It runs `manual_test.sh --once` for that flow, using the transport in `lab.json` (`t1`).
+2. It runs `manual_test.sh --once` for that flow, using the transport in `lab.json` (`l1`, TLS to the server's `sipTlsPort`, default 5061).
 3. It runs `disposition-calls.js` for the call that just finished.
 
 The schedule runs one flow every 30 minutes from 8:00 to 12:30. `long` (a

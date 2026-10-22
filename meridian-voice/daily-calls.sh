@@ -61,7 +61,7 @@ if ! flock -n 9; then
     log "another run is in progress - skipping $FLOW"; exit 0
 fi
 
-TRANSPORT=$(jq -r '.transport // "t1"' "$LAB")
+TRANSPORT=$(jq -r '.transport // "l1"' "$LAB")
 START=$(date +%s)
 log "starting $FLOW on $SERVER ($TRANSPORT)"
 

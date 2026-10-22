@@ -6,7 +6,7 @@
   "mainNumber": "18585551301",
   "emailDomain": "meridianvoice.test",
   "recording": "yes-with-transcription-and-sentiment",
-  "transport": "t1",
+  "transport": "l1",
   "ports": {
     "note": "Fixed local ports manual_test.sh registers the lab devices from (not the shared pool), so a binding the core still holds can only ever reach the same device. Each set is the first of 'slots' ports (media: steps of 10); a run takes the first free slot, since a stopped TCP registration leaves its port in TIME_WAIT for ~60s. 'shared' is the single registration process of the blind/park/hold/upset flows. Open these on the box's firewall/NAT like the pool ports.",
     "slots": 5,
