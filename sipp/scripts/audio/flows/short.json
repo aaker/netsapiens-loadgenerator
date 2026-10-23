@@ -1,0 +1,54 @@
+{
+  "name": "short",
+  "voices": {
+    "AGENT1": "aura-asteria-en",
+    "AGENT2": "aura-arcas-en"
+  },
+  "say_voices": {
+    "AGENT1": "Samantha",
+    "AGENT2": "Reed (English (US))"
+  },
+  "sections": [
+    {
+      "length": 7,
+      "tracks": {
+        "AGENT1": "g711a-short-orig1",
+        "AGENT2": "g711a-short-term1"
+      }
+    }
+  ],
+  "turns": [
+    [
+      "AGENT2",
+      "Marcus here."
+    ],
+    [
+      "AGENT1",
+      "Hi, it's Priya. Testing, testing."
+    ],
+    [
+      "AGENT2",
+      "Loud and clear."
+    ],
+    [
+      "AGENT1",
+      "Great. Bye."
+    ]
+  ],
+  "agents": {
+    "sipp_uas_short_b.xml": {
+      "title": "Short internal call, the called agent: answers, says hello, waits for the hang-up",
+      "perDevice": true,
+      "steps": [
+        [
+          "talk",
+          "g711a-short-term1",
+          7
+        ],
+        [
+          "end"
+        ]
+      ]
+    }
+  }
+}

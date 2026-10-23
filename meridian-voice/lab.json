@@ -497,6 +497,10 @@
       "agent": "2004",
       "summary": "Outbound: Owen (2004, recorded without transcription) registers and dials a random load-test number of the server (sipp/csv/servers/<id>/phonenumbers/*.csv). A load-test agent answers with the tier-1 agent's audio; Owen asks a basic question about a ticket and Saturday support hours, then hangs up (40s). Not scheduled; no wrap-up."
     },
+    "short": {
+      "agents": ["2001", "2002"],
+      "summary": "Under 10s: Priya (2001) dials Marcus's extension (2002). 'Marcus here.' / 'Hi, it's Priya. Testing, testing.' / 'Loud and clear.' / 'Great. Bye.' Not scheduled; no wrap-up."
+    },
     "long": {
       "did": "18585551307",
       "time": "12:30",

@@ -127,11 +127,12 @@ that part of the conversation runs 44 seconds.
 | `hold` | No transfer. Priya and Rosa talk 32s, Priya holds her for a random 20-30s, they talk 35s, she holds again for 20-30s, then they talk 27s. | 2001 | ~2.5 min |
 | `upset` | Bad sentiment. Frank, an angry repeat caller, reports dropped calls for the third time. Priya holds him for 15-25s, finds nothing, can only escalate with a 1-2 day callback and can't give a credit. He threatens to switch providers and hangs up unhappy. | 2001 | ~2.5 min |
 | `outbound` | Owen's device registers and dials a random load-test number of the server (`sipp/csv/servers/<id>/phonenumbers/*.csv`, a new one each call; `-n` picks one). A load-test agent answers with the tier-1 agent's audio. Owen asks about a support ticket and Saturday support hours, then hangs up. The two sides aren't scripted together. Not scheduled, no wrap-up. | 2004 | ~40s |
+| `short` | An internal call under 10 seconds. Priya dials Marcus's extension: "Marcus here." / "Hi, it's Priya. Testing, testing." / "Loud and clear." / "Great. Bye." Priya registers and dials from her own dial-in; only Marcus registers to answer. Not scheduled, no wrap-up. | 2001, 2002 | ~9s |
 | `long` | Priya and Greg cover an office move, voicemail-to-email and more, with small talk and awkward silences. She holds twice (15-25s, 20-30s) and blind-transfers to Marcus, who holds twice more (20-30s each). | 2001, 2002 | ~14 min |
 
 The scripts are in `sipp/scripts/audio/`: `call-script.md` (blind),
 `attended-call-script.md`, `park-call-script.md`, and `flows/*.json` for
-`3way`, `blind2`, `hold`, `long`, `upset`, `direct`, `directblind` and `outbound` (Owen's side only) (`direct-call-script.md` is the readable version of `direct`).
+`3way`, `blind2`, `hold`, `long`, `upset`, `direct`, `directblind`, `outbound` (Owen's side only) and `short` (`direct-call-script.md` is the readable version of `direct`).
 
 ### Testing transcription after the call
 
@@ -290,7 +291,7 @@ party's track is silent while the other speaks. The pcaps live in
 | `blind` | `sipp/scripts/audio/generate-call-pcaps.sh` |
 | `attended` | `sipp/scripts/audio/generate-attended-pcaps.sh` |
 | `park` | `sipp/scripts/audio/generate-park-pcaps.sh` |
-| `3way`, `blind2`, `hold`, `long`, `upset`, `direct`, `directblind`, `outbound` | `sipp/scripts/audio/generate-flow-pcaps.py sipp/scripts/audio/flows/<flow>.json` |
+| `3way`, `blind2`, `hold`, `long`, `upset`, `direct`, `directblind`, `outbound`, `short` | `sipp/scripts/audio/generate-flow-pcaps.py sipp/scripts/audio/flows/<flow>.json` |
 
 The JSON specs also define the scripted agents for `hold`, `long`, `upset`, `direct` and `directblind`. After
 editing one, run `sipp/scripts/gen-agent-scenario.py` on it.

@@ -77,6 +77,9 @@
 #                                     dials a random load-test number of
 #                                     the server (phonenumbers CSVs), or
 #                                     -n, and asks a basic question.
+#                           short     < 10s internal call: agent A (lab:
+#                                     2001) dials agent B's extension
+#                                     (2002); hello, testing, bye.
 #                         attended, 3way and blind2 register each device in
 #                         its own SIPp process. --talk/--full-call/
 #                         --no-full-call apply to blind only.
@@ -126,6 +129,7 @@
 #   ./manual_test.sh -s prod1 --flow direct            # direct number to 2004, recorded, not transcribed
 #   ./manual_test.sh -s prod1 --flow directblind       # 2004's direct number, blind transfer to 2005
 #   ./manual_test.sh -s prod1 --flow outbound          # 2004 dials a random load-test number
+#   ./manual_test.sh -s prod1 --flow short             # 2001 calls 2002: "hello, testing", < 10s
 #
 # The devices register just before each call and are stopped a few seconds
 # after it, so nothing stays registered between calls. Each registration is
@@ -194,12 +198,12 @@ done
 
 case "$FLOW" in
     ""|blind) FLOW="blind" ;;
-    attended|park|3way|blind2|hold|long|upset|direct|directblind|outbound)
+    attended|park|3way|blind2|hold|long|upset|direct|directblind|outbound|short)
         if [ -n "$TALK" ] || [ -n "$FULL_CALL_FLAG" ]; then
             echo "ERROR: --talk/--full-call/--no-full-call apply to the blind flow only"; exit 1
         fi
         FULL_CALL=0 ;;
-    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long, upset, direct, directblind or outbound (got '$FLOW')"; exit 1 ;;
+    *) echo "ERROR: --flow must be blind, attended, park, 3way, blind2, hold, long, upset, direct, directblind, outbound or short (got '$FLOW')"; exit 1 ;;
 esac
 # The caller falls back to the pickup audio 32s after it is parked, so the
 # park has to end well before that.
@@ -226,6 +230,10 @@ fi
 # outbound: each call dials a random load-test number of this server (see
 # place_outbound) unless -n names one.
 [ "$FLOW" == "outbound" ] && [ -z "$NUMBER" ] && NUMBER=random
+# short: agent A dials agent B's extension (lab.json flows.short.agents).
+if [ "$FLOW" == "short" ] && [ -z "$NUMBER" ]; then
+    NUMBER=$(jq -r '.flows.short.agents[1] // empty' "$LAB_JSON" 2>/dev/null)
+fi
 if [ -z "$DEVICE_CSV" ] || [ -z "$NUMBER" ]; then
     echo "ERROR: need a device CSV (-f) and a number (-n, or the flow's DID in meridian-voice/lab.json; requires jq)"
     exit 1
@@ -327,6 +335,7 @@ case "$FLOW" in
     direct)   FLOW_SECS=70 ;;
     directblind) FLOW_SECS=80 ;;
     outbound) FLOW_SECS=100 ;;
+    short)    FLOW_SECS=30 ;;
 esac
 if [ "$KEEP" == "1" ]; then
     REG_LOOPS=${REG_LOOPS:-78}
@@ -625,6 +634,32 @@ outbound)
     PER_DEVICE=1
     for i in "${!DEV_EXTS[@]}"; do DEV_UAS[$i]=""; done
     ;;
+# short: an internal call under 10s. Agent A (lab.json flows.short.agents[0],
+# else the first device) registers and dials agent B's extension ($NUMBER,
+# agents[1]) from its own dial-in, plays g711a-short-orig1 and hangs up after
+# 7s; B (sipp_uas_short_b.xml) answers and plays its 7s. Only B registers in
+# a registration process (A must not: see the park flow).
+short)
+    OUTBOUND=1
+    OUT_EXT=$(jq -r '.flows.short.agents[0] // empty' "$LAB_JSON" 2>/dev/null)
+    OUT_EXT=${OUT_EXT:-${DEV_EXTS[0]}}
+    [ "$OUT_EXT" != "$NUMBER" ] || { echo "ERROR: --flow short: agent A and B are both $OUT_EXT"; exit 1; }
+    OUT_CSV=$(device_csv "$OUT_EXT") || exit 1
+    OUT_UAC="$WORK_DIR/short_$OUT_EXT.xml"
+    sed -e "s/__AUDIO__/g711a-short-orig1/g" -e "s/__TALK_MS__/7000/g" \
+        "$BASE_DIR/sipp/scripts/sipp_uac_agent_dial.xml" > "$OUT_UAC"
+    PER_DEVICE=1
+    have_b=0
+    for i in "${!DEV_EXTS[@]}"; do
+        DEV_UAS[$i]=""
+        if [ "${DEV_EXTS[$i]}" == "$NUMBER" ]; then
+            DEV_UAS[$i]="$WORK_DIR/uas_short_$NUMBER.xml"
+            fill_agent "$BASE_DIR/sipp/scripts/sipp_uas_short_b.xml" "$NUMBER" "${DEV_UAS[$i]}"
+            have_b=1
+        fi
+    done
+    [ "$have_b" == "1" ] || { echo "ERROR: --flow short: $NUMBER is not a device in $DEVICE_CSV"; exit 1; }
+    ;;
 # long: ~14 minutes. Agent A (the first device, sipp_uas_long_a.xml) holds
 # twice and blind-transfers to agent B (the second device,
 # sipp_uas_long_b.xml), who holds twice more. Both are generated from
@@ -893,6 +928,8 @@ elif [ "$FLOW" == "directblind" ]; then
     echo "   Flow:        directblind - $NUMBER rings $XA directly, who blind-transfers to $XB"
 elif [ "$FLOW" == "outbound" ]; then
     echo "   Flow:        outbound - $OUT_EXT registers and dials $([ "$NUMBER" == "random" ] && echo "a random number from $OUT_NUM_DIR" || echo "$NUMBER")"
+elif [ "$FLOW" == "short" ]; then
+    echo "   Flow:        short - $OUT_EXT calls extension $NUMBER: hello, testing, bye (< 10s)"
 elif [ "$FLOW" == "long" ]; then
     echo "   Flow:        long (~14 min) - $AGENT_A holds twice, transfers to ${DEV_EXTS[1]}, who holds twice"
 elif [ "$FULL_CALL" == "1" ]; then
